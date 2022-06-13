@@ -78,7 +78,7 @@
 <figure>
 <div style="text-align:center">
 <img src="https://madhuakula.com/content/linux-security-internals/static/mmu1.gif" alt="" style="width:100%; background: rgba(255, 255, 255, .5)">
-<figcaption><b>Fig.1 CPU，MMU，DRsAM[1]</b></figcaption>
+<figcaption><b>Fig.1 CPU，MMU，DRAM[1]</b></figcaption>
 </div>
 </figure>
 <p>    xv6跑在<em>Sv39 RISC-V</em>处理器上（虚拟机），这个处理器指使用64bits VA中的后39位。其中前27位用来作为<strong>分页表项（PTE：Page table entries）<strong>的</strong>索引（Index）</strong>，所以一个PT最多可以有<code>2^27</code>个PTE。而后12位被用来当做偏移量（剩余的bits用来为未来可能的硬件升级做准备）。每个有效的PTE包含一个44bits的<strong>PPN：Physical page number</strong>和10bits的各种用来限定这个页的权限。</p>
