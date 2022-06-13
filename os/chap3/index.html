@@ -11,7 +11,7 @@
 <meta itemprop="description" content="目录   导言  3.1 分页硬件 Paging hardware  3.2 内核用户空间 Kernel address space  3.3 新建内存空间 Creating an address space  3.4 物理内存分配 Physical memory allocation  3.5 物理内存分配器 Physical memory allocator  3.6 进程内存空间 Process address space  3.7 增长/缩小内存空间 Sbrk  3.8 exec 系统调用 Exec  3.9 练习 Exercises   导言：  每个进程都有自己的分页表（PT：Page table）。通过分页表（PT：Page table），kernel可以为一个进程创建私有的内存空间：每个虚拟内存地址（VA：Virtual adress） 都有对应着的物理内存地址（PA：Physical address）。对于进程来说，他在使用这一段连续的VA，但是这些VA在DRAM中的映射的物理内存地址则不一定连续。PT告诉分页硬件一个VA代表着什么，指向哪里。
  3.1 分页硬件 Paging hardware  在计算机中虚拟内存（VM：Virtual memory） 的实现是由硬件支持的，这个硬件通常被叫做内存管理单元（MMU：Memory management unit）。CPU的指令通常使用VM：当它使用某一个VA的时候，MMU会把这个VA翻译成PA，然后执行这个PA里的指令或者读取/写入这个PA里的内容。"><meta itemprop="datePublished" content="2022-06-12T10:15:51-04:00" />
 <meta itemprop="dateModified" content="2022-06-12T10:15:51-04:00" />
-<meta itemprop="wordCount" content="124">
+<meta itemprop="wordCount" content="125">
 <meta itemprop="keywords" content="" /><meta property="og:title" content="Chap 3：分页表 Page tables" />
 <meta property="og:description" content="目录   导言  3.1 分页硬件 Paging hardware  3.2 内核用户空间 Kernel address space  3.3 新建内存空间 Creating an address space  3.4 物理内存分配 Physical memory allocation  3.5 物理内存分配器 Physical memory allocator  3.6 进程内存空间 Process address space  3.7 增长/缩小内存空间 Sbrk  3.8 exec 系统调用 Exec  3.9 练习 Exercises   导言：  每个进程都有自己的分页表（PT：Page table）。通过分页表（PT：Page table），kernel可以为一个进程创建私有的内存空间：每个虚拟内存地址（VA：Virtual adress） 都有对应着的物理内存地址（PA：Physical address）。对于进程来说，他在使用这一段连续的VA，但是这些VA在DRAM中的映射的物理内存地址则不一定连续。PT告诉分页硬件一个VA代表着什么，指向哪里。
  3.1 分页硬件 Paging hardware  在计算机中虚拟内存（VM：Virtual memory） 的实现是由硬件支持的，这个硬件通常被叫做内存管理单元（MMU：Memory management unit）。CPU的指令通常使用VM：当它使用某一个VA的时候，MMU会把这个VA翻译成PA，然后执行这个PA里的指令或者读取/写入这个PA里的内容。" />
@@ -161,7 +161,7 @@
 <br>
 <br>
 <br>
-<hr>
+<p>&mdash;s</p>
 <br>
 <br>
 <br>
