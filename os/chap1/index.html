@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh-hans">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta http-equiv="X-UA-Compatible" content="ie=edge">
+	<meta name="theme-color" content="#494f5c">
+	<meta name="msapplication-TileColor" content="#494f5c">
+<meta itemprop="name" content="Chap 1: 操作系统接口程序 Operating system interfaces">
+<meta itemprop="description" content="目录  导言 1.1 进程与内存 1.2 I/O 与 文件描述符 1.3 管道命令 1.4 文件系统 1.5 练习   导言：  操作系统的工作是去让多个程序共享一台电脑且提供硬件单独无法提供的服务。操作系统本身可以看作一个程序与硬件，程序与程序之间中转站：例如一个文本编辑器不需要去关心它应当把数据放到磁盘的哪个部位，也不需要关心怎么让另一个程序读到它生成的文本——这些都是操作系统去关心的问题。
+ MIT 6.S081/Fall 2020 课程基于xv6操作系统教学。
+ xv6系统简介[1]：  xv6是由ANSI C编写，使用x86与RISC-V指令集操作系统（本教材使用RISC-V）。它的前身是第六代Unix，即V6。课程使用的是现代重新实现后xv6，其整体相比Unix/Linux十分简单，自2006年被广泛使用于教学目的。
+ xv6中的 内核（Kernel），一种特殊的程序，提供给人们 接口（Interface） 和它交互。
+ Fig.1 关系图   当一个进程（Process）使用kernel提供的服务/接口的时候，该进程实际上出发了一个系统调用（System call）。
+ 本章着眼于介绍进程，内存，文件标识符，管道命令，以及文件系统的 UI（User Interface） 的使用。如果说kernel是硬件与程序之间的桥梁，那么shell，也就是用户接口/UI， 则是用户与计算机交互的桥梁。Shell本质上只是一个很“普通”的程序：对于同一个操作系统，人们开发出了很多shell，例如Mac OS用户主流使用的zsh以及bash。相比于其他系统，xv6所使用的shell十分简单。
+ 1.1 进程与内存  进程（Process），即“正在运行的程序”，依存于内存（Memory）。一个进程使用两部分内存：第一个部分是用户空间（user-space memory），包括指令，数据，堆栈等我们在计算机组成中熟知的“进程内存布局”中的元素；第二个部分是内核空间/内核态（per-process state），这部分内存只有kernel可见。
+ xv6，如同大多操作系统，采用了分时系统（Time-share）。在这种系统中，OS会分配可用的CPU资源给正在等待执行的进程。每一个进程都有属于自己的进程标识符PID（Process Identifier）[2]。 通过PID,可以实现调整进程的优先级或者杀死进程（kill）。下面主要介绍一些系统调用（System call）。这些调用是通过特定的指令/函数实现的，可以让程序在用户空间向kernel申请使用更高权限的服务。C语言由封装了这些调用的库，其中的方法同名于这些调用。
+ fork()：在一个进程中使用fork()，可以让该进程“分支”出一个子进程：前者称为父进程（Parent process/Calling process），后者称为子进程（Child process）。子进程与父进程有一模一样的内存布局，但是两者的内存是相隔开的。当调用fork()之后，父进程与子进程同时运行：也就是说父进程并不会默认等待子进程运行结束。除了创建子进程，在fork()被调用后，它会在父进程中返回子进程的PID，而在子进程中则会返回0.
+int pid = fork(); //父进程中，变量pid的值将会是一个唯一数字，代表子进程的PID  //而在子进程的内存中，这个变量的值是0 if(pid &gt; 0){ //这里检测当前进程是否为父进程 printf(&#34;parent: child=%d\n&#34;, pid); ."><meta itemprop="datePublished" content="2022-06-04T08:52:06+04:00" />
+<meta itemprop="dateModified" content="2022-06-04T08:52:06+04:00" />
+<meta itemprop="wordCount" content="493">
+<meta itemprop="keywords" content="" /><meta property="og:title" content="Chap 1: 操作系统接口程序 Operating system interfaces" />
+<meta property="og:description" content="目录  导言 1.1 进程与内存 1.2 I/O 与 文件描述符 1.3 管道命令 1.4 文件系统 1.5 练习   导言：  操作系统的工作是去让多个程序共享一台电脑且提供硬件单独无法提供的服务。操作系统本身可以看作一个程序与硬件，程序与程序之间中转站：例如一个文本编辑器不需要去关心它应当把数据放到磁盘的哪个部位，也不需要关心怎么让另一个程序读到它生成的文本——这些都是操作系统去关心的问题。
+ MIT 6.S081/Fall 2020 课程基于xv6操作系统教学。
+ xv6系统简介[1]：  xv6是由ANSI C编写，使用x86与RISC-V指令集操作系统（本教材使用RISC-V）。它的前身是第六代Unix，即V6。课程使用的是现代重新实现后xv6，其整体相比Unix/Linux十分简单，自2006年被广泛使用于教学目的。
+ xv6中的 内核（Kernel），一种特殊的程序，提供给人们 接口（Interface） 和它交互。
+ Fig.1 关系图   当一个进程（Process）使用kernel提供的服务/接口的时候，该进程实际上出发了一个系统调用（System call）。
+ 本章着眼于介绍进程，内存，文件标识符，管道命令，以及文件系统的 UI（User Interface） 的使用。如果说kernel是硬件与程序之间的桥梁，那么shell，也就是用户接口/UI， 则是用户与计算机交互的桥梁。Shell本质上只是一个很“普通”的程序：对于同一个操作系统，人们开发出了很多shell，例如Mac OS用户主流使用的zsh以及bash。相比于其他系统，xv6所使用的shell十分简单。
+ 1.1 进程与内存  进程（Process），即“正在运行的程序”，依存于内存（Memory）。一个进程使用两部分内存：第一个部分是用户空间（user-space memory），包括指令，数据，堆栈等我们在计算机组成中熟知的“进程内存布局”中的元素；第二个部分是内核空间/内核态（per-process state），这部分内存只有kernel可见。
+ xv6，如同大多操作系统，采用了分时系统（Time-share）。在这种系统中，OS会分配可用的CPU资源给正在等待执行的进程。每一个进程都有属于自己的进程标识符PID（Process Identifier）[2]。 通过PID,可以实现调整进程的优先级或者杀死进程（kill）。下面主要介绍一些系统调用（System call）。这些调用是通过特定的指令/函数实现的，可以让程序在用户空间向kernel申请使用更高权限的服务。C语言由封装了这些调用的库，其中的方法同名于这些调用。
+ fork()：在一个进程中使用fork()，可以让该进程“分支”出一个子进程：前者称为父进程（Parent process/Calling process），后者称为子进程（Child process）。子进程与父进程有一模一样的内存布局，但是两者的内存是相隔开的。当调用fork()之后，父进程与子进程同时运行：也就是说父进程并不会默认等待子进程运行结束。除了创建子进程，在fork()被调用后，它会在父进程中返回子进程的PID，而在子进程中则会返回0.
+int pid = fork(); //父进程中，变量pid的值将会是一个唯一数字，代表子进程的PID  //而在子进程的内存中，这个变量的值是0 if(pid &gt; 0){ //这里检测当前进程是否为父进程 printf(&#34;parent: child=%d\n&#34;, pid); ." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://hoooao.github.io/os/chap1/" /><meta property="article:section" content="os" />
+<meta property="article:published_time" content="2022-06-04T08:52:06+04:00" />
+<meta property="article:modified_time" content="2022-06-04T08:52:06+04:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Chap 1: 操作系统接口程序 Operating system interfaces"/>
+<meta name="twitter:description" content="目录  导言 1.1 进程与内存 1.2 I/O 与 文件描述符 1.3 管道命令 1.4 文件系统 1.5 练习   导言：  操作系统的工作是去让多个程序共享一台电脑且提供硬件单独无法提供的服务。操作系统本身可以看作一个程序与硬件，程序与程序之间中转站：例如一个文本编辑器不需要去关心它应当把数据放到磁盘的哪个部位，也不需要关心怎么让另一个程序读到它生成的文本——这些都是操作系统去关心的问题。
+ MIT 6.S081/Fall 2020 课程基于xv6操作系统教学。
+ xv6系统简介[1]：  xv6是由ANSI C编写，使用x86与RISC-V指令集操作系统（本教材使用RISC-V）。它的前身是第六代Unix，即V6。课程使用的是现代重新实现后xv6，其整体相比Unix/Linux十分简单，自2006年被广泛使用于教学目的。
+ xv6中的 内核（Kernel），一种特殊的程序，提供给人们 接口（Interface） 和它交互。
+ Fig.1 关系图   当一个进程（Process）使用kernel提供的服务/接口的时候，该进程实际上出发了一个系统调用（System call）。
+ 本章着眼于介绍进程，内存，文件标识符，管道命令，以及文件系统的 UI（User Interface） 的使用。如果说kernel是硬件与程序之间的桥梁，那么shell，也就是用户接口/UI， 则是用户与计算机交互的桥梁。Shell本质上只是一个很“普通”的程序：对于同一个操作系统，人们开发出了很多shell，例如Mac OS用户主流使用的zsh以及bash。相比于其他系统，xv6所使用的shell十分简单。
+ 1.1 进程与内存  进程（Process），即“正在运行的程序”，依存于内存（Memory）。一个进程使用两部分内存：第一个部分是用户空间（user-space memory），包括指令，数据，堆栈等我们在计算机组成中熟知的“进程内存布局”中的元素；第二个部分是内核空间/内核态（per-process state），这部分内存只有kernel可见。
+ xv6，如同大多操作系统，采用了分时系统（Time-share）。在这种系统中，OS会分配可用的CPU资源给正在等待执行的进程。每一个进程都有属于自己的进程标识符PID（Process Identifier）[2]。 通过PID,可以实现调整进程的优先级或者杀死进程（kill）。下面主要介绍一些系统调用（System call）。这些调用是通过特定的指令/函数实现的，可以让程序在用户空间向kernel申请使用更高权限的服务。C语言由封装了这些调用的库，其中的方法同名于这些调用。
+ fork()：在一个进程中使用fork()，可以让该进程“分支”出一个子进程：前者称为父进程（Parent process/Calling process），后者称为子进程（Child process）。子进程与父进程有一模一样的内存布局，但是两者的内存是相隔开的。当调用fork()之后，父进程与子进程同时运行：也就是说父进程并不会默认等待子进程运行结束。除了创建子进程，在fork()被调用后，它会在父进程中返回子进程的PID，而在子进程中则会返回0.
+int pid = fork(); //父进程中，变量pid的值将会是一个唯一数字，代表子进程的PID  //而在子进程的内存中，这个变量的值是0 if(pid &gt; 0){ //这里检测当前进程是否为父进程 printf(&#34;parent: child=%d\n&#34;, pid); ."/>
+
+	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+	<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+	<link rel="manifest" href="/site.webmanifest">
+	<link rel="mask-icon" href="/safari-pinned-tab.svg" color="">
+	<link rel="shortcut icon" href="/favicon.ico">
+
+	<title>Chap 1: 操作系统接口程序 Operating system interfaces</title>
+	<link rel="stylesheet" href="https://hoooao.github.io/css/style.min.6b1219507aa24bcc2a46f4f7071edbc5dc448ba85934d68c4af0ca0a7ad89dcd.css" integrity="sha256-axIZUHqiS8wqRvT3Bx7bxdxEi6hZNNaMSvDKCnrYnc0=" crossorigin="anonymous">
+	<style>.bg-img {background-image: url('https://images.unsplash.com/photo-1531265726475-52ad60219627?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=2691&q=80');}</style>
+</head>
+
+<body id="page">
+	
+	<div class="bg-img"></div>
+	<main class="site-main section-inner animated fadeIn faster">
+		<article class="thin">
+			<header class="post-header">
+				<div class="post-meta"><span>Jun 4, 2022</span></div>
+				<h1>Chap 1: 操作系统接口程序 Operating system interfaces</h1>
+			</header>
+			<div class="content">
+				<h2 id="目录">目录<a href="#目录" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<ul>
+<li><a href="#%E5%AF%BC%E8%A8%80">导言</a></li>
+<li><a href="#11-%E8%BF%9B%E7%A8%8B%E4%B8%8E%E5%86%85%E5%AD%98">1.1 进程与内存</a></li>
+<li><a href="#12-io-%E4%B8%8E-%E6%96%87%E4%BB%B6%E6%8F%8F%E8%BF%B0%E7%AC%A6">1.2 I/O 与 文件描述符</a></li>
+<li><a href="#13-%E7%AE%A1%E9%81%93%E5%91%BD%E4%BB%A4">1.3 管道命令</a></li>
+<li><a href="#14-%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9F">1.4 文件系统</a></li>
+<li><a href="#15-%E7%BB%83%E4%B9%A0">1.5 练习</a></li>
+</ul>
+<br>
+<hr>
+<br>
+<h2 id="导言">导言：<a href="#导言" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    操作系统的工作是去让多个程序共享一台电脑且提供硬件单独无法提供的服务。操作系统本身可以看作一个程序与硬件，程序与程序之间中转站：例如一个文本编辑器不需要去关心它应当把数据放到磁盘的哪个部位，也不需要关心怎么让另一个程序读到它生成的文本——这些都是操作系统去关心的问题。</p>
+<p>     MIT 6.S081/Fall 2020 课程基于<strong>xv6</strong>操作系统教学。</p>
+<blockquote>
+<h3 id="xv6系统简介1">xv6系统简介[1]：<a href="#xv6系统简介1" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h3>
+<p>    xv6是由ANSI C编写，使用x86与RISC-V指令集操作系统（本教材使用RISC-V）。它的前身是第六代Unix，即V6。课程使用的是现代重新实现后xv6，其整体相比Unix/Linux十分简单，自2006年被广泛使用于教学目的。</p>
+</blockquote>
+<p>xv6中的 <strong>内核（Kernel）</strong>，一种特殊的程序，提供给人们 <strong>接口（Interface）</strong> 和它交互。</p>
+<figure>
+<div style="text-align:center">
+<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/8f/Kernel_Layout.svg/1920px-Kernel_Layout.svg.png" alt="" style="width:40%">
+<figcaption><b>Fig.1 关系图</b></figcaption>
+</div>
+</figure>
+<p>当一个<strong>进程（Process）<strong>使用kernel提供的服务/接口的时候，该进程实际上出发了一个</strong>系统调用（System call）</strong>。</p>
+<p>    本章着眼于介绍进程，内存，文件标识符，管道命令，以及文件系统的 <strong>UI（User Interface）</strong> 的使用。如果说kernel是硬件与程序之间的桥梁，那么<strong>shell</strong>，也就是用户接口/UI， 则是用户与计算机交互的桥梁。Shell本质上只是一个很“普通”的程序：对于同一个操作系统，人们开发出了很多shell，例如Mac OS用户主流使用的zsh以及bash。相比于其他系统，xv6所使用的shell十分简单。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="11-进程与内存">1.1 进程与内存<a href="#11-进程与内存" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>     <strong>进程（Process）</strong>，即“正在运行的程序”，依存于<strong>内存（Memory）</strong>。一个进程使用两部分内存：第一个部分是<strong>用户空间（user-space memory）</strong>，包括指令，数据，堆栈等我们在计算机组成中熟知的“进程内存布局”中的元素；第二个部分是<strong>内核空间/内核态（per-process state）</strong>，这部分内存只有kernel可见。</p>
+<p>    xv6，如同大多操作系统，采用了<strong>分时系统（Time-share）</strong>。在这种系统中，OS会分配可用的CPU资源给正在等待执行的进程。每一个进程都有属于自己的<strong>进程标识符PID（Process Identifier）[2]</strong>。 通过PID,可以实现调整进程的优先级或者杀死进程（kill）。下面主要介绍一些<strong>系统调用（System call）</strong>。这些调用是通过特定的指令/函数实现的，可以让程序在用户空间向kernel申请使用更高权限的服务。C语言由封装了这些调用的库，其中的方法同名于这些调用。</p>
+<p>    <code>fork()</code>：在一个进程中使用<code>fork()</code>，可以让该进程“分支”出一个子进程：前者称为<strong>父进程（Parent process/Calling process）</strong>，后者称为<strong>子进程（Child process）</strong>。子进程与父进程有一模一样的内存布局，但是两者的内存是相隔开的。当调用<code>fork()</code>之后，父进程与子进程同时运行：也就是说父进程并不会默认等待子进程运行结束。除了创建子进程，在<code>fork()</code>被调用后，它会在父进程中返回子进程的PID，而在子进程中则会返回0.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">int</span> <span class="n">pid</span> <span class="o">=</span> <span class="n">fork</span><span class="p">();</span> <span class="c1">//父进程中，变量pid的值将会是一个唯一数字，代表子进程的PID
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>                  <span class="c1">//而在子进程的内存中，这个变量的值是0
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">if</span><span class="p">(</span><span class="n">pid</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">){</span>      <span class="c1">//这里检测当前进程是否为父进程
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="n">printf</span><span class="p">(</span><span class="s">&#34;parent: child=%d</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">pid</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">...</span>
+</span></span></code></pre></div><p>    <code>exit(status)</code>：当在一个进程中调用<code>exit()</code>，这个进程会“正常终止”。正常终止会自动关闭该进程的一切资源，比如分配的内存空间，曾打开的文件等（PS：反之也存在“非正常终止”）。<code>exit()</code>可以接受一个数字作为参数，来代表终止时的状态：通常0代表成功退出，1代表失败推出（与(非)正常终止无关）。</p>
+<p>    <code>wait(*status)</code>：如上述，父子进程会同时运行，但是有时我们希望子进程运行完毕之后父进程再继续运行，这时就需要<code>wait()</code>系统调用。假设一个父进程A有一个子进程a，在A使用<code>wait()</code>后，它会停止运行开始等待a运行完毕。当a exit或被kill，<code>wait()</code>在A返回a的PID，A继续运行。<code>wait()</code>接受一个指针类型的参数，当子进程运行完毕，子进程的退出状态会被放到指针中，如果不关心退出状态，可以填入参数0。值得注意的是，<code>wait()</code>只能“wait”一个子进程：这不是说当计划使用<code>wait()</code>的时候，我们只能创建一个子进程，而是说当一个父进程的众多子进程中的一个终止后，<code>wait()</code>便返回该子进程的PID，父进程与剩余的子进程继续运行。当当前进程没有子进程时，<code>wait()</code>返回0.我们可以运用这一特性来“wait”所有子进程：<code>while ((wpid = wait(&amp;status)) &gt; 0);</code>[3]</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="p">...</span><span class="c1">//接上一个例子
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">pid</span> <span class="o">=</span> <span class="n">wait</span><span class="p">((</span><span class="kt">int</span> <span class="o">*</span><span class="p">)</span> <span class="mi">0</span><span class="p">);</span>             <span class="c1">//进入等待状态
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">printf</span><span class="p">(</span><span class="s">&#34;child %d is done</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">pid</span><span class="p">);</span> <span class="c1">//子进程结束
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span> <span class="k">else</span> <span class="k">if</span><span class="p">(</span><span class="n">pid</span> <span class="o">==</span> <span class="mi">0</span><span class="p">){</span>                   <span class="c1">//这里判断当前进程是否为子进程
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">printf</span><span class="p">(</span><span class="s">&#34;child: exiting</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">);</span> 
+</span></span><span class="line"><span class="cl">    <span class="n">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>                           <span class="c1">//正常退出
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="n">printf</span><span class="p">(</span><span class="s">&#34;fork error</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">);</span> 
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>    <code>exec(filePath, argv[])</code>:这个调用实现在进程A中开启进程B。<code>exec()</code>接受两个参数：进程B的文件路径与一个包含B所需的参数的数组。在xv6中，使用 <strong>ELF（Executable and Linkable Format）</strong> 文件格式作为目标程序的格式（第三章内容）。当A使用了这个调用，B会被加载，将其A替换（并不是直接替换内存空间，只是会为B新建内存，并且抛弃A的内存）。<code>exec()</code>运行完毕后并不会继续运行A的下一条指令：因为，在被B替代后，A已经完全不存在了。注：C语言的库中不包含<code>exec()</code>，但是有<code>execvp()</code>等使用<code>exec</code>系统调用的函数。这里使用的<code>exec()</code>是xv6封装的一个函数。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="c1">//进程A
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kt">char</span> <span class="o">*</span><span class="n">argv</span><span class="p">[</span><span class="mi">3</span><span class="p">];</span> 
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="s">&#34;B&#34;</span><span class="p">;</span>                  <span class="c1">//传统上，作为参数传入的数组第一个元素为程序名
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="s">&#34;hello&#34;</span><span class="p">;</span> 
+</span></span><span class="line"><span class="cl"><span class="n">argv</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>                    <span class="c1">//当遍历到0时，遍历自动停止
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="n">exec</span><span class="p">(</span><span class="s">&#34;/bin/B&#34;</span><span class="p">,</span> <span class="n">argv</span><span class="p">);</span>           <span class="c1">//意为：打开&#34;/bin&#34;下的B程序，并给予其argv中的参数
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="n">printf</span><span class="p">(</span><span class="s">&#34;exec error</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">);</span>         <span class="c1">//假如exec成功运行，这条代码不会运行
+</span></span></span></code></pre></div><p>基于这一特性，可以实现真正的“在进程C中开启进程D”，而非被后者代替。实际上shell使用这一特性，使得用户可以在shell，这一“普通”进程，中开启其他进程: 在此过程中，上述的<code>fork(), wait()</code>也都有被使用：<a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv//user/sh.c#L145">main (user/sh.c:145)</a>：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="c1">//shell的main源码的一部分
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl"><span class="p">...</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// Read and run input commands. 
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">while</span><span class="p">(</span><span class="n">getcmd</span><span class="p">(</span><span class="n">buf</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">buf</span><span class="p">))</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">){</span>  
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="p">......</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">//省略对cd指令的判断部分
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="p">......</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">fork1</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> 
+</span></span><span class="line"><span class="cl">        <span class="n">runcmd</span><span class="p">(</span><span class="n">parsecmd</span><span class="p">(</span><span class="n">buf</span><span class="p">));</span> 
+</span></span><span class="line"><span class="cl">    <span class="n">wait</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span> 
+</span></span><span class="line"><span class="cl">    <span class="p">}</span> 
+</span></span><span class="line"><span class="cl">    <span class="n">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span> 
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span></code></pre></div><p>最外层的<code>while</code>获取到输入的指令，<code>fork()</code>创建了一个子进程：这个进程为目标的进程开启了一个“壳子”。换句话说，这个子进程只是开启一个新进程的消耗品，因为它会在未来运行<code>exec</code>后完全变成目标新进程。子进程通过<code>runcmd()</code>获取到了输入的指令，通过一系列判断，会识别出这一指令是否是为了运行一个新进程。之后在<code>runcmd()</code>中，<code>exec()</code>会被调用，最终该子进程会被转变为目标进程。</p>
+<p><strong>思考：</strong> 既然<code>fork()</code>之后总是使用<code>exec()</code>，为什么不把它们两个合并成一个函数？</p>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<h2 id="12-io-与-文件描述符">1.2 I/O 与 文件描述符<a href="#12-io-与-文件描述符" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>     <strong>文件描述符（File descriptor）</strong> 是很小的数字索引值，该值代表一个被kernel管理/维护的<em>Object</em>，这个“Object”可以是文件，目录，设备等，可以抽象地理解为“文件”。一个进程可以通过fd来与目标“文件”读写。每个进程都有属于自己的<strong>文件描述符表（File descriptor table）</strong>，它记录着这个进程的所有fd。通常来讲，fd=0所指向的“文件”是输入文件，1所指向的是输出文件，2指向的是输出报错信息的文件——三者组成<strong>I/O（Input/Output）</strong>。默认情况下，三者都指向<strong>控制台（console）</strong>（在现代计算机中，终端和控制台的界限比较模糊，可以粗糙地类比理解[4]）。本节介绍I/O 与 文件描述符相关的系统调用。</p>
+<p>    <code>read(fd, buf, n)</code>: <code>read()</code>函数需要三个参数，分别为一个fd，一个buffer（指针），和单次读取的最大byte量n。该函数的运行过程解释为：从fd所指向的“文件”中单次最多读取n个byte并复制这些数据到buf指向的内存空间中，最后返回本次读取的bytes量。通常返回的bytes个数=n，除非剩余可以读的bytes个数 &lt; n。若已经读到了“文件”末尾，返回0。</p>
+<p>     每一个fd所指向的文件本身都有一个<strong>偏移量（offset）</strong>。这个偏移量的作用是记录当前位置，标记其为下一次读写的起始位置。比如一个文件中有一个字符串<code>&quot;Apple&quot;</code>，那么在最开始，偏移量 = 0。加入调用<code>read()</code>读取这个字符串，n = 2，那么<code>Ap</code>会被复制到一个buffer中，偏移量 + 2，下次的读写将从第2个<code>p</code>开始。</p>
+<p>     <code>write(fd, buf, n)</code>: 它从buf中读取最多n个bytes并写入fd中，返回读取的byte个数。他也同样遵守偏移量。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">char</span> <span class="n">buf</span><span class="p">[</span><span class="mi">512</span><span class="p">];</span> 
+</span></span><span class="line"><span class="cl"><span class="kt">int</span> <span class="n">n</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">for</span><span class="p">(;;){</span>    <span class="c1">//从fd = 0指向的“文件”读取数据，每次最多读512bytes
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">n</span> <span class="o">=</span> <span class="n">read</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">buf</span><span class="p">,</span> <span class="k">sizeof</span> <span class="n">buf</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">n</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>       <span class="c1">//一直读取，直到read返回0，即到文件末尾
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="k">break</span><span class="p">;</span> 
+</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">n</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">        <span class="n">fprintf</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s">&#34;read error</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span> 
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">write</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">buf</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span> <span class="o">!=</span> <span class="n">n</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">        <span class="n">fprintf</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s">&#34;write error</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span> 
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>     <code>close(fd)</code>：释放一个fd，也就是这个数字不再指向原来所指向的“文件”。这使得该fd被空闲出来，在未来可以被重新使用。</p>
+<p>     <code>open(&quot;filePath&quot;, mode)</code>：该函数创建一个fd指向第一个参数（一个文件路径）所指向的目标文件。第二个函数是打开的模式，可选值有<code>O_RDONLY, O_WRONLY, O_RDWR, O_CREATE, O_TRUNC</code>，分别对应“只读，只写，读写，‘若不存在就新建’，删除所有内容”。这个函数所分配的fd就是最小可用的fd。Linux中规定，一个进程最多可以有1024个fd。</p>
+<p>     <code>fork(), exec()</code>在 <strong>I/O</strong> 中的特性：<code>fork()</code>创建子进程后，父进程的fd表会完整地复制给子进程，在子进程中使用<code>exec()</code>，虽然子进程会被目标进程代替，但是这个子进程继承来的fd表仍然存在（因为fd由kernel管理），换句话说，新的目标进程仍然可以访问之前子进程的完整fd表。</p>
+<p>    <code>close(), open(), fork(), exec()</code>的搭配使用可以实现<strong>I/O重新定向（Redirection）</strong>。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="c1">//这实际上就是xv6实现I/O 重新定向的原理
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl"><span class="kt">char</span> <span class="o">*</span><span class="n">argv</span><span class="p">[</span><span class="mi">2</span><span class="p">];</span> 
+</span></span><span class="line"><span class="cl"><span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="s">&#34;cat&#34;</span><span class="p">;</span> 
+</span></span><span class="line"><span class="cl"><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> 
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">if</span><span class="p">(</span><span class="n">fork</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="n">close</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>          <span class="c1">//释放fd = 0（默认指向console）
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>                       <span class="c1">//打开目标文件，自动分配最小可用fd，即0
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">open</span><span class="p">(</span><span class="s">&#34;input.txt&#34;</span><span class="p">,</span> <span class="n">O_RDONLY</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">                       <span class="c1">//完成从将fd = 0 指向console重新定向为input.txt
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">exec</span><span class="p">(</span><span class="s">&#34;cat&#34;</span><span class="p">,</span> <span class="n">argv</span><span class="p">);</span> 
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>这里解释了不能把<code>fork(), exec()</code>合并成一个函数的原因：<code>fork()</code>之后可能会重新定向fd。假如两者合并成了<code>forkexec()</code>，并非完全无法实现重新定向，只不过各有缺点。这里有三种方法：</p>
+<ul>
+<li>在 <code>forkexec()</code>前就在父进程修改fd表，那么目标的新进程会继承父进程的表，从而达到效果。缺点：修改了父进程fd，十分不乐观。</li>
+<li>给<code>forkexec()</code>设置特定参数（如目标文件路径和想要替换的fd），并且内置重新定向的代码。缺点：违背模块化。</li>
+<li>让每个进程自己去重新定向。缺点：违背了用户空间与kernel相隔的理念。</li>
+</ul>
+<p>    <strong>注意：</strong> 虽然 <code>fork()</code>复制了父进程的内存布局和fd表生成了子进程，但是由于“偏移量”是“文件”的属性，父子进程将会共享同一个偏移量。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="k">if</span><span class="p">(</span><span class="n">fork</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>           <span class="c1">//判断当前是否为子进程
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">write</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="s">&#34;hello &#34;</span><span class="p">,</span> <span class="mi">6</span><span class="p">);</span>  <span class="c1">//子进程写入数据
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span> 
+</span></span><span class="line"><span class="cl"><span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="n">wait</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">write</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="s">&#34;world</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="mi">6</span><span class="p">);</span> <span class="c1">//父进程在子进程结束后写入数据
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="c1">//fd = 1 所指向的文件将会为 &#34;hello world&#34;
+</span></span></span></code></pre></div><p>共享偏移量这一特性可以让多个进程顺序添加数据。在命令行中可以实现如下操作：<code>(echo hello; echo world) &gt; output.txt</code>， 解释为两次分别调用<code>echo</code>提供不同的参数，依次输出到 <code>output.txt</code>。</p>
+<p>    <code>dup(fd)</code>：这个函数返回一个新的fd，指向作为参数传入的fd所指向的“文件”。换句话说，<code>dup(fd)</code>使得多个fd可以指向同一个“文件”。同样地，分配fd的规则遵守最小可用数字，且偏移量仍然共享于不同的fd。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="n">nfd</span> <span class="o">=</span> <span class="n">dup</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>    <span class="c1">//让“nfd”指向fd = 1 所指向的“文件”
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="n">write</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="s">&#34;hello &#34;</span><span class="p">,</span> <span class="mi">6</span><span class="p">);</span> 
+</span></span><span class="line"><span class="cl"><span class="n">write</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span> <span class="s">&#34;world</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="mi">6</span><span class="p">);</span>
+</span></span></code></pre></div><p>使用<code>dup()</code>可以实现如下命令行：<code>ls existing-file non-existing-file &gt; tmp1 2&gt;&amp;1</code>,解释为将<code>2</code>指向<code>1</code>所指向的“文件”，输出<code>existing-file</code> 与 <code>non-existing-file</code>的文件名到默认的输出fd，即<code>fd = 1</code>（这里1指向了tmp1）。如果文件不存在，输出报错到默认的输出报错fd，即 <code>fd = 2</code>. 由于这里把<code>2</code>重新定向到了<code>1</code>，正常输出与报错输出都会输出到<code>fd = 1</code>所指向的文件。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="13-管道命令">1.3 管道命令<a href="#13-管道命令" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>     <strong>管道（Pipe）</strong> 是以一对fd的形式暴露给进程的kernel buffer，占据内存中的空间。它可以被抽象地理解为一个“文件”：这个“文件”有两个fd指向它。管道的作用是实现了两个进程之间的通信：通常，两个进程各使用管道的一对fd中的一个，其中一个只读，一个只写。换句话说，管道是单向的。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="c1">//这是一个父子进程之间通信的例子
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl"><span class="kt">int</span> <span class="n">p</span><span class="p">[</span><span class="mi">2</span><span class="p">];</span>           <span class="c1">//这是一个int类型的数组，其内容未知且不重要
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kt">char</span> <span class="o">*</span><span class="n">argv</span><span class="p">[</span><span class="mi">2</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="s">&#34;wc&#34;</span><span class="p">;</span> 
+</span></span><span class="line"><span class="cl"><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">pipe</span><span class="p">(</span><span class="n">p</span><span class="p">);</span>            <span class="c1">//把数组p第一个元素变成了输入端，第二个元素变成了输出端
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">if</span><span class="p">(</span><span class="n">fork</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="n">close</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">dup</span><span class="p">(</span><span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">]);</span>      <span class="c1">//fd重新定向，使得0指向管道的输入端
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">close</span><span class="p">(</span><span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">]);</span>    <span class="c1">//0已经指向了管道这个“文件”，原来的输入端fd可以关闭了
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">close</span><span class="p">(</span><span class="n">p</span><span class="p">[</span><span class="mi">1</span><span class="p">]);</span>    <span class="c1">//保证程序安全运行，最好在输入内容的进程中关闭输出端
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">exec</span><span class="p">(</span><span class="s">&#34;/bin/wc&#34;</span><span class="p">,</span> <span class="n">argv</span><span class="p">);</span>  <span class="c1">//wc继承fd表
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="n">close</span><span class="p">(</span><span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">]);</span>    
+</span></span><span class="line"><span class="cl">    <span class="n">write</span><span class="p">(</span><span class="n">p</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="s">&#34;hello world</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="mi">12</span><span class="p">);</span>   <span class="c1">//输入内容
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">close</span><span class="p">(</span><span class="n">p</span><span class="p">[</span><span class="mi">1</span><span class="p">]);</span>                        <span class="c1">//关闭资源
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span>
+</span></span></code></pre></div><p><strong>注：</strong> 上面的例子在子进程中关闭了输出端fd，这不是必须的，但是可以增强运行的安全性。这是因为管道的特性所致：当管道中没有数据（调用输出端的进程并没有向管道输出内容），另一端的程序使用输入端读取数据的时候，会一直等待数据出现。结束这一等待有两个途径：数据出现，或所有输出端的fd都被关闭。子进程继承了父进程的一对fd，也就是这个语境下的管道，假如它不关闭输出端fd，而又碰巧调用了输入，它就有可能一直等待下去。不过这不意味着一个进程无法同时使用同一个管道的两端，只是没有任何必要并且危险。</p>
+<p>     命令行<code> grep dir sh.c | wc -l</code>有和上面这一大段代码类似的效果。这个命令行解释为<code>grep</code>去搜索文件<code>sh.c</code>中<code>dir</code>这一正则表达式，它会输出结果给<code>wc -l</code>这一命令，意为“展示<code>dir</code>在<code>sh.c</code>出现的行数”。中间的管道连接了<code>grep</code>的输出和<code>wc</code>的输入。对于操作系统，它会为整个这条命令<code>fork</code>出一个子进程，这个子进程创建管道连接左右两个命令。然后为两个命令又一次分别<code>fork</code>出两个进程：这个情景便是兄弟进程之间的通信，而非父子进程。当两个进程都结束了，子进程才会消失。
+在一些场景中，可能出现类似<code>a | b | c</code>的情况：shell会为<code>a</code>和<code>b | c</code> fork出两个进程，而进程又会分别为<code>b</code>和<code>c</code>分别fork出两个进程：可以看出，多个管道命令的使用可以构建出一个进程树，每个节点（进程）都在等它的左右节点（因<code>|</code>而被fork出的两个进程）结束运行。</p>
+<p>    形如<code>echo hello world | wc </code>的命令其实可以分开写成<code>echo hello world &gt; ./out.txt; wc &lt;./out.txt</code>两段命令：不同于管道创建了一个虚拟的文件，后者真的创建了一个叫<code>out.txt</code>的文件。</p>
+<p>     <strong>管道命令的优点：</strong></p>
+<ul>
+<li>管道命令十分“干净”：不像上面需要创建一个真实文件的命令，管道会自动清理自己的资源。</li>
+<li>管道可以传输任意长的数据，而创建真实文件则需要关注磁盘容量。</li>
+<li>管道允许平行的管道命令执行：两个通信的进程可以同时运行。而创建真实文件需要输出信息的程序运行完毕然后使用这个信息的程序才能开始。</li>
+<li>管道有读写的阻断机制：当没有输出的时候，输入端不会认为输出结束，这更有效率。</li>
+</ul>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="14-文件系统">1.4 文件系统<a href="#14-文件系统" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>     xv6的文件系统提供<strong>数据文件（Data file）</strong> 和<strong>目录（Directory）</strong>，而目录又包含数据文件和其他目录。一个形如<code>/a/b/c</code>的<strong>路径（Path）</strong> 意为： <strong>根目录（Root）</strong> 下的a中的b里的c，c可能是一个数据文件或者目录。在xv6中，不以<code>\</code>开头的，自动识别为相对于“当前目录”下的文件/文件夹。假设当前身处根目录（由<code>\</code>体现），有两种访问c的方式：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="c1">//第一种：通过改变“当前文件夹”
+</span></span></span><span class="line"><span class="cl"><span class="c1">//chdir，即cd
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl"><span class="n">chdir</span><span class="p">(</span><span class="s">&#34;/a&#34;</span><span class="p">);</span>        <span class="c1">//进入目录a，当前目录变成a
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="n">chdir</span><span class="p">(</span><span class="s">&#34;b&#34;</span><span class="p">);</span>         <span class="c1">//使用相对路径进入a中的b
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="n">open</span><span class="p">(</span><span class="s">&#34;c&#34;</span><span class="p">,</span> <span class="n">O_RDONLY</span><span class="p">)</span> <span class="c1">//当问目标文件
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl"><span class="c1">//第二种，即直接打开目标文件
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl"><span class="n">open</span><span class="p">(</span><span class="s">&#34;/a/b/c&#34;</span><span class="p">,</span> <span class="n">O_RDONLY</span><span class="p">);</span>
+</span></span></code></pre></div><p>     xv6中提供了创建目录（文件夹）和文件的系统调用：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="n">mkdir</span><span class="p">(</span><span class="s">&#34;/dir&#34;</span><span class="p">);</span>          <span class="c1">//意为“make directory &#39;dir&#39;”
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="n">fd</span> <span class="o">=</span> <span class="n">open</span><span class="p">(</span><span class="s">&#34;/dir/file&#34;</span>   <span class="n">O_CREATE</span><span class="o">|</span><span class="n">O_WRONLY</span><span class="p">);</span>     <span class="c1">//新建文件
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="n">close</span><span class="p">(</span><span class="n">fd</span><span class="p">);</span>
+</span></span></code></pre></div><p>文件名其实是一种抽象的存在：文件名和文件本身是分离的，或者说文件并没有真正的“名字”。文件被叫做<strong>inode(index node)</strong>，它可以有多个“文件名”，叫做<strong>links</strong>。每个link由一个目录里的 <strong>入口（Entry）</strong> 组成，这个入口包括文件名和指向inode的指针。inode中包含这个文件的一切<strong>原数据（Metadata）</strong>，比如文件类型，长度，和文件内容在磁盘上的位置，以及这个文件的link/文件名的数量。我们可以通过系统调用为一个文件创建多个link：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="n">open</span><span class="p">(</span><span class="s">&#34;a&#34;</span><span class="p">,</span> <span class="n">O_CREATE</span><span class="o">|</span><span class="n">O_WRONLY</span><span class="p">);</span>   <span class="c1">//假如a不存在，那么open在创建一个新文件的同时，会给这个新文件一个link-“a”
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="n">link</span><span class="p">(</span><span class="s">&#34;a&#34;</span><span class="p">,</span> <span class="s">&#34;b&#34;</span><span class="p">);</span>                 <span class="c1">//把“b”也作为文件“a”的一个名字
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="n">unlink</span><span class="p">(</span><span class="s">&#34;a&#34;</span><span class="p">);</span>                    <span class="c1">//让“a”不再作为这个文件的名字
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="n">unlink</span><span class="p">(</span><span class="s">&#34;b&#34;</span><span class="p">);</span>                    <span class="c1">//在让“b”不再作为该文件的文件名后，这个文件变成了无名的文件，且该文件占用的资源“可能”会被释放。
+</span></span></span></code></pre></div><p>在一个文件变成无名文件之后，不意味着这个文件所占用的资源一定会释放：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="n">fd</span> <span class="o">=</span> <span class="n">open</span><span class="p">(</span><span class="s">&#34;d&#34;</span><span class="p">,</span> <span class="n">O_CREATE</span><span class="o">|</span><span class="n">O_RDWR</span><span class="p">);</span>    <span class="c1">//创建一个文件，一个link-“d”，得到一个fd。
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="n">unlink</span><span class="p">(</span><span class="s">&#34;d&#34;</span><span class="p">);</span>                        <span class="c1">//此时文件虽然无名，但资源仍未被释放，因为fd仍然没有关闭。
+</span></span></span></code></pre></div><p>也就是说，如果想要让一个文件使用的资源被释放，它的link和fd都需要被关闭。</p>
+<p>     <strong>补充：</strong> Unix向用户以“用户级程序”的方式提供了一系列的命令比如<code>mkdir, rm</code>等来操作文件。换句话说，这些命令可以被看作通过<code>exec()</code>运行的程序。但是<code>cd</code>，或<code>chdir()</code>, 则是内嵌在shell中的。这是因为前者会通过<code>fork()</code>出的子进程执行<code>exec()</code>，但是同样的逻辑运用于<code>cd</code>的话，那就是改变了子shell的运行目录，而无法涉及父shell。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="15-练习">1.5 练习<a href="#15-练习" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>     写一个程序，通过一对管道（各负责一个方向）让1-byte数据在两个进程之间来回传输，测试每秒钟传输的效率。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<blockquote>
+<h3 id="参考">参考:<a href="#参考" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h3>
+<p>    [1]: xv6: <a href="https://zh.wikipedia.org/zh-cn/Xv6">https://zh.wikipedia.org/zh-cn/Xv6</a></p>
+<p>    [2]: PID: <a href="https://en.wikipedia.org/wiki/Process_identifier">https://en.wikipedia.org/wiki/Process_identifier</a></p>
+<p>    [3]: 等待所有子进程：https://stackoverflow.com/questions/19461744/how-to-make-parent-wait-for-all-child-processes-to-finish</p>
+<p>    [4]:Console与终端： <a href="https://www.zhihu.com/question/21711307/answer/2231006377">https://www.zhihu.com/question/21711307/answer/2231006377</a></p>
+<p> </p>
+</blockquote>
+
+			</div>
+			<hr class="post-end">
+			<footer class="post-info">
+				<p><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-file-text"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>5283 字</p>
+				<p><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-calendar"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>2022-06-04 00:52 -0400</p>
+			</footer>
+		</article>
+		<div class="post-nav thin">
+			<a class="next-post" href="https://hoooao.github.io/os/chap2/">
+				<span class="post-nav-label"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-arrow-left"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>&nbsp;上一篇</span><br><span>Chap 2: 操作系统组成 Operating system organization</span>
+			</a>
+		</div>
+		<div id="comments" class="thin">
+</div>
+	</main>
+
+	<footer id="site-footer" class="section-inner thin animated fadeIn faster">
+		<p>&copy; 2022 <a href="https://hoooao.github.io/">Xiyu Hao</a> &#183; <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" rel="noopener">CC BY-NC 4.0</a></p>
+		<p>
+			Made with <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> &#183; Theme <a href="https://github.com/Track3/hermit" target="_blank" rel="noopener">Hermit</a> &#183; <a href="https://hoooao.github.io/posts/index.xml" target="_blank" title="rss"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-rss"><path d="M4 11a9 9 0 0 1 9 9"></path><path d="M4 4a16 16 0 0 1 16 16"></path><circle cx="5" cy="19" r="1"></circle></svg></a>
+		</p>
+	</footer>
+
+
+
+	<script src="https://hoooao.github.io/js/bundle.min.5a42c67b729ee2fa1059251688235399704707e04edb4e28c42c6f6dfa49d1d9.js" integrity="sha256-WkLGe3Ke4voQWSUWiCNTmXBHB+BO204oxCxvbfpJ0dk=" crossorigin="anonymous"></script>
+	
+
+</body>
+
+</html>

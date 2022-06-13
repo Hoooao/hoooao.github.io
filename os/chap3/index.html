@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-hans">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta http-equiv="X-UA-Compatible" content="ie=edge">
+	<meta name="theme-color" content="#494f5c">
+	<meta name="msapplication-TileColor" content="#494f5c">
+<meta itemprop="name" content="Chap 3：分页表 Page tables">
+<meta itemprop="description" content="目录   导言  3.1 分页硬件 Paging hardware  3.2 内核用户空间 Kernel address space  3.3 新建内存空间 Creating an address space  3.4 物理内存分配 Physical memory allocation  3.5 物理内存分配器 Physical memory allocator  3.6 进程内存空间 Process address space  3.7 增长/缩小内存空间 Sbrk  3.8 exec 系统调用 Exec  3.9 练习 Exercises   导言：  每个进程都有自己的分页表（PT：Page table）。通过分页表（PT：Page table），kernel可以为一个进程创建私有的内存空间：每个虚拟内存地址（VA：Virtual adress） 都有对应着的物理内存地址（PA：Physical address）。对于进程来说，他在使用这一段连续的VA，但是这些VA在DRAM中的映射的物理内存地址则不一定连续。PT告诉分页硬件一个VA代表着什么，指向哪里。
+ 3.1 分页硬件 Paging hardware  在计算机中虚拟内存（VM：Virtual memory） 的实现是由硬件支持的，这个硬件通常被叫做内存管理单元（MMU：Memory management unit）。CPU的指令通常使用VM：当它使用某一个VA的时候，MMU会把这个VA翻译成PA，然后执行这个PA里的指令或者读取/写入这个PA里的内容。"><meta itemprop="datePublished" content="2022-06-12T10:15:51-04:00" />
+<meta itemprop="dateModified" content="2022-06-12T10:15:51-04:00" />
+<meta itemprop="wordCount" content="124">
+<meta itemprop="keywords" content="" /><meta property="og:title" content="Chap 3：分页表 Page tables" />
+<meta property="og:description" content="目录   导言  3.1 分页硬件 Paging hardware  3.2 内核用户空间 Kernel address space  3.3 新建内存空间 Creating an address space  3.4 物理内存分配 Physical memory allocation  3.5 物理内存分配器 Physical memory allocator  3.6 进程内存空间 Process address space  3.7 增长/缩小内存空间 Sbrk  3.8 exec 系统调用 Exec  3.9 练习 Exercises   导言：  每个进程都有自己的分页表（PT：Page table）。通过分页表（PT：Page table），kernel可以为一个进程创建私有的内存空间：每个虚拟内存地址（VA：Virtual adress） 都有对应着的物理内存地址（PA：Physical address）。对于进程来说，他在使用这一段连续的VA，但是这些VA在DRAM中的映射的物理内存地址则不一定连续。PT告诉分页硬件一个VA代表着什么，指向哪里。
+ 3.1 分页硬件 Paging hardware  在计算机中虚拟内存（VM：Virtual memory） 的实现是由硬件支持的，这个硬件通常被叫做内存管理单元（MMU：Memory management unit）。CPU的指令通常使用VM：当它使用某一个VA的时候，MMU会把这个VA翻译成PA，然后执行这个PA里的指令或者读取/写入这个PA里的内容。" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://hoooao.github.io/os/chap3/" /><meta property="article:section" content="os" />
+<meta property="article:published_time" content="2022-06-12T10:15:51-04:00" />
+<meta property="article:modified_time" content="2022-06-12T10:15:51-04:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Chap 3：分页表 Page tables"/>
+<meta name="twitter:description" content="目录   导言  3.1 分页硬件 Paging hardware  3.2 内核用户空间 Kernel address space  3.3 新建内存空间 Creating an address space  3.4 物理内存分配 Physical memory allocation  3.5 物理内存分配器 Physical memory allocator  3.6 进程内存空间 Process address space  3.7 增长/缩小内存空间 Sbrk  3.8 exec 系统调用 Exec  3.9 练习 Exercises   导言：  每个进程都有自己的分页表（PT：Page table）。通过分页表（PT：Page table），kernel可以为一个进程创建私有的内存空间：每个虚拟内存地址（VA：Virtual adress） 都有对应着的物理内存地址（PA：Physical address）。对于进程来说，他在使用这一段连续的VA，但是这些VA在DRAM中的映射的物理内存地址则不一定连续。PT告诉分页硬件一个VA代表着什么，指向哪里。
+ 3.1 分页硬件 Paging hardware  在计算机中虚拟内存（VM：Virtual memory） 的实现是由硬件支持的，这个硬件通常被叫做内存管理单元（MMU：Memory management unit）。CPU的指令通常使用VM：当它使用某一个VA的时候，MMU会把这个VA翻译成PA，然后执行这个PA里的指令或者读取/写入这个PA里的内容。"/>
+
+	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+	<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+	<link rel="manifest" href="/site.webmanifest">
+	<link rel="mask-icon" href="/safari-pinned-tab.svg" color="">
+	<link rel="shortcut icon" href="/favicon.ico">
+
+	<title>Chap 3：分页表 Page tables</title>
+	<link rel="stylesheet" href="https://hoooao.github.io/css/style.min.6b1219507aa24bcc2a46f4f7071edbc5dc448ba85934d68c4af0ca0a7ad89dcd.css" integrity="sha256-axIZUHqiS8wqRvT3Bx7bxdxEi6hZNNaMSvDKCnrYnc0=" crossorigin="anonymous">
+	<style>.bg-img {background-image: url('https://images.unsplash.com/photo-1531265726475-52ad60219627?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=2691&q=80');}</style>
+</head>
+
+<body id="page">
+	
+	<div class="bg-img"></div>
+	<main class="site-main section-inner animated fadeIn faster">
+		<article class="thin">
+			<header class="post-header">
+				<div class="post-meta"><span>Jun 12, 2022</span></div>
+				<h1>Chap 3：分页表 Page tables</h1>
+			</header>
+			<div class="content">
+				<h2 id="目录">目录<a href="#目录" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<ul>
+<li> <a href="#%E5%AF%BC%E8%A8%80">导言</a></li>
+<li> <a href="#31-%E5%88%86%E9%A1%B5%E7%A1%AC%E4%BB%B6-paging-hardware">3.1 分页硬件 Paging hardware</a></li>
+<li> <a href="#32-%E5%86%85%E6%A0%B8%E7%94%A8%E6%88%B7%E7%A9%BA%E9%97%B4-kernel-address-space">3.2 内核用户空间 Kernel address space</a></li>
+<li> <a href="#33-%E6%96%B0%E5%BB%BA%E5%86%85%E5%AD%98%E7%A9%BA%E9%97%B4-creating-an-address-space">3.3 新建内存空间 Creating an address space</a></li>
+<li> <a href="#34-%E7%89%A9%E7%90%86%E5%86%85%E5%AD%98%E5%88%86%E9%85%8D-physical-memory-allocation">3.4 物理内存分配 Physical memory allocation</a></li>
+<li> <a href="#35-%E7%89%A9%E7%90%86%E5%86%85%E5%AD%98%E5%88%86%E9%85%8D%E5%99%A8-physical-memory-allocator">3.5 物理内存分配器 Physical memory allocator</a></li>
+<li> <a href="#36-%E8%BF%9B%E7%A8%8B%E5%86%85%E5%AD%98%E7%A9%BA%E9%97%B4-process-address-space">3.6 进程内存空间 Process address space</a></li>
+<li> <a href="#37-%E5%A2%9E%E9%95%BF%E7%BC%A9%E5%B0%8F%E5%86%85%E5%AD%98%E7%A9%BA%E9%97%B4-sbrk">3.7 增长/缩小内存空间 Sbrk</a></li>
+<li> <a href="#38-exec-%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8-exec">3.8 <code>exec</code> 系统调用 Exec</a></li>
+<li> <a href="#39-%E7%BB%83%E4%B9%A0-exercises">3.9 练习 Exercises</a></li>
+</ul>
+<br>
+<hr>
+<br>
+<h2 id="导言">导言：<a href="#导言" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    每个进程都有自己的<strong>分页表（PT：Page table）</strong>。通过<strong>分页表（PT：Page table）</strong>，kernel可以为一个进程创建私有的内存空间：每个<strong>虚拟内存地址（VA：Virtual adress）</strong> 都有对应着的<strong>物理内存地址（PA：Physical address）</strong>。对于进程来说，他在使用这一段连续的VA，但是这些VA在DRAM中的映射的物理内存地址则不一定连续。PT告诉分页硬件一个VA代表着什么，指向哪里。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="31-分页硬件-paging-hardware">3.1 分页硬件 Paging hardware<a href="#31-分页硬件-paging-hardware" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    在计算机中<strong>虚拟内存（VM：Virtual memory）</strong> 的实现是由硬件支持的，这个硬件通常被叫做<strong>内存管理单元（MMU：Memory management unit）</strong>。CPU的指令通常使用VM：当它使用某一个VA的时候，MMU会把这个VA翻译成PA，然后执行这个PA里的指令或者读取/写入这个PA里的内容。</p>
+<p>    但是在xv6中，我们使用的是qemu的虚拟机：MMU被抽象成了一个定义在<code>kernel/vm.c</code>中的<code>walk()</code>函数。这个函数的行为与MMU类似。</p>
+<figure>
+<div style="text-align:center">
+<img src="https://madhuakula.com/content/linux-security-internals/static/mmu1.gif" alt="" style="width:100%; background: rgba(255, 255, 255, .5)">
+<figcaption><b>Fig.1 CPU，MMU，DRAM[1]</b></figcaption>
+</div>
+</figure>
+<p>    xv6跑在<em>Sv39 RISC-V</em>处理器上（虚拟机），这个处理器指使用64bits VA中的后39位。其中前27位用来作为<strong>分页表项（PTE：Page table entries）<strong>的</strong>索引（Index）</strong>，所以一个PT最多可以有<code>2^27</code>个PTE。而后12位被用来当做偏移量（剩余的bits用来为未来可能的硬件升级做准备）。每个有效的PTE包含一个44bits的<strong>PPN：Physical page number</strong>和10bits的各种用来限定这个页的权限。</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/uH2KORg.jpg" alt="" style="width:100%; background: rgba(255, 255, 255, .5)">
+<figcaption><b>Fig.2 简化的映射过程</b></figcaption>
+</div>
+</figure>
+<p>当一个进程使用VA的时候，MMU/walk会通过该VA的27位的索引来找到这个进程的PT中唯一的PTE。然后这个PTE中的PPN会被取出，再把VA中的后12位偏移量接在PPN的后面组成一个56位的PA（64位PA中剩下的为未来准备），然后去DRAM中找该这个PA。由于偏移量有12位，他们可以与一个PPN组合2^12个连续的PA（一个地址1Byte），这也就组成了一个Page：即一块4096Bytes的内存空间。<strong>注：</strong> 一个Page中的PA连续，但是两个相邻的PTE所指向的Page不一定连续。</p>
+<p>    在上述的过程中，<code>walk</code>似乎直接用27bits的索引找到了为一个PTE，但实际的视线中，这个过程被分成了三步：27bits的索引分成了三个9bits的索引，可以被看作三个偏移量。当一个进程在运行的时候，kernel会把CPU的<code>satp</code>寄存器中储存的数据需改成为这个进程分配的私有的PT的物理内存地址（PT被存储在内存中）。这个“PT”不同于上述的简化模型中的PT：它本质上是一个Page。但是由于这个Page储存着PTE，也可以叫它<strong>分页表页（PTP：Page Table Page）</strong>。与正常的Page一样，它也占据4096Bytes内存。由于一个PTE占64bits，即8Bytes，一个PTP可以存放512个PTE。Satp寄存器指向的PTP也被叫做<strong>根（Root）</strong>。我们使用27bits中前9bits作为偏移量，在根页中找到为一的PTE。不同于简化的模型，这个PTE的PPN将指向另一层PTP（PPN后面接12个0）。同样地，第二个9bits被用作于这个PTP的偏移量并找到对应的PTE。重复相同步骤，我们能找到第三层PTP中最后9bit对应的PTE。此时的PTE中的PPN将与最初的VA中的12bits结合，得到真正的56bits PA。</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/pM1nyYP.jpg" alt="" style="width:100%; background: rgba(255, 255, 255, .5)">
+<figcaption><b>Fig.3 真实虚拟内存检索模型</b></figcaption>
+</div>
+</figure>
+<p>三层PTP是对一个有2^27个PTE的PT的优化。假如真的使用后者，那么一张PT需要2^27*2^3Bytes,超出了xv6所支持的内存上限（128MB），显然不现实。而前者的大小的变化是动态。比如一个进程只使用了1个Page，或者说它只用了<code>0x0~0xFFF</code>的虚拟地址,在这个情况下，27位索引全部为0，对于三层PTP，每次都导向最下面偏移量为0的PTE。换句话说，每个PTP只有最下层的PTE是有效的：第一层第二层PTP的其他PTE无效，因此不会为他们创建下层PTP。所以这个例子里面只有3个PTP存在，即<code>3*4KB=12KB</code>。由于分层的行为类似从文件夹中找文件，所以可以把PTP看作目录。</p>
+<p>    这样的话优化也是有代价的：每使用一个VA，就需要多次访问VM，效率变低（对比假如指使用一张PT，那么只需要检索一层目录）。缓存<strong>TLB（Translation lookaside buffer）</strong>（一个硬件）一定程度减轻了这个代价。每当使用了一个VA后，改VA与对应的PA就会被缓存入TLB。当再次使用这个VA时，会直接从TLB中调取其PA，不需要让<code>walk</code>重新走三层目录。<strong>注：<strong>每当进程切换的时候，TLB中的数据就会被清理（即</strong>Flush</strong>，通过指令<code>sfence_vm</code>调用）：这样防止之后的进程访问到之前的进程的PA。</p>
+<p>    如<strong>Fig.3</strong>下半部分所示，除了PPN，一个PTE中还包括10bits的空间供一些Flag使用。<strong>V</strong>：如果为1则有效，反之说明改PTE无效；<strong>R/W/X</strong>：读写权限，以及是否被当作指令运行。</p>
+<blockquote>
+<p>思考：为什么每层PTP都使用PA来找下层PTP？为什么不能使用VA？</p>
+</blockquote>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="32-内核内存空间-kernel-address-space">3.2 内核内存空间 Kernel address space<a href="#32-内核内存空间-kernel-address-space" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="33-新建内存空间-creating-an-address-space">3.3 新建内存空间 Creating an address space<a href="#33-新建内存空间-creating-an-address-space" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="34-物理内存分配-physical-memory-allocation">3.4 物理内存分配 Physical memory allocation<a href="#34-物理内存分配-physical-memory-allocation" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="35-物理内存分配器-physical-memory-allocator">3.5 物理内存分配器 Physical memory allocator<a href="#35-物理内存分配器-physical-memory-allocator" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="36-进程内存空间-process-address-space">3.6 进程内存空间 Process address space<a href="#36-进程内存空间-process-address-space" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="37-增长缩小内存空间-sbrk">3.7 增长/缩小内存空间 Sbrk<a href="#37-增长缩小内存空间-sbrk" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="38-exec-系统调用-exec">3.8 <code>exec</code> 系统调用 Exec<a href="#38-exec-系统调用-exec" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="39-练习-exercises">3.9 练习 Exercises<a href="#39-练习-exercises" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<blockquote>
+<h3 id="参考">参考:<a href="#参考" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h3>
+<p>    [1] MMU: <a href="https://madhuakula.com/content/linux-security-internals/static/mmu1.gif">https://madhuakula.com/content/linux-security-internals/static/mmu1.gif</a></p>
+</blockquote>
+
+			</div>
+			<hr class="post-end">
+			<footer class="post-info">
+				<p><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-file-text"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>0 字</p>
+				<p><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-calendar"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>2022-06-12 10:15 -0400</p>
+			</footer>
+		</article>
+		<div class="post-nav thin">
+			<a class="prev-post" href="https://hoooao.github.io/os/chap2/">
+				<span class="post-nav-label">下一篇&nbsp;<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-arrow-right"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></span><br><span>Chap 2: 操作系统组成 Operating system organization</span>
+			</a>
+		</div>
+		<div id="comments" class="thin">
+</div>
+	</main>
+
+	<footer id="site-footer" class="section-inner thin animated fadeIn faster">
+		<p>&copy; 2022 <a href="https://hoooao.github.io/">Xiyu Hao</a> &#183; <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" rel="noopener">CC BY-NC 4.0</a></p>
+		<p>
+			Made with <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> &#183; Theme <a href="https://github.com/Track3/hermit" target="_blank" rel="noopener">Hermit</a> &#183; <a href="https://hoooao.github.io/posts/index.xml" target="_blank" title="rss"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-rss"><path d="M4 11a9 9 0 0 1 9 9"></path><path d="M4 4a16 16 0 0 1 16 16"></path><circle cx="5" cy="19" r="1"></circle></svg></a>
+		</p>
+	</footer>
+
+
+
+	<script src="https://hoooao.github.io/js/bundle.min.5a42c67b729ee2fa1059251688235399704707e04edb4e28c42c6f6dfa49d1d9.js" integrity="sha256-WkLGe3Ke4voQWSUWiCNTmXBHB+BO204oxCxvbfpJ0dk=" crossorigin="anonymous"></script>
+	
+
+</body>
+
+</html>
