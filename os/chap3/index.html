@@ -11,7 +11,7 @@
 <meta itemprop="description" content="目录   导言  3.1 分页硬件 Paging hardware  3.2 内核用户空间 Kernel address space  3.3 新建内存空间 Creating an address space  3.4 物理内存分配 Physical memory allocation  3.5 物理内存分配器 Physical memory allocator  3.6 进程内存空间 Process address space  3.7 增长/缩小内存空间 Sbrk  3.8 exec 系统调用 Exec  3.9 练习 Exercises   导言：  每个进程都有自己的分页表（PT：Page table）。通过分页表（PT：Page table），kernel可以为一个进程创建私有的内存空间：每个虚拟内存地址（VA：Virtual adress） 都有对应着的物理内存地址（PA：Physical address）。对于进程来说，他在使用这一段连续的VA，但是这些VA在DRAM中的映射的物理内存地址则不一定连续。PT告诉分页硬件一个VA代表着什么，指向哪里。
  3.1 分页硬件 Paging hardware  在计算机中虚拟内存（VM：Virtual memory） 的实现是由硬件支持的，这个硬件通常被叫做内存管理单元（MMU：Memory management unit）。CPU的指令通常使用VM：当它使用某一个VA的时候，MMU会把这个VA翻译成PA，然后执行这个PA里的指令或者读取/写入这个PA里的内容。"><meta itemprop="datePublished" content="2022-06-12T10:15:51-04:00" />
 <meta itemprop="dateModified" content="2022-06-12T10:15:51-04:00" />
-<meta itemprop="wordCount" content="125">
+<meta itemprop="wordCount" content="222">
 <meta itemprop="keywords" content="" /><meta property="og:title" content="Chap 3：分页表 Page tables" />
 <meta property="og:description" content="目录   导言  3.1 分页硬件 Paging hardware  3.2 内核用户空间 Kernel address space  3.3 新建内存空间 Creating an address space  3.4 物理内存分配 Physical memory allocation  3.5 物理内存分配器 Physical memory allocator  3.6 进程内存空间 Process address space  3.7 增长/缩小内存空间 Sbrk  3.8 exec 系统调用 Exec  3.9 练习 Exercises   导言：  每个进程都有自己的分页表（PT：Page table）。通过分页表（PT：Page table），kernel可以为一个进程创建私有的内存空间：每个虚拟内存地址（VA：Virtual adress） 都有对应着的物理内存地址（PA：Physical address）。对于进程来说，他在使用这一段连续的VA，但是这些VA在DRAM中的映射的物理内存地址则不一定连续。PT告诉分页硬件一个VA代表着什么，指向哪里。
  3.1 分页硬件 Paging hardware  在计算机中虚拟内存（VM：Virtual memory） 的实现是由硬件支持的，这个硬件通常被叫做内存管理单元（MMU：Memory management unit）。CPU的指令通常使用VM：当它使用某一个VA的时候，MMU会把这个VA翻译成PA，然后执行这个PA里的指令或者读取/写入这个PA里的内容。" />
@@ -97,7 +97,7 @@
 </div>
 </figure>
 <p>三层PTP是对一个有2^27个PTE的PT的优化。假如真的使用后者，那么一张PT需要2^27*2^3Bytes,超出了xv6所支持的内存上限（128MB），显然不现实。而前者的大小的变化是动态。比如一个进程只使用了1个Page，或者说它只用了<code>0x0~0xFFF</code>的虚拟地址,在这个情况下，27位索引全部为0，对于三层PTP，每次都导向最下面偏移量为0的PTE。换句话说，每个PTP只有最下层的PTE是有效的：第一层第二层PTP的其他PTE无效，因此不会为他们创建下层PTP。所以这个例子里面只有3个PTP存在，即<code>3*4KB=12KB</code>。由于分层的行为类似从文件夹中找文件，所以可以把PTP看作目录。</p>
-<p>    这样的话优化也是有代价的：每使用一个VA，就需要多次访问VM，效率变低（对比假如指使用一张PT，那么只需要检索一层目录）。缓存<strong>TLB（Translation lookaside buffer）</strong>（一个硬件）一定程度减轻了这个代价。每当使用了一个VA后，改VA与对应的PA就会被缓存入TLB。当再次使用这个VA时，会直接从TLB中调取其PA，不需要让<code>walk</code>重新走三层目录。<strong>注：<strong>每当进程切换的时候，TLB中的数据就会被清理（即</strong>Flush</strong>，通过指令<code>sfence_vm</code>调用）：这样防止之后的进程访问到之前的进程的PA。</p>
+<p>    这样的话优化也是有代价的：每使用一个VA，就需要多次访问VM，效率变低（对比假如指使用一张PT，那么只需要检索一层目录）。缓存<strong>TLB（Translation lookaside buffer）</strong>（一个硬件）一定程度减轻了这个代价。每当使用了一个VA后，改VA与对应的PA就会被缓存入TLB。当再次使用这个VA时，会直接从TLB中调取其PA，不需要让<code>walk</code>重新走三层目录。<strong>注：<strong>每当进程切换的时候，TLB中的数据就会被清理（即</strong>Flush</strong>，通过指令<code>sfence_vma</code>调用）：这样防止之后的进程访问到之前的进程的PA。</p>
 <p>    如<strong>Fig.3</strong>下半部分所示，除了PPN，一个PTE中还包括10bits的空间供一些Flag使用。<strong>V</strong>：如果为1则有效，反之说明改PTE无效；<strong>R/W/X</strong>：读写权限，以及是否被当作指令运行。</p>
 <blockquote>
 <p>思考：为什么每层PTP都使用PA来找下层PTP？为什么不能使用VA？</p>
@@ -110,6 +110,25 @@
 <br>
 <br>
 <h2 id="32-内核内存空间-kernel-address-space">3.2 内核内存空间 Kernel address space<a href="#32-内核内存空间-kernel-address-space" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    每个进程都有属于自己的分页表，除此之外，kernel也有自己的分页表（任何指令都是使用VM的，包括在kernel中）。虽然VM存在的意义是隔离，阻止进程使用物理内存，但是VA=PA的情况也是存在，kernel（大部分区域）就是这样。这种方式被叫做<strong>直接映射（Direct mapping）</strong>。</p>
+<p>    RAM（物理内存）起始于<code>0x80000000</code>，而非<code>0x0</code>。由于kernel是直接映射且在RAM的最下方，kernel的内存空间（由VM构成的“连续的”内存）也起始于<code>0x80000000</code>：这个值被称为<code>KERNBASE</code>。选择这个数字作为物理内存的起点只是设计者的决定。<code>0x80000000</code>以下的地址留给了其他硬件。对这些地址的访问不是对内存（RAM）的访问，而是对对应硬件的I/O接口的访问。这种直接映射是的kernel对PA的读写更有效率。比如当<code>fork()</code>使用分配内存的函数给子进程复制父进程的内存内容是，这个函数会返回它分配的内存的PA。由于直接映射，<code>fork()</code>可以直接操作于与PA一样的VA。kernel的内存空间只有两个部分不是直接映射：</p>
+<blockquote>
+<ol>
+<li>
+<p>Trampoline page (Chap 4)。</p>
+</li>
+<li>
+<p>kstack&amp;guard page。kstack（即内核栈）与它的guard会被放在虚拟内存的顶层。guard作为kstack与内核内存空间其他内容的缓冲带存在：若一个进程的kstack溢出，没有guard的话可能会写入到其他进程的kstack。而由guard存在时，一旦guard的VM被访问的时候，就报错，从而保护其他内容。不把kstack和guard同样放在低处来直接映射是因为guard的区域显然不能存放任何有价值的数据：若为直接映射，必须给每个guard一些物理内存地址，占用不必要的空间，且可能会使得guard无效。**注：**guard的VA对应的PTE是无效的。</p>
+</li>
+</ol>
+</blockquote>
+<p>    RAM终止于最少<code>0x86400000</code>的地址（共计最少100MB）。RAM的终点被叫做<code>PHYSTOP</code>。由于RISC-V使用了56位的地址，<code>PHYSTOP</code>的上限可以很高。</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/HBSwpXY.jpeg" alt="" style="width:100%; background: rgba(255, 255, 255, .5)">
+<figcaption><b>Fig.4 内核地址空间与物理内存空间</b></figcaption>
+</div>
+</figure>
 <br>
 <br>
 <br>
@@ -118,6 +137,46 @@
 <br>
 <br>
 <h2 id="33-新建内存空间-creating-an-address-space">3.3 新建内存空间 Creating an address space<a href="#33-新建内存空间-creating-an-address-space" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    xv6中大多与VM有关的内容全部放在了<code>kernel/vm.c</code>中。其中最重要的<code>struct</code>是<code>pagetable_t</code>。它指向一个根PTP。kernel的该结构叫做<code>kernel_pagetable</code>，进程的该结构存放在各自的<code>proc</code>结构体中。最重要的函数有两个：<code>walk(),mappage</code>。前者为VA找到对应的PTE，后者为一个VA安装PTE/映射。<strong>注：</strong> 一vm开头的函数通常是kernel相关，以yvm开头的通常是用户进程相关，其他的共享。</p>
+<p>    在开机早起，分页机制为启动，即不使用VM，直接使用PM。<code>main</code>会调用<code>kvminit()</code>，它创建一个根PTP并赋值给kernel的<code>pagetable_t</code>。实际上，<code>kvminit()，kvmmake()</code>是对一系列函数的封装。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">kvminit</span><span class="p">(</span><span class="kt">void</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">  <span class="n">kernel_pagetable</span> <span class="o">=</span> <span class="n">kvmmake</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p><code>kvmmake</code>最开始使用<code>kalloc()</code>真正地在物理内存中创建了一部分供根PTP使用。之后多次调用<code>kvmmap()</code>为<strong>Fig.4</strong>中的各个部分分配PTE，指向PA的对应位置（比如硬件部分，KERNBASE，PHYSTOP）。最后调用一个函数为每个进程设置kstack与guard。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="n">pagetable_t</span> <span class="nf">kvmmake</span><span class="p">(</span><span class="kt">void</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">  <span class="n">pagetable_t</span> <span class="n">kpgtbl</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="n">kpgtbl</span> <span class="o">=</span> <span class="p">(</span><span class="n">pagetable_t</span><span class="p">)</span> <span class="n">kalloc</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="n">memset</span><span class="p">(</span><span class="n">kpgtbl</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">PGSIZE</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="c1">// uart registers
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">kvmmap</span><span class="p">(</span><span class="n">kpgtbl</span><span class="p">,</span> <span class="n">UART0</span><span class="p">,</span> <span class="n">UART0</span><span class="p">,</span> <span class="n">PGSIZE</span><span class="p">,</span> <span class="n">PTE_R</span> <span class="o">|</span> <span class="n">PTE_W</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="c1">//省略多次调用kvmmap...
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl">  <span class="c1">// map kernel text executable and read-only.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">kvmmap</span><span class="p">(</span><span class="n">kpgtbl</span><span class="p">,</span> <span class="n">KERNBASE</span><span class="p">,</span> <span class="n">KERNBASE</span><span class="p">,</span> <span class="p">(</span><span class="n">uint64</span><span class="p">)</span><span class="n">etext</span><span class="o">-</span><span class="n">KERNBASE</span><span class="p">,</span> <span class="n">PTE_R</span> <span class="o">|</span> <span class="n">PTE_X</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="c1">// map kernel stacks
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">proc_mapstacks</span><span class="p">(</span><span class="n">kpgtbl</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  
+</span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="n">kpgtbl</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>但是<code>kvmmap()</code>也只是对<code>mappage()</code>的封装:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">kvmmap</span><span class="p">(</span><span class="n">pagetable_t</span> <span class="n">kpgtbl</span><span class="p">,</span> <span class="n">uint64</span> <span class="n">va</span><span class="p">,</span> <span class="n">uint64</span> <span class="n">pa</span><span class="p">,</span> <span class="n">uint64</span> <span class="n">sz</span><span class="p">,</span> <span class="kt">int</span> <span class="n">perm</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">mappages</span><span class="p">(</span><span class="n">kpgtbl</span><span class="p">,</span> <span class="n">va</span><span class="p">,</span> <span class="n">sz</span><span class="p">,</span> <span class="n">pa</span><span class="p">,</span> <span class="n">perm</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;kvmmap&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p><code>mappage()</code>接收参数如物理内存地址，虚拟内存地址，大小等等。<code>walk()</code>在<code>mappage()</code>中被使用，它通过VA来找对应的PTE，并且把这个PTE的PA返回到<code>mappage()</code>。后者会通过内存地址就该这个PTE的内容（PPN，权限等）。<code>walk()</code>寻找PTE的过程就是上述的三段查找。但对应的PTP可能不存在（即上级PTE为非valid），比如由于最开始只有根PTP。此时如果<code>walk()</code>接收到了特定的参数，它就会分配新的PTP给这个PTE。</p>
+<p>    在布局完成后，<code>main()</code>会调用<code>kvminithart()</code>。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">kvminithart</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="n">w_satp</span><span class="p">(</span><span class="n">MAKE_SATP</span><span class="p">(</span><span class="n">kernel_pagetable</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">  <span class="n">sfence_vma</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>它的工作很简单但是巨大的转折。它将kernel的根PTP放在寄存器<code>satp</code>中，这标志着CPU开始完全使用VM（对kernel没影响，因为它使用直接映射）。之后<code>main()</code>会调用<code>procinit()</code>来创建kstack和guard（同样通过<code>kvmmap()</code>）。<code>procinit()</code>最后会使用<code>kvminithart()</code>，把更新后的PT加载到<code>satp</code>，然后使用<code>sfence.vma()</code>晴空TLB缓存，准备进入用户空间。</p>
 <br>
 <br>
 <br>
