@@ -154,7 +154,75 @@
 <br>
 <br>
 <br>
-<h2 id="34-物理内存分配-physical-memory-allocation">3.4 物理内存分配 Physical memory allocation</h2>
+<h2 id="34-物理内存分配器-physical-memory-allocator">3.4 物理内存分配器 Physical memory allocator</h2>
+<p>    分配与释放物理内存是kernel的工作。kernel分配kernel结束位置到<code>PHYSTOP</code>之间的区域。每次分配与释放的大小为4096Bytes，即一个page。通过特定的数据结构，kernel便可知哪个page可用。这个数据结构是一种<strong>自由表（Free List）</strong>。</p>
+<blockquote>
+<p>自由表：</p>
+<p>自由表被用来作为管理内存的数据结构存在，本质上只是一个链表。每一个空闲的page都是这个链表中的一个节点。对于kernel来说，它不需要储存这个链表，只需要储存其头节点，即某一个空闲的page，而这个头节点会指向“下一个”空闲page，下一个空闲的page又会指向另一个空闲的page&hellip;由于形如<code>page.nextPage</code>的属性存放在每个page的内部，它们不会占用kernel的内存。</p>
+</blockquote>
+<p>    **分配器（Allocator）**实际上只是对<code>kalloc.c</code>的抽象（分配器同时负责分配与释放）。其中最重要的结构体属性是<code>kmem</code>，它有两个属性：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="k">struct</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">spinlock</span> <span class="n">lock</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">run</span> <span class="o">*</span><span class="n">freelist</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span> <span class="n">kmem</span><span class="p">;</span>
+</span></span></code></pre></div><p>后者即自由表的头节点。每个page都有自己的<code>run</code>结构体，储存着下一个可用的page。</p>
+<p>    在<code>main.c</code>中，<code>kinit</code>会被调用：这个调用发生在对虚拟内存的初始化之前。<code>kinit</code>，与其他和内存分配/释放相关的重要内容大多定义在<code>kalloc.c</code>文件中，组成所谓的分配器。<code>kinit</code>实际上只是封装了两个函数：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">kinit</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="n">initlock</span><span class="p">(</span><span class="o">&amp;</span><span class="n">kmem</span><span class="p">.</span><span class="n">lock</span><span class="p">,</span> <span class="s">&#34;kmem&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="n">freerange</span><span class="p">(</span><span class="n">end</span><span class="p">,</span> <span class="p">(</span><span class="kt">void</span><span class="o">*</span><span class="p">)</span><span class="n">PHYSTOP</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>前者将在第六章介绍，后者用来释放多个连续的page，其中第一个参数是释放目标的起始地址，后者是终止地址。由于<code>kinit</code>的目的是初始化从kernel结束到物理内存终点的所有内存到数据结构中，所以第一个参数是<code>end[]</code>，一个被定义在<code>kernel.ld</code>中的列表，储存着kernel结束后的第一个地址，而第二个参数<code>PHYSTOP</code>就是物理内存的终点。由于单次释放/分配一个page，<code>freerange</code>必然不是将参数所定义的内存区间一次性释放，而是以循环的方式多次调用<code>kfree()</code>来讲连续的pages一个接一个释放。为了保证每次释放的都是完整4096Bytes且规整（即不从某个page的中间释放）的page，在调用<code>kfree</code>之前，<code>freerange</code>调用<code>PDROUNDUP</code>函数（一个定义在<code>defs.c</code>里的宏定义）来检查参数所指向的地址是否是一个可行的page。在<code>kinit</code>之前，分配器没有课管理的page，但之后便有了。</p>
+<p>    <code>kfree</code>的过程：kfree接受一个指针作为参数，该参数会被检查，通过之后调用<code>memset</code>把这个page中的内容覆盖为<code>1</code>，让page在再次被使用时无法访问到先前保存的内容。之后会把这个<code>void</code>指针强转成一个<code>run</code>类型的指针/结构体。这个指针的<code>next</code>属性将指向<code>kmem</code>中的自由表原头节点，且把头节点指向这个<code>run</code>指针：最新释放的page在整个自由表的最前面。</p>
+<p>    分配器有两种对地址的理解。1.整数：当使用<code>freerange</code>时，对地址做算术运算来的相邻的oage的地址。2.指针：在自由表中，一个page的地址有被保存在先于它的page中，以一个指针的方式指向它，实现了page之间的连接。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">kfree</span><span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="n">pa</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">run</span> <span class="o">*</span><span class="n">r</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">//检查地址是否合法
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">(((</span><span class="n">uint64</span><span class="p">)</span><span class="n">pa</span> <span class="o">%</span> <span class="n">PGSIZE</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span> <span class="o">||</span> <span class="p">(</span><span class="kt">char</span><span class="o">*</span><span class="p">)</span><span class="n">pa</span> <span class="o">&lt;</span> <span class="n">end</span> <span class="o">||</span> <span class="p">(</span><span class="n">uint64</span><span class="p">)</span><span class="n">pa</span> <span class="o">&gt;=</span> <span class="n">PHYSTOP</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;kfree&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="c1">//清空page内容
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">memset</span><span class="p">(</span><span class="n">pa</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">PGSIZE</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="n">r</span> <span class="o">=</span> <span class="p">(</span><span class="k">struct</span> <span class="n">run</span><span class="o">*</span><span class="p">)</span><span class="n">pa</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="c1">//不需要关心lock相关
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">kmem</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">//调换自由表头
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">r</span><span class="o">-&gt;</span><span class="n">next</span> <span class="o">=</span> <span class="n">kmem</span><span class="p">.</span><span class="n">freelist</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="n">kmem</span><span class="p">.</span><span class="n">freelist</span> <span class="o">=</span> <span class="n">r</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">kmem</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="35-进程内存空间-process-address-space">3.5 进程内存空间 Process address space</h2>
+<p>    每个进程都有自己的内存空间，虽然RISC-V使用了39位虚拟内存地址，但xv6只使用其后38为，所以一个进程最多可以有2^39Bytes（即256GB）的虚拟内存。进程的内存空间起始于<code>0x0</code>，上限为<code>MAXVA</code>当一个进程问xv6更多虚拟内存时，主要的函数是<code>kalloc</code>，它给进程分配指定数量的page，这些page会被加入到进程的PTE中。</p>
+<blockquote>
+<p>虚拟内存的三个优势/应用</p>
+<ol>
+<li>进程可以有自己的私有的内存空间，实现隔离。</li>
+<li>进程会认为自己的内存空间是连续的。</li>
+<li>进程的内存空间定不会有<code>trampoline</code>部分，这部分对应的一个page是所有进程共享的。</li>
+</ol>
+</blockquote>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/Zzf7J5P.jpg" alt="" style="width:100%; background: rgba(255, 255, 255, .5)">
+<figcaption><b>Fig.5 进程的内存布局</b></figcaption>
+</div>
+</figure>
+<p>    栈是一个被<code>exec</code>创建的page，它的下面是一个guard page，与kstack的guard用法一致，但由于进程使用虚拟内存，进程的栈的guard可以直接放在正常的位置。</p>
+<p>    图中是<code>main(argc,argv)</code>的内存布局。其栈从上到下分别是调用main时给的参数，以及一个指向这些参数的数组和参数数量。最后面的是返回main使用的地址，供程序计数器（即指令指针）使用。</p>
+<p>    <code>sbrk</code>是一个系统调用，用来修改进程的内存大小。在xv6中通过函数<code>growproc(int n)</code>实现。这个函数接受一个参数，代表希望修改（增加或减小）的内存大小（Bytes）。若其为正数，<code>growproc</code>调用<code>uvmalloc</code>。后者对一些列条件进行检查，一次使用<code>kalloc</code>与<code>mappage</code>分别为进程取出一个可用的page并且把这个page放到PTE中，最终返回新的内存空间大小。若其为负数，<code>growproc</code>调用<code>uvmdealloc</code>。在对参数进行检查后调用<code>uvmmap</code>。后者接受三个重要的参数：分页表地址，目标新大小（小于原大小），需要见效的page页数。<code>uvmmap</code>通过使用<code>walk</code>来得到目标PTE，用<code>kfree</code>把PTE中的page释放（若页数大于一，则使用循环多次释放）。</p>
+<blockquote>
+<p><strong>注：</strong>
+虽然<code>growproc</code>的参数可以是一个不等于4096的数字，但是修改内存大小的最小单位仍然是4096Bytes。比如<code>n=10Bytes</code>，那么这个进程会增加4096Bytes，若<code>n=4097Bytes</code>，那么这个进程会增加(4096*2)Bytes。若<code>n=-10Bytes</code>，那么这个进程内存不会减少，若<code>n=4097Bytes</code>，那么这个进程只会减少4096Bytes。（分别是<code>uvmalloc</code>与<code>uvmdealloc</code>中反应的机制）。
+上述的函数大多在<code>proc.c</code>与<code>vm.c</code>中。</p>
+</blockquote>
 <br>
 <br>
 <br>
@@ -162,31 +230,21 @@
 <br>
 <br>
 <br>
-<h2 id="35-物理内存分配器-physical-memory-allocator">3.5 物理内存分配器 Physical memory allocator</h2>
-<br>
-<br>
-<br>
-<hr>
-<br>
-<br>
-<br>
-<h2 id="36-进程内存空间-process-address-space">3.6 进程内存空间 Process address space</h2>
-<br>
-<br>
-<br>
-<hr>
-<br>
-<br>
-<br>
-<h2 id="37-增长缩小内存空间-sbrk">3.7 增长/缩小内存空间 Sbrk</h2>
-<br>
-<br>
-<br>
-<hr>
-<br>
-<br>
-<br>
-<h2 id="38-exec-系统调用-exec">3.8 <code>exec</code> 系统调用 Exec</h2>
+<h2 id="37-exec-系统调用-exec">3.7 <code>exec</code> 系统调用 Exec</h2>
+<p>    当一个进程开始运行前，如第一章所说，启动该进程的进程会调用<code>exec</code>来让目标进程“代替”自己从而达到开启的目的。更详细的说，<code>exec</code>中会调用<code>naimei</code>函数来打开指定路径中的ELF文件。这个ELF有两个重要的结构体：ELF Header (<code>struct elfhdr</code>)与Program Header(<code>struct proghdr</code>)。前者包含着这个ELF的元数据，比如文件类型，<code>proghdr</code>的数量等。其中的<code>uint magic</code>将会和<code>ELF_MAGIC</code>（后者值为<code>0x7F,'E','L','F'</code>）对比：若两者一致，则会认为这个ELF是正确的（Well-formed）。后者则是对这个进程的**段（Segment）**的描述。每个段都会有自己的<code>proghdr</code>，其包含这个段的类型，大小等。**注：**xv6的ELF只有1个段（也就是一个<code>proghdr</code>），但其他系统通常有多个。<code>exec</code>随后会调用<code>proc_pagetable()</code>来创建一个只有<code>trampoline</code>的PT，并且把所有类型为<code>LOAD</code>的<code>proghdr</code>内容加载到内存。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="err">$</span> <span class="n">objdump</span> <span class="o">-</span><span class="n">p</span> <span class="n">_init</span>              
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="nl">_init</span><span class="p">:</span>	<span class="n">file</span> <span class="n">format</span> <span class="n">elf64</span><span class="o">-</span><span class="n">littleriscv</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">Program</span> <span class="nl">Header</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">    <span class="n">LOAD</span> <span class="n">off</span>    <span class="mh">0x00000000000000b0</span> <span class="n">vaddr</span> <span class="mh">0x0000000000000000</span> <span class="n">paddr</span> <span class="mh">0x0000000000000000</span> <span class="n">align</span> <span class="mi">2</span><span class="o">**</span><span class="mi">3</span>
+</span></span><span class="line"><span class="cl">         <span class="n">filesz</span> <span class="mh">0x0000000000000980</span> <span class="n">memsz</span> <span class="mh">0x0000000000000998</span> <span class="n">flags</span> <span class="n">rwx</span>
+</span></span></code></pre></div><p>这是一个第一个进程<code>_init</code>的Program Header，其中的<code>LOAD</code>是这个段的类型；<code>off</code>是一个偏移量，指的是从文件的开始到这个段的距离；<code>vaddr, paddr</code>分别指该段在虚拟内存和物理内存的起始点，但进程运行在虚拟内存，后者被忽略；<code>filesz</code>指的是这个段的内存大小，而<code>memsz</code>指的是需要分配的内存大小：通常后者大于前者，两者之间的空间供全局变量使用，初始化为<code>0</code>。</p>
+<p>    之后<code>exec</code>开始分配内存。通过调用<code>kalloc</code>，这个进程获得一个<code>ustack</code>。传入的参数会被一个接一个从上到下放入这个栈中。最终最下层的三个元素分别为一个假的返回地址，<code>argc</code>，与<code>argv</code>，参考<strong>Fig.5 进程的内存布局</strong>。</p>
+<p>    在配置PT的过程中，若<code>exec</code>发现任何错误，就会返回<code>-1</code>，并且会回到调用<code>exec</code>的进程中。由于布置内存的过程不一定百分之百成功，而<code>exec</code>会最终把调用它的进程释放掉，保险的方法是先不让之前的进程被释放，等新的进程的内存相关的不知结束后便释放。由于<code>exec</code>是把一个外部的ELF文件假如内存中，若ELF是恶意设计的，可能会让内核崩溃，所以存在保护措施，如：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="k">if</span><span class="p">(</span><span class="n">ph</span><span class="p">.</span><span class="n">vaddr</span> <span class="o">+</span> <span class="n">ph</span><span class="p">.</span><span class="n">memsz</span> <span class="o">&lt;</span> <span class="n">ph</span><span class="p">.</span><span class="n">vaddr</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">      <span class="k">goto</span> <span class="n">bad</span><span class="p">;</span>
+</span></span></code></pre></div><p>通过计算ELF某段的大小是否在加载到内存中后会超过64bits上限导致溢出为一个更小的数字，防止通过溢出达成的恶意行为。（不过由于虚拟内存的隔离，这种溢出也难以对内核产生效果）。</p>
 <br>
 <br>
 <br>
@@ -314,7 +372,7 @@
 <br>
 <h2 id="25-xv6的启动与第一个进程">2.5 xv6的启动与第一个进程</h2>
 <p>    本节是对系统启动的综述，细节会在未来的章节中谈论。</p>
-<p>    当搭载着RISC-V的电脑通电后，它自己会触发一个储存在内存中的<strong>启动程序（Boot loader）</strong>。这个程序会把xv6的内核加载到内存中：现在xv6运行于机器模式中。此时负责分页的硬件没有开启，系统直接使用物理内存：启动程序会从内存地址<code>0x80000000</code>加载xv6。不从更小的地址加载是因为<code>0x80000000</code>之前的部分提供给了其他I/O设备。之后xv6运行自己内核中的<code>_entry</code>文件（一个汇编程序）。这个程序位xv6创建了一个栈，这样它就可以使用内核中的C语言程序<code>start.c</code>了。这个程序负责把CPU从机器模式切换到超级用户模式。为了返回SM，RISC-V提供了<code>mret</code>指令，但是该指令通常是为了从SM切换到MM。为了实现目的，<code>start</code>会修改寄存器<code>mstatus</code>的值：把之前的机器模式修改为超级用户模式并且在寄存器<code>mepc</code>中设置<code>main</code>的地址。（现在仍然使用真实内存）。再跳转之前，<code>start</code>还会开启<strong>实时时钟（Clock chip）</strong>。这个硬件用来生成<strong>时钟中断（Timer interrupts）</strong>。最后<code>start</code>调用<code>mret</code>，跳转到<code>main</code>。在<code>main</code>中，xv6开启一些其他设备和子系统，但更重要的是，它通过<code>userinit</code>创建第一个进程（通过创建进程结构体）。这个进程使用<code>initcode.S</code>来触发<code>exec</code>系统调用去开启进程<code>init</code>。这个进程会创建一个控制台（console）。系统便启动了。
+<p>    当搭载着RISC-V的电脑通电后，它自己会触发一个储存在内存中的<strong>启动程序（Boot loader）</strong>。这个程序会把xv6的内核加载到内存中：现在xv6运行于机器模式中。此时负责分页的硬件没有开启，系统直接使用物理内存：启动程序会从内存地址<code>0x80000000</code>加载xv6。不从更小的地址加载是因为<code>0x80000000</code>之前的部分提供给了其他I/O设备。之后xv6运行自己内核中的<code>_entry</code>文件（一个汇编程序）。这个程序位xv6创建了一个栈，这样它就可以使用内核中的C语言程序<code>start.c</code>了。这个程序负责把CPU从机器模式切换到超级用户模式。为了返回SM，RISC-V提供了<code>mret</code>指令，但是该指令通常是为了从SM切换到MM。为了实现目的，<code>start</code>会修改寄存器<code>mstatus</code>的值：把之前的机器模式修改为超级用户模式并且在寄存器<code>mepc</code>中设置<code>main</code>的地址。（现在仍然使用真实内存）。在跳转之前，<code>start</code>还会开启<strong>实时时钟（Clock chip）</strong>。这个硬件用来生成<strong>时钟中断（Timer interrupts）</strong>。最后<code>start</code>调用<code>mret</code>，跳转到<code>main</code>。在<code>main</code>中，xv6开启一些其他设备和子系统，但更重要的是，它通过<code>userinit</code>创建第一个进程（通过创建进程结构体）。这个进程使用<code>initcode.S</code>来触发<code>exec</code>系统调用去开启进程<code>init</code>。这个进程会创建一个控制台（console）。系统便启动了。
 <br>
 <br>
 <br></p>
