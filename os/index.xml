@@ -6,8 +6,333 @@
 		<generator>Hugo -- gohugo.io</generator>
 		<language>zh-hans</language>
 		<copyright>This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.</copyright>
-		<lastBuildDate>Sun, 12 Jun 2022 10:15:51 -0400</lastBuildDate>
+		<lastBuildDate>Mon, 20 Jun 2022 09:19:55 -0400</lastBuildDate>
 		<atom:link href="https://hoooao.github.io/os/index.xml" rel="self" type="application/rss+xml" />
+		
+		<item>
+			<title>Chap 4：Traps与系统调用 Traps and System calls</title>
+			<link>https://hoooao.github.io/os/chap4/</link>
+			<pubDate>Mon, 20 Jun 2022 09:19:55 -0400</pubDate>
+			
+			<guid>https://hoooao.github.io/os/chap4/</guid>
+			<description>目录   导言  4.1 RISC-V Trap机制 RISC-V trap machinery  4.2 用户空间的Traps Traps from user space  4.3 使用系统调用 Code: Calling system calls  4.4 系统调用参数 Code: System call arguments  4.5 内核空间的Traps Traps from kernel space  4.6 缺页异常 Page-fault exceptions  4.7 练习 Exercise   导言：  存在三种情况会导致OS停下手边的东西转而去执行一些特定的代码，她们分别是：
+ 系统调用：进程调用ecall来让内核去执行一些操作 Exception：当一条指令做了非法的事情，进程会被杀死 设备中断（Device interrputs）：一个设备会向CPU发送注意请求，例如磁盘读写完成
+ 这三种让“CPU去执行另一项任务”的行为统一叫做Traps。一个Trap处理的流程通常是：
+ Trap让CPU切换控制（Control） CPU保存当前进程的一切寄存器，为了让进程继续执行。 执行对应Trap的代码 恢复之前的进程
+ 对于这个被中断的进程来说，Trap是“透明的”，也就是说，当前进程并不会知道自己被一个Trap中断了，因为它会被在未来某一个时刻继续运行（或者被杀死）。
+ 4.1 RISC-V Trap机制 RISC-V trap machinery  上述的行为都需要被**控制与状态寄存器（CSRs：Control and Status Registers）**支持，下面是一些常用的CSRs：</description>
+			<content type="html"><![CDATA[<h2 id="目录">目录</h2>
+<ul>
+<li> <a href="#%E5%AF%BC%E8%A8%80">导言</a></li>
+<li> <a href="#41-risc-v-trap%E6%9C%BA%E5%88%B6-risc-v-trap-machinery">4.1 RISC-V Trap机制 RISC-V trap machinery</a></li>
+<li> <a href="#42-%E7%94%A8%E6%88%B7%E7%A9%BA%E9%97%B4%E7%9A%84traps-traps-from-user-space">4.2 用户空间的Traps Traps from user space</a></li>
+<li> <a href="#43-code-calling-system-calls">4.3 使用系统调用 Code: Calling system calls</a></li>
+<li> <a href="#44-code-system-call-arguments">4.4 系统调用参数 Code: System call arguments</a></li>
+<li> <a href="#45-traps-from-kernel-space">4.5 内核空间的Traps Traps from kernel space</a></li>
+<li> <a href="#46-page-fault-exceptions">4.6 缺页异常 Page-fault exceptions</a></li>
+<li> <a href="#47-%E7%BB%83%E4%B9%A0-exercise">4.7 练习 Exercise</a></li>
+</ul>
+<br>
+<hr>
+<br>
+<h2 id="导言">导言：</h2>
+<p>    存在三种情况会导致OS停下手边的东西转而去执行一些特定的代码，她们分别是：</p>
+<blockquote>
+<p>系统调用：进程调用<code>ecall</code>来让内核去执行一些操作
+Exception：当一条指令做了非法的事情，进程会被杀死
+<strong>设备中断（Device interrputs）</strong>：一个设备会向CPU发送注意请求，例如磁盘读写完成</p>
+</blockquote>
+<p>这三种让“CPU去执行另一项任务”的行为统一叫做<strong>Traps</strong>。一个Trap处理的流程通常是：</p>
+<blockquote>
+<p>Trap让CPU切换<strong>控制（Control）</strong>
+CPU保存当前进程的一切寄存器，为了让进程继续执行。
+执行对应Trap的代码
+恢复之前的进程</p>
+</blockquote>
+<p>对于这个被中断的进程来说，Trap是“透明的”，也就是说，当前进程并不会知道自己被一个Trap中断了，因为它会被在未来某一个时刻继续运行（或者被杀死）。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="41-risc-v-trap机制-risc-v-trap-machinery">4.1 RISC-V Trap机制 RISC-V trap machinery</h2>
+<p>    上述的行为都需要被**控制与状态寄存器（CSRs：Control and Status Registers）**支持，下面是一些常用的CSRs：</p>
+<blockquote>
+<p>stvec：保存着Trap handler函数（<code>uservec</code>）的程序地址，进程通过它来跳转到处理Trap的代码
+scause：记录着Trap发生的原因
+sstatus：其中的SIE-bit指示是否能处理interrupts，其中的SPP-bit指示Trap是从什么模式出现的，并控制在调用指令<code>sret</code>后，跳转至目标模式（<code>sret</code>会把<code>sepc</code>寄存器的内容写到<code>pc</code>寄存器，实现跳转模式）。
+sscratch：保存一些重要的进程与内核相关的数据并且用来保存进程的寄存器。
+sepc：用来保存Trap发生时的PC，用来之后继续进程</p>
+</blockquote>
+<p>    简化的流程：</p>
+<blockquote>
+<p>Trap发生后，如果是被一个设备中断引起，同时SIE未设置，则忽略这个Trap；
+把SIE清楚（之后的过程中不会处理新的设备中断）；
+把<code>pc</code>放入<code>sepc</code>；
+把当前的模式放入SPP；
+记录<code>scause</code>；
+切换至SM（kernel）；
+把<code>stevec</code>的值放入<code>pc</code>；
+开始处理。</p>
+</blockquote>
+<p>    **注：**在处理Trap的时候，CPU不负责切换<code>satp</code>，kstack,和保存除<code>pc</code>之外的寄存器。这样给了软件更多的灵活度，比如对于一些操作系统，它们不需要切换<code>satp</code>去处理Trap。但是同时也要求处理Trap的程序来做这些工作。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="42-用户空间的traps-traps-from-user-space">4.2 用户空间的Traps Traps from user space</h2>
+<p>    处理Trap的函数调用顺序是：<code>uservec-&gt;usertrap-&gt;usertrapret-&gt;userret</code>。</p>
+<p>    已知<code>stvec</code>会指向<code>uservec</code>，但问题是，在切换<code>satp</code>之后，<code>uservec</code>的地址必须要背内核的内存空间映射，才能继续运行。解决方法：xv6为每个进程，包括kernel，分配了一个page叫做<code>trampoline</code>，其内容定义（<code>uservec，userret</code>）在<code>trampoline.S</code>，位于虚拟内存中的<code>TRAMPOLINE</code>。其在各个进程与内核中的VA是一样的（<code>TRAMPPOLINE</code>）。</p>
+<p>    当Trap出现，使用<code>stvec</code>找到位于<code>trampoline</code>中的<code>uservec</code>。在<code>uservec</code>运行的开始，32个寄存器保存着这个进程的数据，它会使用指令来交换<code>sscratch</code>与<code>a0</code>的值，这样原<code>a0</code>就被保存了：此时<code>uservec</code>就可以使用<code>a0</code>而不用担心数据损坏了。之前原来的<code>sscratch</code>中保存的实际上是一个page的地址，这个page被叫做<code>trapframe</code>，邻接<code>trampoline</code>的正下方。它是一个每个进程都独有的内存空间，足够存放32个寄存器和其他数据，而现在<code>a0</code>指向了这个空间。<code>uservec</code>通过指令把每个寄存器依次放入了<code>trapframe</code>（从<code>0x40</code>开始是因为之前的偏移量中存放着其他数据）。最后在把<code>sscratch</code>中保存的原<code>a0</code>放入<code>trapframe</code>：所有的寄存器的对应的值都被保存了。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="nl">uservec</span><span class="p">:</span>    
+</span></span><span class="line"><span class="cl">        <span class="c1">//交换两个寄存器的值
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="n">csrrw</span> <span class="n">a0</span><span class="p">,</span> <span class="n">sscratch</span><span class="p">,</span> <span class="n">a0</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="cp"># save the user registers in TRAPFRAME
+</span></span></span><span class="line"><span class="cl"><span class="cp"></span>        <span class="n">sd</span> <span class="n">ra</span><span class="p">,</span> <span class="mi">40</span><span class="p">(</span><span class="n">a0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">sd</span> <span class="n">sp</span><span class="p">,</span> <span class="mi">48</span><span class="p">(</span><span class="n">a0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">sd</span> <span class="n">gp</span><span class="p">,</span> <span class="mi">56</span><span class="p">(</span><span class="n">a0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">//···
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="c1">//共计31个寄存器
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="c1">//···
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="n">sd</span> <span class="n">t3</span><span class="p">,</span> <span class="mi">256</span><span class="p">(</span><span class="n">a0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">sd</span> <span class="n">t4</span><span class="p">,</span> <span class="mi">264</span><span class="p">(</span><span class="n">a0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">sd</span> <span class="n">t5</span><span class="p">,</span> <span class="mi">272</span><span class="p">(</span><span class="n">a0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">sd</span> <span class="n">t6</span><span class="p">,</span> <span class="mi">280</span><span class="p">(</span><span class="n">a0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="c1">//保存原a0
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="n">csrr</span> <span class="n">t0</span><span class="p">,</span> <span class="n">sscratch</span>
+</span></span><span class="line"><span class="cl">        <span class="n">sd</span> <span class="n">t0</span><span class="p">,</span> <span class="mi">112</span><span class="p">(</span><span class="n">a0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="c1">//······
+</span></span></span></code></pre></div><p>    之后仍然适用<code>trapframe</code>，<code>uservec</code>会把这个进程与内核相关的数据取出，比如<code>kstack，usertrap()</code>，和kernel的PT的地址等。此时便可把<code>satp</code>指向kernel的PT了。最终在<code>uservec</code>中，由于<code>trampoline</code>也以一样的地址映射在内核的内存空间中，调用<code>usertrap</code>。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl">        <span class="c1">//···接上···
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl">        <span class="cp"># restore kernel stack pointer from p-&gt;trapframe-&gt;kernel_sp
+</span></span></span><span class="line"><span class="cl"><span class="cp"></span>        <span class="n">ld</span> <span class="n">sp</span><span class="p">,</span> <span class="mi">8</span><span class="p">(</span><span class="n">a0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="c1">//···略···
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl">        <span class="cp"># restore kernel page table from p-&gt;trapframe-&gt;kernel_satp
+</span></span></span><span class="line"><span class="cl"><span class="cp"></span>        <span class="n">ld</span> <span class="n">t1</span><span class="p">,</span> <span class="mi">0</span><span class="p">(</span><span class="n">a0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">csrw</span> <span class="n">satp</span><span class="p">,</span> <span class="n">t1</span>
+</span></span><span class="line"><span class="cl">        <span class="n">sfence</span><span class="p">.</span><span class="n">vma</span> <span class="n">zero</span><span class="p">,</span> <span class="n">zero</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="cp"># a0 is no longer valid, since the kernel page
+</span></span></span><span class="line"><span class="cl"><span class="cp"></span>        <span class="cp"># table does not specially map p-&gt;tf.
+</span></span></span><span class="line"><span class="cl"><span class="cp"></span>
+</span></span><span class="line"><span class="cl">        <span class="cp"># jump to usertrap(), which does not return
+</span></span></span><span class="line"><span class="cl"><span class="cp"></span>        <span class="n">jr</span> <span class="n">t0</span>
+</span></span></code></pre></div><p>    <code>usertrap</code>首先会把<code>stvec</code>设置为<code>kernelvec</code>，为可能的内核中出现的Trap服务。然后把<code>sepc</code>的值放入<code>p-&gt;trapframe-&gt;epc</code>中（<code>p</code>指的是原进程），防止哪种使用其他进程覆盖掉<code>sepc</code>从而丢失原<code>pc</code>。之后它会取出<code>scause</code>中的值，用作Trap类型的判断：</p>
+<blockquote>
+<p>系统调用：执行<code>syscall</code>，并且把<code>epc+=4</code>，用来跳过原<code>pc</code>对<code>ecall</code>的调用指令。
+设备中断：调用<code>devintr</code>。
+Exception：杀死原进程。</p>
+</blockquote>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">usertrap</span><span class="p">(</span><span class="kt">void</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">which_dev</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">//只有来自用户空间的才能调用usertrap
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">((</span><span class="n">r_sstatus</span><span class="p">()</span> <span class="o">&amp;</span> <span class="n">SSTATUS_SPP</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;usertrap: not from user mode&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="c1">//修改stvec
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">w_stvec</span><span class="p">((</span><span class="n">uint64</span><span class="p">)</span><span class="n">kernelvec</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">proc</span> <span class="o">*</span><span class="n">p</span> <span class="o">=</span> <span class="n">myproc</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  
+</span></span><span class="line"><span class="cl">  <span class="c1">// 保存原pc
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">p</span><span class="o">-&gt;</span><span class="n">trapframe</span><span class="o">-&gt;</span><span class="n">epc</span> <span class="o">=</span> <span class="n">r_sepc</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  
+</span></span><span class="line"><span class="cl">  <span class="c1">//检查Trap类型
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">(</span><span class="n">r_scause</span><span class="p">()</span> <span class="o">==</span> <span class="mi">8</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// system call
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">killed</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">      <span class="n">exit</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1">//修正偏移量
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">p</span><span class="o">-&gt;</span><span class="n">trapframe</span><span class="o">-&gt;</span><span class="n">epc</span> <span class="o">+=</span> <span class="mi">4</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1">// 因为使用完了寄存器，可以允许Interrupts
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">intr_on</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">//系统调用
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">syscall</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1">//处理Interrupts
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="p">}</span> <span class="k">else</span> <span class="k">if</span><span class="p">((</span><span class="n">which_dev</span> <span class="o">=</span> <span class="n">devintr</span><span class="p">())</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// ok
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">//处理Exception
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">printf</span><span class="p">(</span><span class="s">&#34;usertrap(): unexpected scause %p pid=%d</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">r_scause</span><span class="p">(),</span> <span class="n">p</span><span class="o">-&gt;</span><span class="n">pid</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">printf</span><span class="p">(</span><span class="s">&#34;            sepc=%p stval=%p</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">r_sepc</span><span class="p">(),</span> <span class="n">r_stval</span><span class="p">());</span>
+</span></span><span class="line"><span class="cl">    <span class="n">p</span><span class="o">-&gt;</span><span class="n">killed</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">killed</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">exit</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="c1">// give up the CPU if this is a timer interrupt.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">(</span><span class="n">which_dev</span> <span class="o">==</span> <span class="mi">2</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">yield</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1">//调用
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">usertrapret</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>    最后在<code>usertrap</code>中调用<code>usertrapret</code>。后者把<code>stvec</code>又改回<code>trampoline</code>中的<code>uservec</code>为未来可能在进程中出现的Trap服务。同时进程中<code>trapframe</code>的内核与进程相关的数据也被更新（如<code>kstack</code>，kernel的PT等）。在重新设置<code>sepc</code>为<code>pc</code>后，调用<code>userret</code>。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span>
+</span></span><span class="line"><span class="cl"><span class="nf">usertrapret</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">proc</span> <span class="o">*</span><span class="n">p</span> <span class="o">=</span> <span class="n">myproc</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="c1">//在切换回用户空间前，禁止interrupts。
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">intr_off</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="c1">//sevec切换回uservec
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">w_stvec</span><span class="p">(</span><span class="n">TRAMPOLINE</span> <span class="o">+</span> <span class="p">(</span><span class="n">uservec</span> <span class="o">-</span> <span class="n">trampoline</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="c1">//更新trapframe
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">p</span><span class="o">-&gt;</span><span class="n">trapframe</span><span class="o">-&gt;</span><span class="n">kernel_satp</span> <span class="o">=</span> <span class="n">r_satp</span><span class="p">();</span>         <span class="c1">// kernel page table
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">p</span><span class="o">-&gt;</span><span class="n">trapframe</span><span class="o">-&gt;</span><span class="n">kernel_sp</span> <span class="o">=</span> <span class="n">p</span><span class="o">-&gt;</span><span class="n">kstack</span> <span class="o">+</span> <span class="n">PGSIZE</span><span class="p">;</span> <span class="c1">// process&#39;s kernel stack
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">p</span><span class="o">-&gt;</span><span class="n">trapframe</span><span class="o">-&gt;</span><span class="n">kernel_trap</span> <span class="o">=</span> <span class="p">(</span><span class="n">uint64</span><span class="p">)</span><span class="n">usertrap</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="n">p</span><span class="o">-&gt;</span><span class="n">trapframe</span><span class="o">-&gt;</span><span class="n">kernel_hartid</span> <span class="o">=</span> <span class="n">r_tp</span><span class="p">();</span>         <span class="c1">// hartid for cpuid()
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl">  <span class="c1">//···略（sstatus相关设置）···
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl">  <span class="c1">//切换sepc回原pc，供sret使用
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">w_sepc</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">trapframe</span><span class="o">-&gt;</span><span class="n">epc</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="c1">//这里的satp只是个变量，而非寄存器
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">uint64</span> <span class="n">satp</span> <span class="o">=</span> <span class="n">MAKE_SATP</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">pagetable</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="c1">//调用userret，传入参数a0=trapframe, a1=satp
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">uint64</span> <span class="n">fn</span> <span class="o">=</span> <span class="n">TRAMPOLINE</span> <span class="o">+</span> <span class="p">(</span><span class="n">userret</span> <span class="o">-</span> <span class="n">trampoline</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="p">((</span><span class="kt">void</span> <span class="p">(</span><span class="o">*</span><span class="p">)(</span><span class="n">uint64</span><span class="p">,</span><span class="n">uint64</span><span class="p">))</span><span class="n">fn</span><span class="p">)(</span><span class="n">TRAPFRAME</span><span class="p">,</span> <span class="n">satp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>     <code>userret</code>的行为与<code>uservec</code>相反：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl">        <span class="c1">//吧satp换成原进程的pt
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="n">csrw</span> <span class="n">satp</span><span class="p">,</span> <span class="n">a1</span>
+</span></span><span class="line"><span class="cl">        <span class="n">sfence</span><span class="p">.</span><span class="n">vma</span> <span class="n">zero</span><span class="p">,</span> <span class="n">zero</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="c1">//临时保存原a0到t0
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="n">ld</span> <span class="n">t0</span><span class="p">,</span> <span class="mi">112</span><span class="p">(</span><span class="n">a0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">//交换sscratch与原a0位置
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="n">csrw</span> <span class="n">sscratch</span><span class="p">,</span> <span class="n">t0</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="c1">//恢复所有寄存器
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="n">ld</span> <span class="n">ra</span><span class="p">,</span> <span class="mi">40</span><span class="p">(</span><span class="n">a0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">//···略···
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="n">ld</span> <span class="n">t6</span><span class="p">,</span> <span class="mi">280</span><span class="p">(</span><span class="n">a0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="c1">//最后恢复a0
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="n">csrrw</span> <span class="n">a0</span><span class="p">,</span> <span class="n">sscratch</span><span class="p">,</span> <span class="n">a0</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="c1">//返回sepc指向的位置
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="n">sret</span>
+</span></span></code></pre></div><br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="43-code-calling-system-calls">4.3 Code: Calling system calls</h2>
+<p>    在第二章，<code>initcode.S</code>调用<code>exec</code>最终开启了第一个进程<code>console</code>。细节地说，<code>initcode.S</code>中的<code>start</code>函数给寄存器<code>a1，a0</code>传递参数，并且把一个系统调用的特定号码放入<code>a7</code>。这个号码定义在<code>syscall.c</code> 的<code>syscalls</code>数组中，对应着特定的系统调用地址。<code>start</code>最后一行使用了<code>ecall</code>，它使得trap产生并执行<code>uservec，usertrap，syscall</code>。在<code>syscall</code>中，<code>a7</code>的值会与上述的数组对比，得到目标系统调用：<code>initcode.S</code>调用了<code>SYS_exec</code>，从而调用<code>exec</code>。在运行完毕后，系统调用会把返回值放入<code>a0</code>，负数代表运行出错，<code>0</code>或正数代表成功：如果系统调用号码不存在，返回<code>-1</code>。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="44-code-system-call-arguments">4.4 Code: System call arguments</h2>
+<p>    在第一章中讨论的所有以函数形式出现的系统调用实际上都是对于该系统调用的封装。当这些函数被传参时，如给其他函数传参一样：参数会帮按顺序放入寄存器中（并且在调用<code>uservec</code>时放入<code>p-&gt;trapframe</code>）。xv6使用<code>argint，argstr，argaddr</code>来分别从寄存器中拿到整型，字符串，和指针。比如：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="c1">// Fetch the nth 32-bit system call argument.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kt">int</span> <span class="nf">argint</span><span class="p">(</span><span class="kt">int</span> <span class="n">n</span><span class="p">,</span> <span class="kt">int</span> <span class="o">*</span><span class="n">ip</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="o">*</span><span class="n">ip</span> <span class="o">=</span> <span class="n">argraw</span><span class="p">(</span><span class="n">n</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>但它实际上也只是对于<code>argraw</code>进行的封装：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="k">static</span> <span class="n">uint64</span>
+</span></span><span class="line"><span class="cl"><span class="nf">argraw</span><span class="p">(</span><span class="kt">int</span> <span class="n">n</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">proc</span> <span class="o">*</span><span class="n">p</span> <span class="o">=</span> <span class="n">myproc</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="k">switch</span> <span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="k">case</span> <span class="mi">0</span><span class="o">:</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">p</span><span class="o">-&gt;</span><span class="n">trapframe</span><span class="o">-&gt;</span><span class="n">a0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="c1">//...省略case 1～5，分别对应寄存器a1～a5...
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl">  <span class="k">case</span> <span class="mi">5</span><span class="o">:</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">p</span><span class="o">-&gt;</span><span class="n">trapframe</span><span class="o">-&gt;</span><span class="n">a5</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">  <span class="n">panic</span><span class="p">(</span><span class="s">&#34;argraw&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>后者通过<code>p-&gt;trapframe</code>取出原进程保存的寄存器的值。</p>
+<p>    虽然得到寄存器中的值对于内核来说相对简单，但，一直调用某个系统调用的进程的内存空间与内核不共享PT，当参数是指针式，会出现两个问题：</p>
+<blockquote>
+<p>1.内核无法直接使用进程提供的指针去得到指针指向的数据。
+2.指针指向的数据可能是恶意的。
+所以需要一种能把数据取出，又能保证安全的方法。</p>
+</blockquote>
+<p>    xv6中使用一些函数达成此目的，比如<code>fetchstr</code>:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">int</span> 
+</span></span><span class="line"><span class="cl"><span class="nf">fetchstr</span><span class="p">(</span><span class="n">uint64</span> <span class="n">addr</span><span class="p">,</span> <span class="kt">char</span> <span class="o">*</span><span class="n">buf</span><span class="p">,</span> <span class="kt">int</span> <span class="n">max</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">proc</span> <span class="o">*</span><span class="n">p</span> <span class="o">=</span> <span class="n">myproc</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">err</span> <span class="o">=</span> <span class="n">copyinstr</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">pagetable</span><span class="p">,</span> <span class="n">buf</span><span class="p">,</span> <span class="n">addr</span><span class="p">,</span> <span class="n">max</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">err</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">err</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="n">strlen</span><span class="p">(</span><span class="n">buf</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>它调用了<code>copyinstr</code>，后者需要4个参数：原进程的PT，一个用来接收数据的buffer，目标VA，与读取Bytes的上限。<code>copyinstr</code>通过使用<code>walkaddr</code>来得到目标page的PA，而<code>walkaddr</code>实际上调用了<code>walk</code>来获取目标所在的PTE，然后翻译成PA（通过PPN）。最后<code>copyinstr</code>通过传入的目标VA中的偏移量来获取目标数据，并把数据传入buffer。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="45-traps-from-kernel-space">4.5 Traps from kernel space</h2>
+<p>    内核中的Trap不同于用户的Trap处理。当位于内核中时，<code>stvec</code>一定指向<code>kernelvec</code>，且在保存寄存器后可直接进入<code>kerneltrap</code>（保存寄存器是因为内核可能切换线程，这也导致寄存器必须要保存到这个进程自己的栈中）。在<code>kerneltrap</code>中，由于内核可以直接运行系统调用，它只处理报错和设备中断。如果是一个设备中断，内核会调用<code>devintr</code>；若是一个报错，内核会停止运行。另外，如果这个中断是一个 <strong>时钟中断（Timer interrupt）</strong>，内核调用<code>yield</code>，使得另一个进程考试运行（而未来某一时刻原线程也会继续运行&ndash;Chap7）。当<code>kerneltrap</code>执行完毕，一切寄存器（包括<code>sepc</code>）都会复原，原线程继续运行。<strong>注：</strong> 在<code>usertrap</code>中，<code>stvec</code>会把<code>uservec</code>切换至<code>kernelvec</code>，换句话说，在奇幻之前，在内核运行时的<code>stvec</code>会有一段时间是<code>uservec</code>，这就是为什么一定要把中断关掉，防止在内核中使用<code>uservec</code>。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="46-page-fault-exceptions">4.6 Page-fault exceptions</h2>
+<p>    xv6对于Exception的处理很简单：杀死出现报错的进程，或停止内核运行。但在现实中，Exception本身可以实现一些优化和功能。比如<code>Page fault exception</code>在其他的操作系统中有三个应用：<strong>写入时复制（COW fork：Copy-on-Write fork）</strong>，<strong>懒分配（Lazy Allocation）</strong>，<strong>硬盘分页（Paging from disk）</strong>。</p>
+<p>    <strong>写入时复制（COW fork：Copy-on-Write fork）</strong>。当使用<code>fork</code>时，父进程的内存被完整复制了一份给子进程。但通常子进程的目的只是调用<code>exec</code>来开启另一个进程。所以为子进程分配完整的内存有些浪费。而COW实现了父子共用内存，并为子进程按需分配内存。当使用了<code>fork</code>后，OS并未分配任何新的内存给子进程，只是把子进程的内存空间映射到与父进程一样的物理内存地址，并且把子进程的PTE设置为<strong>只读（Read only）</strong>：所以当子进程想要对某一个内存地址进行操作的时候（除了读），会触发<code>page fault exception</code>。出发的原因会被记录在<code>scause</code>中，之后内核会把出发报错的page真正地复制给子进程的PTE，然后先前导致报错的指令就可以继续运行了。</p>
+<p>    <strong>懒分配（Lazy Allocation）</strong>。通过<code>sbrk</code>，一个进程可以要更多的物理内存，但有时进程会滥用<code>sbrk</code>。所以当<code>sbrk</code>被使用的时候，OS会增长内存空间，但会在PT中把这些PTE标记为无效（PTE_V）。所以当进程使用这个地址的时候，会出现<code>page fault exception</code>。此时OS才会真正地分配物理内存。</p>
+<p>    <strong>硬盘分页（Paging from disk）</strong>。当内存使用过多内存时，OS会把一些page写入磁盘，并把这些page对应的PTE标记成无效。所以当进程使用这些page时会出现<code>page fault exception</code>。OS会把制定的page重新从磁盘中写入内存，并更新PTE（当一个page被召回时，如果内存不够用，会把另一个page写入硬盘）。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="47-练习-exercise">4.7 练习 Exercise</h2>
+<blockquote>
+<ol>
+<li>The functions copyin and copyinstr walk the user page table in software. Set up
+the kernel page table so that the kernel has the user program mapped, and copyin and
+copyinstr can use memcpy to copy system call arguments into kernel space, relying on
+the hardware to do the page table walk.</li>
+<li>Implement lazy memory allocation</li>
+<li>Implement COW fork</li>
+</ol>
+</blockquote>
+]]></content>
+		</item>
 		
 		<item>
 			<title>Chap 3：分页表 Page tables</title>
@@ -15,20 +340,20 @@
 			<pubDate>Sun, 12 Jun 2022 10:15:51 -0400</pubDate>
 			
 			<guid>https://hoooao.github.io/os/chap3/</guid>
-			<description>目录   导言  3.1 分页硬件 Paging hardware  3.2 内核用户空间 Kernel address space  3.3 新建内存空间 Creating an address space  3.4 物理内存分配 Physical memory allocation  3.5 物理内存分配器 Physical memory allocator  3.6 进程内存空间 Process address space  3.7 增长/缩小内存空间 Sbrk  3.8 exec 系统调用 Exec  3.9 练习 Exercises   导言：  每个进程都有自己的分页表（PT：Page table）。通过分页表（PT：Page table），kernel可以为一个进程创建私有的内存空间：每个虚拟内存地址（VA：Virtual adress） 都有对应着的物理内存地址（PA：Physical address）。对于进程来说，他在使用这一段连续的VA，但是这些VA在DRAM中的映射的物理内存地址则不一定连续。PT告诉分页硬件一个VA代表着什么，指向哪里。
- 3.1 分页硬件 Paging hardware  在计算机中虚拟内存（VM：Virtual memory） 的实现是由硬件支持的，这个硬件通常被叫做内存管理单元（MMU：Memory management unit）。CPU的指令通常使用VM：当它使用某一个VA的时候，MMU会把这个VA翻译成PA，然后执行这个PA里的指令或者读取/写入这个PA里的内容。</description>
+			<description>目录   导言  3.1 分页硬件 Paging hardware  3.2 内核内存空间 Kernel address space  3.3 新建内存空间 Creating an address space  3.4 物理内存分配器 Physical memory allocator  3.5 进程内存空间 Process address space  3.6 exec 系统调用 Exec  3.7 练习 Exercises   导言：  每个进程都有自己的分页表（PT：Page table）。通过分页表（PT：Page table），kernel可以为一个进程创建私有的内存空间：每个虚拟内存地址（VA：Virtual adress） 都有对应着的物理内存地址（PA：Physical address）。对于进程来说，他在使用这一段连续的VA，但是这些VA在DRAM中的映射的物理内存地址则不一定连续。PT告诉分页硬件一个VA代表着什么，指向哪里。
+ 3.1 分页硬件 Paging hardware  在计算机中虚拟内存（VM：Virtual memory） 的实现是由硬件支持的，这个硬件通常被叫做内存管理单元（MMU：Memory management unit）。CPU的指令通常使用VM：当它使用某一个VA的时候，MMU会把这个VA翻译成PA，然后执行这个PA里的指令或者读取/写入这个PA里的内容。
+ 但是在xv6中，我们使用的是qemu的虚拟机：MMU被抽象成了一个定义在kernel/vm.c中的walk()函数。这个函数的行为与MMU类似。
+ Fig.1 CPU，MMU，DRAM[1]    xv6跑在Sv39 RISC-V处理器上（虚拟机），这个处理器指使用64bits VA中的后39位。其中前27位用来作为分页表项（PTE：Page table entries）的索引（Index），所以一个PT最多可以有2^27个PTE。而后12位被用来当做偏移量（剩余的bits用来为未来可能的硬件升级做准备）。每个有效的PTE包含一个44bits的PPN：Physical page number和10bits的各种用来限定这个页的权限。</description>
 			<content type="html"><![CDATA[<h2 id="目录">目录</h2>
 <ul>
 <li> <a href="#%E5%AF%BC%E8%A8%80">导言</a></li>
 <li> <a href="#31-%E5%88%86%E9%A1%B5%E7%A1%AC%E4%BB%B6-paging-hardware">3.1 分页硬件 Paging hardware</a></li>
-<li> <a href="#32-%E5%86%85%E6%A0%B8%E7%94%A8%E6%88%B7%E7%A9%BA%E9%97%B4-kernel-address-space">3.2 内核用户空间 Kernel address space</a></li>
+<li> <a href="#32-%E5%86%85%E6%A0%B8%E5%86%85%E5%AD%98%E7%A9%BA%E9%97%B4-kernel-address-space">3.2 内核内存空间 Kernel address space</a></li>
 <li> <a href="#33-%E6%96%B0%E5%BB%BA%E5%86%85%E5%AD%98%E7%A9%BA%E9%97%B4-creating-an-address-space">3.3 新建内存空间 Creating an address space</a></li>
-<li> <a href="#34-%E7%89%A9%E7%90%86%E5%86%85%E5%AD%98%E5%88%86%E9%85%8D-physical-memory-allocation">3.4 物理内存分配 Physical memory allocation</a></li>
-<li> <a href="#35-%E7%89%A9%E7%90%86%E5%86%85%E5%AD%98%E5%88%86%E9%85%8D%E5%99%A8-physical-memory-allocator">3.5 物理内存分配器 Physical memory allocator</a></li>
-<li> <a href="#36-%E8%BF%9B%E7%A8%8B%E5%86%85%E5%AD%98%E7%A9%BA%E9%97%B4-process-address-space">3.6 进程内存空间 Process address space</a></li>
-<li> <a href="#37-%E5%A2%9E%E9%95%BF%E7%BC%A9%E5%B0%8F%E5%86%85%E5%AD%98%E7%A9%BA%E9%97%B4-sbrk">3.7 增长/缩小内存空间 Sbrk</a></li>
-<li> <a href="#38-exec-%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8-exec">3.8 <code>exec</code> 系统调用 Exec</a></li>
-<li> <a href="#39-%E7%BB%83%E4%B9%A0-exercises">3.9 练习 Exercises</a></li>
+<li> <a href="#34-%E7%89%A9%E7%90%86%E5%86%85%E5%AD%98%E5%88%86%E9%85%8D%E5%99%A8-physical-memory-allocator">3.4 物理内存分配器 Physical memory allocator</a></li>
+<li> <a href="#35-%E8%BF%9B%E7%A8%8B%E5%86%85%E5%AD%98%E7%A9%BA%E9%97%B4-process-address-space">3.5 进程内存空间 Process address space</a></li>
+<li> <a href="#36-exec-%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8-exec">3.6 <code>exec</code> 系统调用 Exec</a></li>
+<li> <a href="#37-%E7%BB%83%E4%B9%A0-exercises">3.7 练习 Exercises</a></li>
 </ul>
 <br>
 <hr>
@@ -230,7 +555,7 @@
 <br>
 <br>
 <br>
-<h2 id="37-exec-系统调用-exec">3.7 <code>exec</code> 系统调用 Exec</h2>
+<h2 id="36-exec-系统调用-exec">3.6 <code>exec</code> 系统调用 Exec</h2>
 <p>    当一个进程开始运行前，如第一章所说，启动该进程的进程会调用<code>exec</code>来让目标进程“代替”自己从而达到开启的目的。更详细的说，<code>exec</code>中会调用<code>naimei</code>函数来打开指定路径中的ELF文件。这个ELF有两个重要的结构体：ELF Header (<code>struct elfhdr</code>)与Program Header(<code>struct proghdr</code>)。前者包含着这个ELF的元数据，比如文件类型，<code>proghdr</code>的数量等。其中的<code>uint magic</code>将会和<code>ELF_MAGIC</code>（后者值为<code>0x7F,'E','L','F'</code>）对比：若两者一致，则会认为这个ELF是正确的（Well-formed）。后者则是对这个进程的**段（Segment）**的描述。每个段都会有自己的<code>proghdr</code>，其包含这个段的类型，大小等。**注：**xv6的ELF只有1个段（也就是一个<code>proghdr</code>），但其他系统通常有多个。<code>exec</code>随后会调用<code>proc_pagetable()</code>来创建一个只有<code>trampoline</code>的PT，并且把所有类型为<code>LOAD</code>的<code>proghdr</code>内容加载到内存。</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="err">$</span> <span class="n">objdump</span> <span class="o">-</span><span class="n">p</span> <span class="n">_init</span>              
 </span></span><span class="line"><span class="cl">
@@ -248,11 +573,27 @@
 <br>
 <br>
 <br>
-<p>&mdash;s</p>
+<hr>
 <br>
 <br>
 <br>
-<h2 id="39-练习-exercises">3.9 练习 Exercises</h2>
+<h2 id="37-练习-exercises">3.7 练习 Exercises</h2>
+<ol>
+<li>Parse RISC-V’s device tree to find the amount of physical memory the computer has.</li>
+<li>Write a user program that grows its address space by one byte by calling sbrk(1). Run
+the program and investigate the page table for the program before the call to sbrk and after
+the call to sbrk. How much space has the kernel allocated? What does the PTE for the new
+memory contain?</li>
+<li>Modify xv6 to use super pages for the kernel.</li>
+<li>Modify xv6 so that when a user program dereferences a null pointer, it will receive an ex-
+ception. That is, modify xv6 so that virtual address 0 isn’t mapped for user programs.</li>
+<li>Unix implementations of exec traditionally include special handling for shell scripts. If the
+file to execute begins with the text #!, then the first line is taken to be a program to run to
+interpret the file. For example, if exec is called to run myprog arg1 and myprog ’s first
+line is #!/interp, then exec runs /interp with command line /interp myprog arg1.
+Implement support for this convention in xv6.</li>
+<li>Implement address space randomization for the kernel.</li>
+</ol>
 <br>
 <br>
 <br>
