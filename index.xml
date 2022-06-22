@@ -7,16 +7,7 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>zh-hans</language>
     <copyright>This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.</copyright>
-    <lastBuildDate>Wed, 22 Jun 2022 10:52:25 -0400</lastBuildDate><atom:link href="https://hoooao.github.io/index.xml" rel="self" type="application/rss+xml" />
-    <item>
-      <title>Ss</title>
-      <link>https://hoooao.github.io/os/ss/</link>
-      <pubDate>Wed, 22 Jun 2022 10:52:25 -0400</pubDate>
-      
-      <guid>https://hoooao.github.io/os/ss/</guid>
-      <description>目录  导言： </description>
-    </item>
-    
+    <lastBuildDate>Mon, 20 Jun 2022 09:19:55 -0400</lastBuildDate><atom:link href="https://hoooao.github.io/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>Chap 4：Traps与系统调用 Traps and System calls</title>
       <link>https://hoooao.github.io/os/chap4/</link>
@@ -127,6 +118,16 @@ We&amp;rsquo;ll start with creating a new site with a very basic template.</desc
       
       <guid>https://hoooao.github.io/about-hugo/</guid>
       <description>关于  联系方式：  微信 GitHub 邮箱:xh2187@nyu.edu   Contact Info  WeChat GitHub E-mail:xh2187@nyu.edu  本网站托管于GitHub，是使用Hugo搭建的静态网页。</description>
+    </item>
+    
+    <item>
+      <title>(Hu)go Template Primer</title>
+      <link>https://hoooao.github.io/posts/goisforlovers/</link>
+      <pubDate>Wed, 02 Apr 2014 00:00:00 +0000</pubDate>
+      
+      <guid>https://hoooao.github.io/posts/goisforlovers/</guid>
+      <description>Hugo uses the excellent Go html/template library for its template engine. It is an extremely lightweight engine that provides a very small amount of logic. In our experience that it is just the right amount of logic to be able to create a good static website. If you have used other template systems from different languages or frameworks you will find a lot of similarities in Go templates.
+This document is a brief primer on using Go templates.</description>
     </item>
     
   </channel>
