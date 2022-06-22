@@ -6,8 +6,23 @@
 		<generator>Hugo -- gohugo.io</generator>
 		<language>zh-hans</language>
 		<copyright>This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.</copyright>
-		<lastBuildDate>Mon, 20 Jun 2022 09:19:55 -0400</lastBuildDate>
+		<lastBuildDate>Wed, 22 Jun 2022 10:52:25 -0400</lastBuildDate>
 		<atom:link href="https://hoooao.github.io/os/index.xml" rel="self" type="application/rss+xml" />
+		
+		<item>
+			<title>Ss</title>
+			<link>https://hoooao.github.io/os/ss/</link>
+			<pubDate>Wed, 22 Jun 2022 10:52:25 -0400</pubDate>
+			
+			<guid>https://hoooao.github.io/os/ss/</guid>
+			<description>目录  导言： </description>
+			<content type="html"><![CDATA[<h2 id="目录">目录</h2>
+<br>
+<hr>
+<br>
+<h2 id="导言">导言：</h2>
+]]></content>
+		</item>
 		
 		<item>
 			<title>Chap 4：Traps与系统调用 Traps and System calls</title>
