@@ -17,7 +17,7 @@
  宏内核的优点：OS各个部分之间可以更好地协同，比如OS的文件系统和虚拟内存系统共用一个数据缓冲器（Buffer）。
 宏内核的缺点：OS各个部分之间的接口会更加复杂，这让设计者更容易写出Bug。在核空间（Kernel space）的bug可能会导致整个kernel，OS的崩溃。"><meta itemprop="datePublished" content="2022-06-07T17:25:02-04:00" />
 <meta itemprop="dateModified" content="2022-06-07T17:25:02-04:00" />
-<meta itemprop="wordCount" content="110">
+<meta itemprop="wordCount" content="111">
 <meta itemprop="keywords" content="" /><meta property="og:title" content="Chap 2: 操作系统组成 Operating system organization" />
 <meta property="og:description" content="目录    导言  2.1 抽象实体资源  2.2 用户模式，超级用户模式，和系统调用  2.3 内核组成  2.4 进程概述  2.5 xv6的启动与第一个进程  2.6 练习   导言：  OS 需要分时去给予每个进程资源，让他们都有机会运行。同时也要让每个进程相隔离，这样的话，某个进程的崩坏不会影响其他进程或者内核的运行。但是完全的隔离也是不理想的，因为我们希望实现进程之间的通信。综上OS必须要具备三个特性：复用（Multiplexing），隔离（Isolation），交互（Interaction）。 本章为OS的这三个特性做了综述。
  2.1 抽象实体资源  OS的意义是值得思考的：为什么不可以让程序直接和硬件交互，就如一些嵌入式系统一般。实际上OS确实是不必要的，但是这种情况下，对于每个程序本身就会有更高的要求：每个程序必须“品行优良”，即程序之间必须要相互信任，并且每个程序必须自愿放弃资源供其他程序使用从而实现分时，而且程序不可以有Bug。但是这些情景是不现实的。OS的存在隔离了各个程序与软硬件，并且用抽象的方式把资源给到进程：比如I/O系统调用。即使不担心程序在无隔离的情况下会不稳定，这种分离和抽象也是更方便的。比如OS把与磁盘的交互抽象成了对fd和I/O的使用。同样地，这样的隔离使得只有OS可以去掌控硬件资源，比如通过切换CPU所执行的程序来实现分时，使得程序无法也不用去考虑分时：当一个进程进入了死循环时，其他进程仍然可以正常运行。**可信计算基（TCB: Trusted Computing Base）**是指为实现计算机系统安全保护的所有安全保护机制的集合，kernel就是其中一种。
@@ -156,7 +156,7 @@
 <br>
 <h2 id="25-xv6的启动与第一个进程">2.5 xv6的启动与第一个进程<a href="#25-xv6的启动与第一个进程" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
 <p>    本节是对系统启动的综述，细节会在未来的章节中谈论。</p>
-<p>    当搭载着RISC-V的电脑通电后，它自己会触发一个储存在内存中的<strong>启动程序（Boot loader）</strong>。这个程序会把xv6的内核加载到内存中：现在xv6运行于机器模式中。此时负责分页的硬件没有开启，系统直接使用物理内存：启动程序会从内存地址<code>0x80000000</code>加载xv6。不从更小的地址加载是因为<code>0x80000000</code>之前的部分提供给了其他I/O设备。之后xv6运行自己内核中的<code>_entry</code>文件（一个汇编程序）。这个程序位xv6创建了一个栈，这样它就可以使用内核中的C语言程序<code>start.c</code>了。这个程序负责把CPU从机器模式切换到超级用户模式。为了返回SM，RISC-V提供了<code>mret</code>指令，但是该指令通常是为了从SM切换到MM。为了实现目的，<code>start</code>会修改寄存器<code>mstatus</code>的值：把之前的机器模式修改为超级用户模式并且在寄存器<code>mepc</code>中设置<code>main</code>的地址。（现在仍然使用真实内存）。在跳转之前，<code>start</code>还会开启<strong>实时时钟（Clock chip）</strong>。这个硬件用来生成<strong>时钟中断（Timer interrupts）</strong>。最后<code>start</code>调用<code>mret</code>，跳转到<code>main</code>。在<code>main</code>中，xv6开启一些其他设备和子系统，但更重要的是，它通过<code>userinit</code>创建第一个进程（通过创建进程结构体）。这个进程使用<code>initcode.S</code>来触发<code>exec</code>系统调用去开启进程<code>init</code>。这个进程会创建一个控制台（console）。系统便启动了。
+<p>    当搭载着RISC-V的电脑通电后，它自己会触发一个储存在内存中的<strong>启动程序（Boot loader）</strong>。这个程序会把xv6的内核加载到内存中：现在xv6运行于机器模式中。此时负责分页的硬件没有开启，系统直接使用物理内存：启动程序会从内存地址<code>0x80000000</code>加载xv6。不从更小的地址加载是因为<code>0x80000000</code>之前的部分提供给了其他I/O设备。之后xv6运行自己内核中的<code>_entry</code>文件（一个汇编程序）。这个程序位xv6创建了一个栈，这样它就可以使用内核中的C语言程序<code>start.c</code>了。这个程序负责把CPU从机器模式切换到超级用户模式。为了返回SM，RISC-V提供了<code>mret</code>指令，但是该指令通常是为了从SM切换到MM。为了实现目的，<code>start</code>会修改寄存器<code>mstatus</code>的值：把之前的机器模式修改为超级用户模式并且在寄存器<code>mepc</code>中设置<code>main</code>的地址。（现在仍然使用真实内存）。在跳转之前，<code>start</code>还会开启<strong>实时时钟（Clock chip）</strong>。这个硬件用来生成<strong>时钟中断（Timer interrupts）</strong>。最后<code>start</code>调用<code>mret</code>，跳转到<code>main</code>。在<code>main</code>中，xv6开启一些其他设备和子系统，但更重要的是，它通过<code>userinit</code>创建第一个进程（通过创建进程结构体）。这个进程使用<code>initcode.S</code>来触发<code>exec</code>系统调用去开启进程<code>init</code>。这个进程会连接该进程与 **控制台（Console）**并再次通过<code>exec</code>来启动shell：系统便启动了。
 <br>
 <br>
 <br></p>

@@ -7,7 +7,22 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>zh-hans</language>
     <copyright>This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.</copyright>
-    <lastBuildDate>Mon, 20 Jun 2022 09:19:55 -0400</lastBuildDate><atom:link href="https://hoooao.github.io/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Thu, 23 Jun 2022 09:25:49 -0400</lastBuildDate><atom:link href="https://hoooao.github.io/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Chap 5:中断与设备驱动 Interrupts and device drivers</title>
+      <link>https://hoooao.github.io/os/chap5/</link>
+      <pubDate>Thu, 23 Jun 2022 09:25:49 -0400</pubDate>
+      
+      <guid>https://hoooao.github.io/os/chap5/</guid>
+      <description>目录   导言  5.1 控制台输入 Code:Console input  5.2 控制台输出 Code: Console output  5.3 驱动并发 Concurrency in drivers  5.4 时钟中断 Timer interrupts  5.5 练习 Exercise   导言：  驱动（Device Driver）本质上是管理某个设备的代码。他告诉该设备去执行什么操作，处理中断，与进程进行I/O交互等。由于并发性（Concurrency），与设备的借口通常很繁琐，导致驱动的设计复杂。
+ 一个设备假如需要被CPU“注意”，它一定有能力发出中断。在发出中断后，中断会被当作Trap处理。不同的设备有自己的中断处理代码。在xv6中，devintr()通过判断是哪个设备发出中断，然会会调用该设备对应的代码。
+ 通常，一个驱动可以分为 上下两部分（Top/bottom half）。上部代码运行于进程的内核线程，表现为这个进程使用系统调用：比如对控制台的输入输出。下部代码指的是中断期间的代码，比如上述的中断处理代码。上部代码在发送了执行某一个操作的请求后进入等待，此时设备开始运行。在设备运行完毕后，它会发出一个设备中断。此时对应的处理代码（下部代码）会知道什么操作完成了，并且在需要的情况下叫醒等待中的进程，然后让硬件去执行下一个操作。本章通过控制台介绍这一过程。
+ 5.1 控制台输入 Code:Console input  控制台的输入输出是通过硬件UART实现的。一定层镀上可以吧UART看作控制台本身（控制台驱动管理UART）。在qemu中，UART是通过代码模拟的。在现实中，UART将会链接RS232接口：
+ Fig.1 RS-232[1]   在xv6中，UART连接着键盘和显示器。回忆第三章中的内存空间，UART是作为一段物理内存地址暴露给软件的。软件可以通过内存地址访问UART的 内存映射的控制寄存器（Memory-mapped control registers）：UART开始于UART0，即0x10000000；每个寄存器占1byte，通过偏移量访问。这些寄存器功能不一，比如：
+  LSR：指示是否传入的char在等待软件接收 RHR：保存传入的char，软件从这里读取数据；每读取一个，UART就会删除被读取的；当没有待读取的数据时，LSR被清空 THR：UART的传输与接收是相当独立的：当THR接受到1Byte，UART通过别的寄存器传输。[2]    在启动xv6的过程中，main会调用consoleinit去初始化UART（通过uartinit给其寄存器赋值），让UART在每接受1byte数据时就出发一个接收中断（Receive interrupt）。在shell启动后，会开启一个fd，指向控制台（init.c）。在通过read读取控制台数据时，最终该系统调用会使用consoleread。它只有在完整地被输入一行数据后才会把字符串放到特定位置。在此之前，它会进入sleep（第七章）。当用户输入一个char时，UART会触发一个中断，激活xv6中的Trap处理机制。通过scause，devintr可以知道中断出发的原因，同时使用另一个硬件PLIC来看到是哪个硬件发出了中断后。会调用制定的处理代码：这个例子中是uartintr。uartintr会不断地读取用户输入到UART（控制台）的数据，把它们移交到consoleintr。后者会不断地把前者送来的数据添加到一个buffer（con.buf）中，直到收到指示一行结束的符号。然后consoleintr会叫醒consoleread，后者开始把传来的整行数据复制到目标用户空间并返回用户空间。
+ 5.2 控制台输出 Code: Console output  当一个对控制台的写入（write）被使用时，这个系统调用最终会走到uartputc。由于控制台驱动维护着一个buffer uart_tx_buf，进程不需要等待设备传输完1Byte后再次传输：uartputc的功能就是不断接受来自进程的输出，并把它们放入这个buffer中：uartputc唯一进入等待的情况是，buffer满了。在第一个Byte进入uartputc时，它就会调用uartstart。后者会从buffer中得到数据，向控制台传输1Byte。当uartstart传送完1Byte，它会触发一个中断。由于中断的发生，又会进入uartintr，它会检查数据真的传输完毕了，并且再次调用uartstart去buffer中传输数据。所以只有第一个Byte的uartstart是从uartputc中调用的，之后的uartstart都是在使用（通过前面1Byte的输出造成的中断而产生的）uartintr中的uartstart。</description>
+    </item>
+    
     <item>
       <title>Chap 4：Traps与系统调用 Traps and System calls</title>
       <link>https://hoooao.github.io/os/chap4/</link>
@@ -118,16 +133,6 @@ We&amp;rsquo;ll start with creating a new site with a very basic template.</desc
       
       <guid>https://hoooao.github.io/about-hugo/</guid>
       <description>关于  联系方式：  微信 GitHub 邮箱:xh2187@nyu.edu   Contact Info  WeChat GitHub E-mail:xh2187@nyu.edu  本网站托管于GitHub，是使用Hugo搭建的静态网页。</description>
-    </item>
-    
-    <item>
-      <title>(Hu)go Template Primer</title>
-      <link>https://hoooao.github.io/posts/goisforlovers/</link>
-      <pubDate>Wed, 02 Apr 2014 00:00:00 +0000</pubDate>
-      
-      <guid>https://hoooao.github.io/posts/goisforlovers/</guid>
-      <description>Hugo uses the excellent Go html/template library for its template engine. It is an extremely lightweight engine that provides a very small amount of logic. In our experience that it is just the right amount of logic to be able to create a good static website. If you have used other template systems from different languages or frameworks you will find a lot of similarities in Go templates.
-This document is a brief primer on using Go templates.</description>
     </item>
     
   </channel>
