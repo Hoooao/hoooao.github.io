@@ -7,7 +7,7 @@
 	<meta http-equiv="X-UA-Compatible" content="ie=edge">
 	<meta name="theme-color" content="#494f5c">
 	<meta name="msapplication-TileColor" content="#494f5c">
-<meta itemprop="name" content="Chap 5:中断与设备驱动 Interrupts and device drivers">
+<meta itemprop="name" content="Chap 5: 中断与设备驱动 Interrupts and device drivers">
 <meta itemprop="description" content="目录   导言  5.1 控制台输入 Code:Console input  5.2 控制台输出 Code: Console output  5.3 驱动并发 Concurrency in drivers  5.4 时钟中断 Timer interrupts  5.5 练习 Exercise   导言：  驱动（Device Driver）本质上是管理某个设备的代码。他告诉该设备去执行什么操作，处理中断，与进程进行I/O交互等。由于并发性（Concurrency），与设备的借口通常很繁琐，导致驱动的设计复杂。
  一个设备假如需要被CPU“注意”，它一定有能力发出中断。在发出中断后，中断会被当作Trap处理。不同的设备有自己的中断处理代码。在xv6中，devintr()通过判断是哪个设备发出中断，然会会调用该设备对应的代码。
  通常，一个驱动可以分为 上下两部分（Top/bottom half）。上部代码运行于进程的内核线程，表现为这个进程使用系统调用：比如对控制台的输入输出。下部代码指的是中断期间的代码，比如上述的中断处理代码。上部代码在发送了执行某一个操作的请求后进入等待，此时设备开始运行。在设备运行完毕后，它会发出一个设备中断。此时对应的处理代码（下部代码）会知道什么操作完成了，并且在需要的情况下叫醒等待中的进程，然后让硬件去执行下一个操作。本章通过控制台介绍这一过程。
@@ -17,7 +17,7 @@
  5.2 控制台输出 Code: Console output  当一个对控制台的写入（write）被使用时，这个系统调用最终会走到uartputc。由于控制台驱动维护着一个buffer uart_tx_buf，进程不需要等待设备传输完1Byte后再次传输：uartputc的功能就是不断接受来自进程的输出，并把它们放入这个buffer中：uartputc唯一进入等待的情况是，buffer满了。在第一个Byte进入uartputc时，它就会调用uartstart。后者会从buffer中得到数据，向控制台传输1Byte。当uartstart传送完1Byte，它会触发一个中断。由于中断的发生，又会进入uartintr，它会检查数据真的传输完毕了，并且再次调用uartstart去buffer中传输数据。所以只有第一个Byte的uartstart是从uartputc中调用的，之后的uartstart都是在使用（通过前面1Byte的输出造成的中断而产生的）uartintr中的uartstart。"><meta itemprop="datePublished" content="2022-06-23T09:25:49-04:00" />
 <meta itemprop="dateModified" content="2022-06-23T09:25:49-04:00" />
 <meta itemprop="wordCount" content="113">
-<meta itemprop="keywords" content="" /><meta property="og:title" content="Chap 5:中断与设备驱动 Interrupts and device drivers" />
+<meta itemprop="keywords" content="" /><meta property="og:title" content="Chap 5: 中断与设备驱动 Interrupts and device drivers" />
 <meta property="og:description" content="目录   导言  5.1 控制台输入 Code:Console input  5.2 控制台输出 Code: Console output  5.3 驱动并发 Concurrency in drivers  5.4 时钟中断 Timer interrupts  5.5 练习 Exercise   导言：  驱动（Device Driver）本质上是管理某个设备的代码。他告诉该设备去执行什么操作，处理中断，与进程进行I/O交互等。由于并发性（Concurrency），与设备的借口通常很繁琐，导致驱动的设计复杂。
  一个设备假如需要被CPU“注意”，它一定有能力发出中断。在发出中断后，中断会被当作Trap处理。不同的设备有自己的中断处理代码。在xv6中，devintr()通过判断是哪个设备发出中断，然会会调用该设备对应的代码。
  通常，一个驱动可以分为 上下两部分（Top/bottom half）。上部代码运行于进程的内核线程，表现为这个进程使用系统调用：比如对控制台的输入输出。下部代码指的是中断期间的代码，比如上述的中断处理代码。上部代码在发送了执行某一个操作的请求后进入等待，此时设备开始运行。在设备运行完毕后，它会发出一个设备中断。此时对应的处理代码（下部代码）会知道什么操作完成了，并且在需要的情况下叫醒等待中的进程，然后让硬件去执行下一个操作。本章通过控制台介绍这一过程。
@@ -31,7 +31,7 @@
 <meta property="article:modified_time" content="2022-06-23T09:25:49-04:00" />
 
 <meta name="twitter:card" content="summary"/>
-<meta name="twitter:title" content="Chap 5:中断与设备驱动 Interrupts and device drivers"/>
+<meta name="twitter:title" content="Chap 5: 中断与设备驱动 Interrupts and device drivers"/>
 <meta name="twitter:description" content="目录   导言  5.1 控制台输入 Code:Console input  5.2 控制台输出 Code: Console output  5.3 驱动并发 Concurrency in drivers  5.4 时钟中断 Timer interrupts  5.5 练习 Exercise   导言：  驱动（Device Driver）本质上是管理某个设备的代码。他告诉该设备去执行什么操作，处理中断，与进程进行I/O交互等。由于并发性（Concurrency），与设备的借口通常很繁琐，导致驱动的设计复杂。
  一个设备假如需要被CPU“注意”，它一定有能力发出中断。在发出中断后，中断会被当作Trap处理。不同的设备有自己的中断处理代码。在xv6中，devintr()通过判断是哪个设备发出中断，然会会调用该设备对应的代码。
  通常，一个驱动可以分为 上下两部分（Top/bottom half）。上部代码运行于进程的内核线程，表现为这个进程使用系统调用：比如对控制台的输入输出。下部代码指的是中断期间的代码，比如上述的中断处理代码。上部代码在发送了执行某一个操作的请求后进入等待，此时设备开始运行。在设备运行完毕后，它会发出一个设备中断。此时对应的处理代码（下部代码）会知道什么操作完成了，并且在需要的情况下叫醒等待中的进程，然后让硬件去执行下一个操作。本章通过控制台介绍这一过程。
@@ -47,7 +47,7 @@
 	<link rel="mask-icon" href="/safari-pinned-tab.svg" color="">
 	<link rel="shortcut icon" href="/favicon.ico">
 
-	<title>Chap 5:中断与设备驱动 Interrupts and device drivers</title>
+	<title>Chap 5: 中断与设备驱动 Interrupts and device drivers</title>
 	<link rel="stylesheet" href="https://hoooao.github.io/css/style.min.6b1219507aa24bcc2a46f4f7071edbc5dc448ba85934d68c4af0ca0a7ad89dcd.css" integrity="sha256-axIZUHqiS8wqRvT3Bx7bxdxEi6hZNNaMSvDKCnrYnc0=" crossorigin="anonymous">
 	<style>.bg-img {background-image: url('https://images.unsplash.com/photo-1531265726475-52ad60219627?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=2691&q=80');}</style>
 </head>
@@ -59,7 +59,7 @@
 		<article class="thin">
 			<header class="post-header">
 				<div class="post-meta"><span>Jun 23, 2022</span></div>
-				<h1>Chap 5:中断与设备驱动 Interrupts and device drivers</h1>
+				<h1>Chap 5: 中断与设备驱动 Interrupts and device drivers</h1>
 			</header>
 			<div class="content">
 				<h2 id="目录">目录<a href="#目录" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
