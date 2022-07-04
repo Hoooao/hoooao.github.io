@@ -8,17 +8,17 @@
 	<meta name="theme-color" content="#494f5c">
 	<meta name="msapplication-TileColor" content="#494f5c">
 <meta itemprop="name" content="Chap 3：分页表 Page tables">
-<meta itemprop="description" content="目录   导言  3.1 分页硬件 Paging hardware  3.2 内核内存空间 Kernel address space  3.3 新建内存空间 Creating an address space  3.4 物理内存分配器 Physical memory allocator  3.5 进程内存空间 Process address space  3.6 exec 系统调用 Exec  3.7 练习 Exercises   导言：  每个进程都有自己的分页表（PT：Page table）。通过分页表（PT：Page table），kernel可以为一个进程创建私有的内存空间：每个虚拟内存地址（VA：Virtual adress） 都有对应着的物理内存地址（PA：Physical address）。对于进程来说，他在使用这一段连续的VA，但是这些VA在DRAM中的映射的物理内存地址则不一定连续。PT告诉分页硬件一个VA代表着什么，指向哪里。
+<meta itemprop="description" content="目录   导言  3.1 分页硬件 Paging hardware  3.2 内核内存空间 Kernel address space  3.3 新建内存空间 Creating an address space  3.4 物理内存分配器 Physical memory allocator  3.5 进程内存空间 Process address space  3.6 exec 系统调用 Exec  3.7 练习 Exercises   导言：  每个进程都有自己的分页表（PT：Page table）。通过分页表（PT：Page table），kernel可以为一个进程创建私有的内存空间：每个虚拟内存地址（VA：Virtual adress） 都有对应着的物理内存地址（PA：Physical address）。对于进程来说，它在使用这一段连续的VA，但是这些VA在DRAM中的映射的物理内存地址则不一定连续。PT告诉分页硬件一个VA代表着什么，指向哪里。
  3.1 分页硬件 Paging hardware  在计算机中虚拟内存（VM：Virtual memory） 的实现是由硬件支持的，这个硬件通常被叫做内存管理单元（MMU：Memory management unit）。CPU的指令通常使用VM：当它使用某一个VA的时候，MMU会把这个VA翻译成PA，然后执行这个PA里的指令或者读取/写入这个PA里的内容。
  但是在xv6中，我们使用的是qemu的虚拟机：MMU被抽象成了一个定义在kernel/vm.c中的walk()函数。这个函数的行为与MMU类似。
- Fig.1 CPU，MMU，DRAM[1]    xv6跑在Sv39 RISC-V处理器上（虚拟机），这个处理器指使用64bits VA中的后39位。其中前27位用来作为分页表项（PTE：Page table entries）的索引（Index），所以一个PT最多可以有2^27个PTE。而后12位被用来当做偏移量（剩余的bits用来为未来可能的硬件升级做准备）。每个有效的PTE包含一个44bits的PPN：Physical page number和10bits的各种用来限定这个页的权限。"><meta itemprop="datePublished" content="2022-06-12T10:15:51-04:00" />
+ Fig.1 CPU，MMU，DRAM[1]    xv6跑在Sv39 RISC-V处理器上（虚拟机），这个处理器指使用64bits VA中的后39位。其中前27位用来作为分页表项（PTE：Page table entries）的索引（Index），所以一个PT最多可以有2^27个PTE。而后12位被用来当做偏移量（剩余的bits用来为未来可能的硬件升级做准备）。每个有效的PTE包含一个44bits的PPN：Physical page number和10bits的各种用来限定这个页的权限bits。"><meta itemprop="datePublished" content="2022-06-12T10:15:51-04:00" />
 <meta itemprop="dateModified" content="2022-06-12T10:15:51-04:00" />
-<meta itemprop="wordCount" content="521">
+<meta itemprop="wordCount" content="578">
 <meta itemprop="keywords" content="" /><meta property="og:title" content="Chap 3：分页表 Page tables" />
-<meta property="og:description" content="目录   导言  3.1 分页硬件 Paging hardware  3.2 内核内存空间 Kernel address space  3.3 新建内存空间 Creating an address space  3.4 物理内存分配器 Physical memory allocator  3.5 进程内存空间 Process address space  3.6 exec 系统调用 Exec  3.7 练习 Exercises   导言：  每个进程都有自己的分页表（PT：Page table）。通过分页表（PT：Page table），kernel可以为一个进程创建私有的内存空间：每个虚拟内存地址（VA：Virtual adress） 都有对应着的物理内存地址（PA：Physical address）。对于进程来说，他在使用这一段连续的VA，但是这些VA在DRAM中的映射的物理内存地址则不一定连续。PT告诉分页硬件一个VA代表着什么，指向哪里。
+<meta property="og:description" content="目录   导言  3.1 分页硬件 Paging hardware  3.2 内核内存空间 Kernel address space  3.3 新建内存空间 Creating an address space  3.4 物理内存分配器 Physical memory allocator  3.5 进程内存空间 Process address space  3.6 exec 系统调用 Exec  3.7 练习 Exercises   导言：  每个进程都有自己的分页表（PT：Page table）。通过分页表（PT：Page table），kernel可以为一个进程创建私有的内存空间：每个虚拟内存地址（VA：Virtual adress） 都有对应着的物理内存地址（PA：Physical address）。对于进程来说，它在使用这一段连续的VA，但是这些VA在DRAM中的映射的物理内存地址则不一定连续。PT告诉分页硬件一个VA代表着什么，指向哪里。
  3.1 分页硬件 Paging hardware  在计算机中虚拟内存（VM：Virtual memory） 的实现是由硬件支持的，这个硬件通常被叫做内存管理单元（MMU：Memory management unit）。CPU的指令通常使用VM：当它使用某一个VA的时候，MMU会把这个VA翻译成PA，然后执行这个PA里的指令或者读取/写入这个PA里的内容。
  但是在xv6中，我们使用的是qemu的虚拟机：MMU被抽象成了一个定义在kernel/vm.c中的walk()函数。这个函数的行为与MMU类似。
- Fig.1 CPU，MMU，DRAM[1]    xv6跑在Sv39 RISC-V处理器上（虚拟机），这个处理器指使用64bits VA中的后39位。其中前27位用来作为分页表项（PTE：Page table entries）的索引（Index），所以一个PT最多可以有2^27个PTE。而后12位被用来当做偏移量（剩余的bits用来为未来可能的硬件升级做准备）。每个有效的PTE包含一个44bits的PPN：Physical page number和10bits的各种用来限定这个页的权限。" />
+ Fig.1 CPU，MMU，DRAM[1]    xv6跑在Sv39 RISC-V处理器上（虚拟机），这个处理器指使用64bits VA中的后39位。其中前27位用来作为分页表项（PTE：Page table entries）的索引（Index），所以一个PT最多可以有2^27个PTE。而后12位被用来当做偏移量（剩余的bits用来为未来可能的硬件升级做准备）。每个有效的PTE包含一个44bits的PPN：Physical page number和10bits的各种用来限定这个页的权限bits。" />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://hoooao.github.io/os/chap3/" /><meta property="article:section" content="os" />
 <meta property="article:published_time" content="2022-06-12T10:15:51-04:00" />
@@ -26,10 +26,10 @@
 
 <meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="Chap 3：分页表 Page tables"/>
-<meta name="twitter:description" content="目录   导言  3.1 分页硬件 Paging hardware  3.2 内核内存空间 Kernel address space  3.3 新建内存空间 Creating an address space  3.4 物理内存分配器 Physical memory allocator  3.5 进程内存空间 Process address space  3.6 exec 系统调用 Exec  3.7 练习 Exercises   导言：  每个进程都有自己的分页表（PT：Page table）。通过分页表（PT：Page table），kernel可以为一个进程创建私有的内存空间：每个虚拟内存地址（VA：Virtual adress） 都有对应着的物理内存地址（PA：Physical address）。对于进程来说，他在使用这一段连续的VA，但是这些VA在DRAM中的映射的物理内存地址则不一定连续。PT告诉分页硬件一个VA代表着什么，指向哪里。
+<meta name="twitter:description" content="目录   导言  3.1 分页硬件 Paging hardware  3.2 内核内存空间 Kernel address space  3.3 新建内存空间 Creating an address space  3.4 物理内存分配器 Physical memory allocator  3.5 进程内存空间 Process address space  3.6 exec 系统调用 Exec  3.7 练习 Exercises   导言：  每个进程都有自己的分页表（PT：Page table）。通过分页表（PT：Page table），kernel可以为一个进程创建私有的内存空间：每个虚拟内存地址（VA：Virtual adress） 都有对应着的物理内存地址（PA：Physical address）。对于进程来说，它在使用这一段连续的VA，但是这些VA在DRAM中的映射的物理内存地址则不一定连续。PT告诉分页硬件一个VA代表着什么，指向哪里。
  3.1 分页硬件 Paging hardware  在计算机中虚拟内存（VM：Virtual memory） 的实现是由硬件支持的，这个硬件通常被叫做内存管理单元（MMU：Memory management unit）。CPU的指令通常使用VM：当它使用某一个VA的时候，MMU会把这个VA翻译成PA，然后执行这个PA里的指令或者读取/写入这个PA里的内容。
  但是在xv6中，我们使用的是qemu的虚拟机：MMU被抽象成了一个定义在kernel/vm.c中的walk()函数。这个函数的行为与MMU类似。
- Fig.1 CPU，MMU，DRAM[1]    xv6跑在Sv39 RISC-V处理器上（虚拟机），这个处理器指使用64bits VA中的后39位。其中前27位用来作为分页表项（PTE：Page table entries）的索引（Index），所以一个PT最多可以有2^27个PTE。而后12位被用来当做偏移量（剩余的bits用来为未来可能的硬件升级做准备）。每个有效的PTE包含一个44bits的PPN：Physical page number和10bits的各种用来限定这个页的权限。"/>
+ Fig.1 CPU，MMU，DRAM[1]    xv6跑在Sv39 RISC-V处理器上（虚拟机），这个处理器指使用64bits VA中的后39位。其中前27位用来作为分页表项（PTE：Page table entries）的索引（Index），所以一个PT最多可以有2^27个PTE。而后12位被用来当做偏移量（剩余的bits用来为未来可能的硬件升级做准备）。每个有效的PTE包含一个44bits的PPN：Physical page number和10bits的各种用来限定这个页的权限bits。"/>
 
 	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -68,7 +68,7 @@
 <hr>
 <br>
 <h2 id="导言">导言：<a href="#导言" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
-<p>    每个进程都有自己的<strong>分页表（PT：Page table）</strong>。通过<strong>分页表（PT：Page table）</strong>，kernel可以为一个进程创建私有的内存空间：每个<strong>虚拟内存地址（VA：Virtual adress）</strong> 都有对应着的<strong>物理内存地址（PA：Physical address）</strong>。对于进程来说，他在使用这一段连续的VA，但是这些VA在DRAM中的映射的物理内存地址则不一定连续。PT告诉分页硬件一个VA代表着什么，指向哪里。</p>
+<p>    每个进程都有自己的<strong>分页表（PT：Page table）</strong>。通过<strong>分页表（PT：Page table）</strong>，kernel可以为一个进程创建私有的内存空间：每个<strong>虚拟内存地址（VA：Virtual adress）</strong> 都有对应着的<strong>物理内存地址（PA：Physical address）</strong>。对于进程来说，它在使用这一段连续的VA，但是这些VA在DRAM中的映射的物理内存地址则不一定连续。PT告诉分页硬件一个VA代表着什么，指向哪里。</p>
 <br>
 <br>
 <br>
@@ -85,15 +85,15 @@
 <figcaption><b>Fig.1 CPU，MMU，DRAM[1]</b></figcaption>
 </div>
 </figure>
-<p>    xv6跑在<em>Sv39 RISC-V</em>处理器上（虚拟机），这个处理器指使用64bits VA中的后39位。其中前27位用来作为<strong>分页表项（PTE：Page table entries）<strong>的</strong>索引（Index）</strong>，所以一个PT最多可以有<code>2^27</code>个PTE。而后12位被用来当做偏移量（剩余的bits用来为未来可能的硬件升级做准备）。每个有效的PTE包含一个44bits的<strong>PPN：Physical page number</strong>和10bits的各种用来限定这个页的权限。</p>
+<p>    xv6跑在<em>Sv39 RISC-V</em>处理器上（虚拟机），这个处理器指使用64bits VA中的后39位。其中前27位用来作为<strong>分页表项（PTE：Page table entries）<strong>的</strong>索引（Index）</strong>，所以一个PT最多可以有<code>2^27</code>个PTE。而后12位被用来当做偏移量（剩余的bits用来为未来可能的硬件升级做准备）。每个有效的PTE包含一个44bits的<strong>PPN：Physical page number</strong>和10bits的各种用来限定这个页的权限bits。</p>
 <figure>
 <div style="text-align:center">
 <img src="https://i.imgur.com/uH2KORg.jpg" alt="" style="width:100%; background: rgba(255, 255, 255, .5)">
 <figcaption><b>Fig.2 简化的映射过程</b></figcaption>
 </div>
 </figure>
-<p>当一个进程使用VA的时候，MMU/walk会通过该VA的27位的索引来找到这个进程的PT中唯一的PTE。然后这个PTE中的PPN会被取出，再把VA中的后12位偏移量接在PPN的后面组成一个56位的PA（64位PA中剩下的为未来准备），然后去DRAM中找该这个PA。由于偏移量有12位，他们可以与一个PPN组合2^12个连续的PA（一个地址1Byte），这也就组成了一个Page：即一块4096Bytes的内存空间。<strong>注：</strong> 一个Page中的PA连续，但是两个相邻的PTE所指向的Page不一定连续。</p>
-<p>    在上述的过程中，<code>walk</code>似乎直接用27bits的索引找到了为一个PTE，但实际的视线中，这个过程被分成了三步：27bits的索引分成了三个9bits的索引，可以被看作三个偏移量。当一个进程在运行的时候，kernel会把CPU的<code>satp</code>寄存器中储存的数据需改成为这个进程分配的私有的PT的物理内存地址（PT被存储在内存中）。这个“PT”不同于上述的简化模型中的PT：它本质上是一个Page。但是由于这个Page储存着PTE，也可以叫它<strong>分页表页（PTP：Page Table Page）</strong>。与正常的Page一样，它也占据4096Bytes内存。由于一个PTE占64bits，即8Bytes，一个PTP可以存放512个PTE。Satp寄存器指向的PTP也被叫做<strong>根（Root）</strong>。我们使用27bits中前9bits作为偏移量，在根页中找到为一的PTE。不同于简化的模型，这个PTE的PPN将指向另一层PTP（PPN后面接12个0）。同样地，第二个9bits被用作于这个PTP的偏移量并找到对应的PTE。重复相同步骤，我们能找到第三层PTP中最后9bit对应的PTE。此时的PTE中的PPN将与最初的VA中的12bits结合，得到真正的56bits PA。</p>
+<p>当一个进程使用VA的时候，MMU/walk会通过该VA的27位的索引来找到这个进程的PT中唯一的PTE。然后这个PTE中的PPN会被取出，再把VA中的后12位偏移量接在PPN的后面组成一个56位的PA（64位PA中剩下的为未来准备），然后去DRAM中找该这个PA。由于偏移量有12位，他们可以与一个PPN组合2^12个连续的PA（一个地址储存1Byte数据），这也就组成了一个Page：即一块4096Bytes的内存空间。<strong>注：</strong> 一个Page中的PA连续，但是两个相邻的PTE所指向的Page不一定连续。</p>
+<p>    在上述的过程中，<code>walk</code>似乎直接用27bits的索引找到了为一个PTE，但实际的实现中，这个过程被分成了三步：27bits的索引分成了三个9bits的索引，可以被看作三个偏移量。当一个进程在运行的时候，kernel会把CPU的<code>satp</code>寄存器中储存的数据需改成为这个进程分配的私有的PT的物理内存地址（PT被存储在内存中）。这个“PT”不同于上述的简化模型中的PT：它本质上是一个Page。但是由于这个Page储存着PTE，也可以叫它<strong>分页表页（PTP：Page Table Page）</strong>。与正常的Page一样，它也占据4096Bytes内存。由于一个PTE占64bits，即8Bytes，一个PTP可以存放512个PTE。Satp寄存器指向的PTP也被叫做<strong>根（Root）</strong>。我们使用27bits中前9bits作为偏移量，通过<code>satp</code>找到根页，在根页中找到唯一的PTE。不同于简化的模型，这个PTE的PPN将指向另一层PTP（PPN后面接12个0）。同样地，第二个9bits被用作于这个PTP的偏移量并找到对应的PTE。重复相同步骤，我们能找在第三层PTP中使用最后9bit找到对应的PTE。此时的PTE中的PPN将与最初的VA中的12bits结合，得到真正的56bits PA。</p>
 <figure>
 <div style="text-align:center">
 <img src="https://i.imgur.com/pM1nyYP.jpg" alt="" style="width:100%; background: rgba(255, 255, 255, .5)">
@@ -101,7 +101,7 @@
 </div>
 </figure>
 <p>三层PTP是对一个有2^27个PTE的PT的优化。假如真的使用后者，那么一张PT需要2^27*2^3Bytes,超出了xv6所支持的内存上限（128MB），显然不现实。而前者的大小的变化是动态。比如一个进程只使用了1个Page，或者说它只用了<code>0x0~0xFFF</code>的虚拟地址,在这个情况下，27位索引全部为0，对于三层PTP，每次都导向最下面偏移量为0的PTE。换句话说，每个PTP只有最下层的PTE是有效的：第一层第二层PTP的其他PTE无效，因此不会为他们创建下层PTP。所以这个例子里面只有3个PTP存在，即<code>3*4KB=12KB</code>。由于分层的行为类似从文件夹中找文件，所以可以把PTP看作目录。</p>
-<p>    这样的话优化也是有代价的：每使用一个VA，就需要多次访问VM，效率变低（对比假如指使用一张PT，那么只需要检索一层目录）。缓存<strong>TLB（Translation lookaside buffer）</strong>（一个硬件）一定程度减轻了这个代价。每当使用了一个VA后，改VA与对应的PA就会被缓存入TLB。当再次使用这个VA时，会直接从TLB中调取其PA，不需要让<code>walk</code>重新走三层目录。<strong>注：<strong>每当进程切换的时候，TLB中的数据就会被清理（即</strong>Flush</strong>，通过指令<code>sfence_vma</code>调用）：这样防止之后的进程访问到之前的进程的PA。</p>
+<p>    这样的话优化也是有代价的：每使用一个VA，就需要多次访问PM，效率变低（对比假如只使用一张PT，那么只需要检索一层目录）。缓存<strong>TLB（Translation lookaside buffer）</strong>（一个硬件）一定程度减轻了这个代价。每当使用了一个VA后，改VA与对应的PA就会被缓存入TLB。当再次使用这个VA时，会直接从TLB中调取其PA，不需要让<code>walk</code>重新走三层目录。<strong>注：<strong>每当进程切换的时候，TLB中的数据就会被清理（即</strong>Flush</strong>，通过指令<code>sfence_vma</code>调用）：这样防止之后的进程访问到之前的进程的PA。</p>
 <p>    如<strong>Fig.3</strong>下半部分所示，除了PPN，一个PTE中还包括10bits的空间供一些Flag使用。<strong>V</strong>：如果为1则有效，反之说明改PTE无效；<strong>R/W/X</strong>：读写权限，以及是否被当作指令运行。</p>
 <blockquote>
 <p>思考：为什么每层PTP都使用PA来找下层PTP？为什么不能使用VA？</p>
@@ -115,14 +115,14 @@
 <br>
 <h2 id="32-内核内存空间-kernel-address-space">3.2 内核内存空间 Kernel address space<a href="#32-内核内存空间-kernel-address-space" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
 <p>    每个进程都有属于自己的分页表，除此之外，kernel也有自己的分页表（任何指令都是使用VM的，包括在kernel中）。虽然VM存在的意义是隔离，阻止进程使用物理内存，但是VA=PA的情况也是存在，kernel（大部分区域）就是这样。这种方式被叫做<strong>直接映射（Direct mapping）</strong>。</p>
-<p>    RAM（物理内存）起始于<code>0x80000000</code>，而非<code>0x0</code>。由于kernel是直接映射且在RAM的最下方，kernel的内存空间（由VM构成的“连续的”内存）也起始于<code>0x80000000</code>：这个值被称为<code>KERNBASE</code>。选择这个数字作为物理内存的起点只是设计者的决定。<code>0x80000000</code>以下的地址留给了其他硬件。对这些地址的访问不是对内存（RAM）的访问，而是对对应硬件的I/O接口的访问。这种直接映射是的kernel对PA的读写更有效率。比如当<code>fork()</code>使用分配内存的函数给子进程复制父进程的内存内容是，这个函数会返回它分配的内存的PA。由于直接映射，<code>fork()</code>可以直接操作于与PA一样的VA。kernel的内存空间只有两个部分不是直接映射：</p>
+<p>    RAM（物理内存）起始于<code>0x80000000</code>，而非<code>0x0</code>。由于kernel是直接映射且在RAM的最下方，kernel的内存空间（由VM构成的“连续的”内存）也起始于<code>0x80000000</code>：这个值被称为<code>KERNBASE</code>。选择这个数字作为物理内存的起点只是设计者的决定。<code>0x80000000</code>以下的地址留给了其他硬件。对这些地址的访问不是对内存（RAM）的访问，而是对对应硬件的I/O接口的访问。这种直接映射是的kernel对PA的读写更有效率。比如当<code>fork()</code>使用分配内存的函数给子进程复制父进程的内存内容时，分配内存的函数会返回它分配的内存的PA。由于直接映射，<code>fork()</code>可以直接操作于返回的与PA一样的VA。kernel的内存空间只有两个部分不是直接映射：</p>
 <blockquote>
 <ol>
 <li>
 <p>Trampoline page (Chap 4)。</p>
 </li>
 <li>
-<p>kstack&amp;guard page。kstack（即内核栈）与它的guard会被放在虚拟内存的顶层。guard作为kstack与内核内存空间其他内容的缓冲带存在：若一个进程的kstack溢出，没有guard的话可能会写入到其他进程的kstack。而由guard存在时，一旦guard的VM被访问的时候，就报错，从而保护其他内容。不把kstack和guard同样放在低处来直接映射是因为guard的区域显然不能存放任何有价值的数据：若为直接映射，必须给每个guard一些物理内存地址，占用不必要的空间，且可能会使得guard无效。**注：**guard的VA对应的PTE是无效的。</p>
+<p>kstack &amp; guard page。kstack（即内核栈）与它的guard会被放在虚拟内存的顶层。guard作为kstack与内核内存空间其他内容的缓冲带存在：若一个进程的kstack溢出，没有guard的话可能会写入到其他进程的kstack。而由guard存在时，一旦guard的VM被访问的时候，就报错，从而保护其他内容。不把kstack和guard同样放在低处来直接映射是因为guard的区域显然不能存放任何有价值的数据：若为直接映射，必须给每个guard一些物理内存地址，占用不必要的空间，且可能会使得guard无效。<strong>注：</strong> guard的VA对应的PTE是无效的。</p>
 </li>
 </ol>
 </blockquote>
@@ -141,12 +141,12 @@
 <br>
 <br>
 <h2 id="33-新建内存空间-creating-an-address-space">3.3 新建内存空间 Creating an address space<a href="#33-新建内存空间-creating-an-address-space" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
-<p>    xv6中大多与VM有关的内容全部放在了<code>kernel/vm.c</code>中。其中最重要的<code>struct</code>是<code>pagetable_t</code>。它指向一个根PTP。kernel的该结构叫做<code>kernel_pagetable</code>，进程的该结构存放在各自的<code>proc</code>结构体中。最重要的函数有两个：<code>walk(),mappage</code>。前者为VA找到对应的PTE，后者为一个VA安装PTE/映射。<strong>注：</strong> 一vm开头的函数通常是kernel相关，以yvm开头的通常是用户进程相关，其他的共享。</p>
-<p>    在开机早起，分页机制为启动，即不使用VM，直接使用PM。<code>main</code>会调用<code>kvminit()</code>，它创建一个根PTP并赋值给kernel的<code>pagetable_t</code>。实际上，<code>kvminit()，kvmmake()</code>是对一系列函数的封装。</p>
+<p>    xv6中大多与VM有关的内容全部放在了<code>kernel/vm.c</code>中。其中最重要的<code>struct</code>是<code>pagetable_t</code>。它指向一个根PTP。kernel的该结构叫做<code>kernel_pagetable</code>，进程的该结构存放在各自的<code>proc</code>结构体中。最重要的函数有两个：<code>walk(),mappage</code>。前者为VA找到对应的PTE，后者为一个VA安装PTE/映射。<strong>注：</strong> 以vm开头的函数通常是kernel相关，以uvm开头的通常是用户进程相关，其他的共享。</p>
+<p>    在开机早期，分页机制未启动，即不使用VM，直接使用PM。<code>main</code>会调用<code>kvminit()</code>，它创建一个根PTP并赋值给kernel的<code>pagetable_t</code>。实际上，<code>kvminit()，kvmmake()</code>是对一系列函数的封装。</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">kvminit</span><span class="p">(</span><span class="kt">void</span><span class="p">){</span>
 </span></span><span class="line"><span class="cl">  <span class="n">kernel_pagetable</span> <span class="o">=</span> <span class="n">kvmmake</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span></code></pre></div><p><code>kvmmake</code>最开始使用<code>kalloc()</code>真正地在物理内存中创建了一部分供根PTP使用。之后多次调用<code>kvmmap()</code>为<strong>Fig.4</strong>中的各个部分分配PTE，指向PA的对应位置（比如硬件部分，KERNBASE，PHYSTOP）。最后调用一个函数为每个进程设置kstack与guard。</p>
+</span></span></code></pre></div><p><code>kvmmake</code>最开始使用<code>kalloc()</code>真正地在物理内存中创建了一个page供根PTP使用。之后多次调用<code>kvmmap()</code>为<strong>Fig.4</strong>中的各个部分分配PTE，指向PA的对应位置（比如硬件部分，KERNBASE，PHYSTOP）。最后调用一个函数为每个进程设置kstack与guard。</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="n">pagetable_t</span> <span class="nf">kvmmake</span><span class="p">(</span><span class="kt">void</span><span class="p">){</span>
 </span></span><span class="line"><span class="cl">  <span class="n">pagetable_t</span> <span class="n">kpgtbl</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">
@@ -173,8 +173,26 @@
 </span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">mappages</span><span class="p">(</span><span class="n">kpgtbl</span><span class="p">,</span> <span class="n">va</span><span class="p">,</span> <span class="n">sz</span><span class="p">,</span> <span class="n">pa</span><span class="p">,</span> <span class="n">perm</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;kvmmap&#34;</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span></code></pre></div><p><code>mappage()</code>接收参数如物理内存地址，虚拟内存地址，大小等等。<code>walk()</code>在<code>mappage()</code>中被使用，它通过VA来找对应的PTE，并且把这个PTE的PA返回到<code>mappage()</code>。后者会通过内存地址就该这个PTE的内容（PPN，权限等）。<code>walk()</code>寻找PTE的过程就是上述的三段查找。但对应的PTP可能不存在（即上级PTE为非valid），比如由于最开始只有根PTP。此时如果<code>walk()</code>接收到了特定的参数，它就会分配新的PTP给这个PTE。</p>
-<p>    在布局完成后，<code>main()</code>会调用<code>kvminithart()</code>。</p>
+</span></span></code></pre></div><p><code>mappage()</code>接收参数如物理内存地址，虚拟内存地址，大小等等。<code>walk()</code>在<code>mappage()</code>中被使用，它通过VA来找对应的PTE，并且把这个PTE的PA返回到<code>mappage()</code>。后者会通过内存地址修改这个PTE的内容（PPN，权限等）。<code>walk()</code>寻找PTE的过程就是上述的三段查找。但对应的PTP可能不存在（即上级PTE为非valid），比如由于最开始只有根PTP。此时如果<code>walk()</code>接收到了特定的参数，它就会分配新的PTP给这个PTE。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="c1">//mappage() 中分配PTE的一部分
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">for</span><span class="p">(;;){</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="c1">//a是va，1是上述的“分配新PTE的权限/特定的参数”，在当前语境下pagetable是kernel的。
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="c1">//a = PGROUNDDOWN(va);
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="c1">//last = PGROUNDDOWN(va + size - 1);
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="c1">//这个 PGROUNDDOWN 返回的是传入地址所在的page的第一个地址
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="c1">//在输入合乎规定时，返回前后的值一样（Page必须“Align”）
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span><span class="p">((</span><span class="n">pte</span> <span class="o">=</span> <span class="n">walk</span><span class="p">(</span><span class="n">pagetable</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">      <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="o">*</span><span class="n">pte</span> <span class="o">&amp;</span> <span class="n">PTE_V</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">      <span class="n">panic</span><span class="p">(</span><span class="s">&#34;mappages: remap&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="o">*</span><span class="n">pte</span> <span class="o">=</span> <span class="n">PA2PTE</span><span class="p">(</span><span class="n">pa</span><span class="p">)</span> <span class="o">|</span> <span class="n">perm</span> <span class="o">|</span> <span class="n">PTE_V</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">a</span> <span class="o">==</span> <span class="n">last</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">      <span class="k">break</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">a</span> <span class="o">+=</span> <span class="n">PGSIZE</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">pa</span> <span class="o">+=</span> <span class="n">PGSIZE</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span></code></pre></div><p>    在布局完成后，<code>main()</code>会调用<code>kvminithart()</code>。</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">kvminithart</span><span class="p">()</span>
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
 </span></span><span class="line"><span class="cl">  <span class="n">w_satp</span><span class="p">(</span><span class="n">MAKE_SATP</span><span class="p">(</span><span class="n">kernel_pagetable</span><span class="p">));</span>
@@ -194,7 +212,7 @@
 <p>自由表：</p>
 <p>自由表被用来作为管理内存的数据结构存在，本质上只是一个链表。每一个空闲的page都是这个链表中的一个节点。对于kernel来说，它不需要储存这个链表，只需要储存其头节点，即某一个空闲的page，而这个头节点会指向“下一个”空闲page，下一个空闲的page又会指向另一个空闲的page&hellip;由于形如<code>page.nextPage</code>的属性存放在每个page的内部，它们不会占用kernel的内存。</p>
 </blockquote>
-<p>    **分配器（Allocator）**实际上只是对<code>kalloc.c</code>的抽象（分配器同时负责分配与释放）。其中最重要的结构体属性是<code>kmem</code>，它有两个属性：</p>
+<p>     <strong>分配器（Allocator）</strong> 实际上只是对<code>kalloc.c</code>的抽象（分配器同时负责分配与释放）。其中最重要的结构体属性是<code>kmem</code>，它有两个属性：</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="k">struct</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">spinlock</span> <span class="n">lock</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">run</span> <span class="o">*</span><span class="n">freelist</span><span class="p">;</span>
@@ -205,7 +223,7 @@
 </span></span><span class="line"><span class="cl">  <span class="n">initlock</span><span class="p">(</span><span class="o">&amp;</span><span class="n">kmem</span><span class="p">.</span><span class="n">lock</span><span class="p">,</span> <span class="s">&#34;kmem&#34;</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="n">freerange</span><span class="p">(</span><span class="n">end</span><span class="p">,</span> <span class="p">(</span><span class="kt">void</span><span class="o">*</span><span class="p">)</span><span class="n">PHYSTOP</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span></code></pre></div><p>前者将在第六章介绍，后者用来释放多个连续的page，其中第一个参数是释放目标的起始地址，后者是终止地址。由于<code>kinit</code>的目的是初始化从kernel结束到物理内存终点的所有内存到数据结构中，所以第一个参数是<code>end[]</code>，一个被定义在<code>kernel.ld</code>中的列表，储存着kernel结束后的第一个地址，而第二个参数<code>PHYSTOP</code>就是物理内存的终点。由于单次释放/分配一个page，<code>freerange</code>必然不是将参数所定义的内存区间一次性释放，而是以循环的方式多次调用<code>kfree()</code>来讲连续的pages一个接一个释放。为了保证每次释放的都是完整4096Bytes且规整（即不从某个page的中间释放）的page，在调用<code>kfree</code>之前，<code>freerange</code>调用<code>PDROUNDUP</code>函数（一个定义在<code>defs.c</code>里的宏定义）来检查参数所指向的地址是否是一个可行的page。在<code>kinit</code>之前，分配器没有课管理的page，但之后便有了。</p>
+</span></span></code></pre></div><p>前者将在第六章介绍，后者用来释放多个连续的page，其中第一个参数是释放目标的起始地址，后者是终止地址。由于<code>kinit</code>的目的是初始化从kernel结束到物理内存终点的所有内存到数据结构中，所以第一个参数是<code>end[]</code>，一个被定义在<code>kernel.ld</code>中的列表，储存着kernel结束后的第一个地址，而第二个参数<code>PHYSTOP</code>就是物理内存的终点。由于单次释放/分配一个page，<code>freerange</code>必然不是将参数所定义的内存区间一次性释放，而是以循环的方式多次调用<code>kfree()</code>来将连续的pages一个接一个释放。为了保证每次释放的都是完整4096Bytes且规整（即不从某个page的中间释放）的page，在调用<code>kfree</code>之前，<code>freerange</code>调用<code>PDROUNDUP</code>函数（一个定义在<code>defs.c</code>里的宏定义）来检查参数所指向的地址是否是一个可行的page。在<code>kinit</code>之前，分配器没有可管理的page，但之后便有了。</p>
 <p>    <code>kfree</code>的过程：kfree接受一个指针作为参数，该参数会被检查，通过之后调用<code>memset</code>把这个page中的内容覆盖为<code>1</code>，让page在再次被使用时无法访问到先前保存的内容。之后会把这个<code>void</code>指针强转成一个<code>run</code>类型的指针/结构体。这个指针的<code>next</code>属性将指向<code>kmem</code>中的自由表原头节点，且把头节点指向这个<code>run</code>指针：最新释放的page在整个自由表的最前面。</p>
 <p>    分配器有两种对地址的理解。1.整数：当使用<code>freerange</code>时，对地址做算术运算来的相邻的oage的地址。2.指针：在自由表中，一个page的地址有被保存在先于它的page中，以一个指针的方式指向它，实现了page之间的连接。</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">kfree</span><span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="n">pa</span><span class="p">)</span> <span class="p">{</span>
@@ -234,7 +252,7 @@
 <br>
 <br>
 <h2 id="35-进程内存空间-process-address-space">3.5 进程内存空间 Process address space<a href="#35-进程内存空间-process-address-space" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
-<p>    每个进程都有自己的内存空间，虽然RISC-V使用了39位虚拟内存地址，但xv6只使用其后38为，所以一个进程最多可以有2^39Bytes（即256GB）的虚拟内存。进程的内存空间起始于<code>0x0</code>，上限为<code>MAXVA</code>当一个进程问xv6更多虚拟内存时，主要的函数是<code>kalloc</code>，它给进程分配指定数量的page，这些page会被加入到进程的PTE中。</p>
+<p>    每个进程都有自己的内存空间，虽然RISC-V使用了39位虚拟内存地址，但xv6只使用其后38为，所以一个进程最多可以有2^39Bytes（即256GB）的虚拟内存。进程的内存空间起始于<code>0x0</code>，上限为<code>MAXVA</code>。当一个进程问xv6更多虚拟内存时，主要的函数是<code>kalloc</code>，它给进程分配指定数量的page，这些page会被加入到进程的PTE中。</p>
 <blockquote>
 <p>虚拟内存的三个优势/应用</p>
 <ol>
@@ -251,7 +269,7 @@
 </figure>
 <p>    栈是一个被<code>exec</code>创建的page，它的下面是一个guard page，与kstack的guard用法一致，但由于进程使用虚拟内存，进程的栈的guard可以直接放在正常的位置。</p>
 <p>    图中是<code>main(argc,argv)</code>的内存布局。其栈从上到下分别是调用main时给的参数，以及一个指向这些参数的数组和参数数量。最后面的是返回main使用的地址，供程序计数器（即指令指针）使用。</p>
-<p>    <code>sbrk</code>是一个系统调用，用来修改进程的内存大小。在xv6中通过函数<code>growproc(int n)</code>实现。这个函数接受一个参数，代表希望修改（增加或减小）的内存大小（Bytes）。若其为正数，<code>growproc</code>调用<code>uvmalloc</code>。后者对一些列条件进行检查，一次使用<code>kalloc</code>与<code>mappage</code>分别为进程取出一个可用的page并且把这个page放到PTE中，最终返回新的内存空间大小。若其为负数，<code>growproc</code>调用<code>uvmdealloc</code>。在对参数进行检查后调用<code>uvmmap</code>。后者接受三个重要的参数：分页表地址，目标新大小（小于原大小），需要见效的page页数。<code>uvmmap</code>通过使用<code>walk</code>来得到目标PTE，用<code>kfree</code>把PTE中的page释放（若页数大于一，则使用循环多次释放）。</p>
+<p>    <code>sbrk</code>是一个系统调用，用来修改进程的内存大小。在xv6中通过函数<code>growproc(int n)</code>实现。这个函数接受一个参数，代表希望修改（增加或减小）的内存大小（Bytes）。若其为正数（增加），<code>growproc</code>调用<code>uvmalloc</code>。后者对一系列条件进行检查，依次使用<code>kalloc</code>与<code>mappage</code>分别为进程取出一个可用的page并且把这个page放到PTE中，最终返回新的内存空间大小。若其为负数（减少），<code>growproc</code>调用<code>uvmdealloc</code>。在对参数进行检查后调用<code>uvmmap</code>。后者接受三个重要的参数：分页表地址，目标新大小（小于原大小），需要见效的page页数。<code>uvmmap</code>通过使用<code>walk</code>来得到目标PTE，用<code>kfree</code>把PTE中的page释放（若页数大于一，则使用循环多次释放）。</p>
 <blockquote>
 <p><strong>注：</strong>
 虽然<code>growproc</code>的参数可以是一个不等于4096的数字，但是修改内存大小的最小单位仍然是4096Bytes。比如<code>n=10Bytes</code>，那么这个进程会增加4096Bytes，若<code>n=4097Bytes</code>，那么这个进程会增加(4096*2)Bytes。若<code>n=-10Bytes</code>，那么这个进程内存不会减少，若<code>n=4097Bytes</code>，那么这个进程只会减少4096Bytes。（分别是<code>uvmalloc</code>与<code>uvmdealloc</code>中反应的机制）。
@@ -265,7 +283,7 @@
 <br>
 <br>
 <h2 id="36-exec-系统调用-exec">3.6 <code>exec</code> 系统调用 Exec<a href="#36-exec-系统调用-exec" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
-<p>    当一个进程开始运行前，如第一章所说，启动该进程的进程会调用<code>exec</code>来让目标进程“代替”自己从而达到开启的目的。更详细的说，<code>exec</code>中会调用<code>naimei</code>函数来打开指定路径中的ELF文件。这个ELF有两个重要的结构体：ELF Header (<code>struct elfhdr</code>)与Program Header(<code>struct proghdr</code>)。前者包含着这个ELF的元数据，比如文件类型，<code>proghdr</code>的数量等。其中的<code>uint magic</code>将会和<code>ELF_MAGIC</code>（后者值为<code>0x7F,'E','L','F'</code>）对比：若两者一致，则会认为这个ELF是正确的（Well-formed）。后者则是对这个进程的**段（Segment）**的描述。每个段都会有自己的<code>proghdr</code>，其包含这个段的类型，大小等。**注：**xv6的ELF只有1个段（也就是一个<code>proghdr</code>），但其他系统通常有多个。<code>exec</code>随后会调用<code>proc_pagetable()</code>来创建一个只有<code>trampoline</code>的PT，并且把所有类型为<code>LOAD</code>的<code>proghdr</code>内容加载到内存。</p>
+<p>    当一个进程开始运行前，如第一章所说，启动该进程的进程会调用<code>exec</code>来让目标进程“代替”自己从而达到开启的目的。更详细的说，<code>exec</code>中会调用<code>naimei</code>函数来打开指定路径中的ELF文件。这个ELF有两个重要的结构体：ELF Header (<code>struct elfhdr</code>)与Program Header(<code>struct proghdr</code>)。前者包含着这个ELF的元数据，比如文件类型，<code>proghdr</code>的数量等。其中的<code>uint magic</code>将会和<code>ELF_MAGIC</code>（后者值为<code>0x7F,'E','L','F'</code>）对比：若两者一致，则会认为这个ELF是正确的（Well-formed）。后者则是对这个进程的 <strong>段（Segment）</strong> 的描述。每个段都会有自己的<code>proghdr</code>，其包含这个段的类型，大小等。<strong>注：</strong> xv6的ELF只有1个段（也就是一个<code>proghdr</code>），但其他系统通常有多个。<code>exec</code>随后会调用<code>proc_pagetable()</code>来创建一个只有<code>trampoline</code>的PT，并且把所有类型为<code>LOAD</code>的<code>proghdr</code>内容加载到内存。</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="err">$</span> <span class="n">objdump</span> <span class="o">-</span><span class="n">p</span> <span class="n">_init</span>              
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl"><span class="nl">_init</span><span class="p">:</span>	<span class="n">file</span> <span class="n">format</span> <span class="n">elf64</span><span class="o">-</span><span class="n">littleriscv</span>

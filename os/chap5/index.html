@@ -11,20 +11,20 @@
 <meta itemprop="description" content="目录   导言  5.1 控制台输入 Code:Console input  5.2 控制台输出 Code: Console output  5.3 驱动并发 Concurrency in drivers  5.4 时钟中断 Timer interrupts  5.5 练习 Exercise   导言：  驱动（Device Driver）本质上是管理某个设备的代码。他告诉该设备去执行什么操作，处理中断，与进程进行I/O交互等。由于并发性（Concurrency），与设备的借口通常很繁琐，导致驱动的设计复杂。
  一个设备假如需要被CPU“注意”，它一定有能力发出中断。在发出中断后，中断会被当作Trap处理。不同的设备有自己的中断处理代码。在xv6中，devintr()通过判断是哪个设备发出中断，然会会调用该设备对应的代码。
  通常，一个驱动可以分为 上下两部分（Top/bottom half）。上部代码运行于进程的内核线程，表现为这个进程使用系统调用：比如对控制台的输入输出。下部代码指的是中断期间的代码，比如上述的中断处理代码。上部代码在发送了执行某一个操作的请求后进入等待，此时设备开始运行。在设备运行完毕后，它会发出一个设备中断。此时对应的处理代码（下部代码）会知道什么操作完成了，并且在需要的情况下叫醒等待中的进程，然后让硬件去执行下一个操作。本章通过控制台介绍这一过程。
- 5.1 控制台输入 Code:Console input  控制台的输入输出是通过硬件UART实现的。一定层镀上可以吧UART看作控制台本身（控制台驱动管理UART）。在qemu中，UART是通过代码模拟的。在现实中，UART将会链接RS232接口：
+ 5.1 控制台输入 Code:Console input  控制台的输入输出是通过硬件UART实现的。一定程度上可以把UART看作控制台本身（控制台驱动管理UART）。在qemu中，UART是通过代码模拟的。在现实中，UART将会链接RS232接口：
  Fig.1 RS-232[1]   在xv6中，UART连接着键盘和显示器。回忆第三章中的内存空间，UART是作为一段物理内存地址暴露给软件的。软件可以通过内存地址访问UART的 内存映射的控制寄存器（Memory-mapped control registers）：UART开始于UART0，即0x10000000；每个寄存器占1byte，通过偏移量访问。这些寄存器功能不一，比如：
-  LSR：指示是否传入的char在等待软件接收 RHR：保存传入的char，软件从这里读取数据；每读取一个，UART就会删除被读取的；当没有待读取的数据时，LSR被清空 THR：UART的传输与接收是相当独立的：当THR接受到1Byte，UART通过别的寄存器传输。[2]    在启动xv6的过程中，main会调用consoleinit去初始化UART（通过uartinit给其寄存器赋值），让UART在每接受1byte数据时就出发一个接收中断（Receive interrupt）。在shell启动后，会开启一个fd，指向控制台（init.c）。在通过read读取控制台数据时，最终该系统调用会使用consoleread。它只有在完整地被输入一行数据后才会把字符串放到特定位置。在此之前，它会进入sleep（第七章）。当用户输入一个char时，UART会触发一个中断，激活xv6中的Trap处理机制。通过scause，devintr可以知道中断出发的原因，同时使用另一个硬件PLIC来看到是哪个硬件发出了中断后。会调用制定的处理代码：这个例子中是uartintr。uartintr会不断地读取用户输入到UART（控制台）的数据，把它们移交到consoleintr。后者会不断地把前者送来的数据添加到一个buffer（con.buf）中，直到收到指示一行结束的符号。然后consoleintr会叫醒consoleread，后者开始把传来的整行数据复制到目标用户空间并返回用户空间。
- 5.2 控制台输出 Code: Console output  当一个对控制台的写入（write）被使用时，这个系统调用最终会走到uartputc。由于控制台驱动维护着一个buffer uart_tx_buf，进程不需要等待设备传输完1Byte后再次传输：uartputc的功能就是不断接受来自进程的输出，并把它们放入这个buffer中：uartputc唯一进入等待的情况是，buffer满了。在第一个Byte进入uartputc时，它就会调用uartstart。后者会从buffer中得到数据，向控制台传输1Byte。当uartstart传送完1Byte，它会触发一个中断。由于中断的发生，又会进入uartintr，它会检查数据真的传输完毕了，并且再次调用uartstart去buffer中传输数据。所以只有第一个Byte的uartstart是从uartputc中调用的，之后的uartstart都是在使用（通过前面1Byte的输出造成的中断而产生的）uartintr中的uartstart。"><meta itemprop="datePublished" content="2022-06-23T09:25:49-04:00" />
+  LSR：指示是否传入的char在等待软件接收 RHR：保存传入的char，软件从这里读取数据；每读取一个，UART就会删除被读取的；当没有待读取的数据时，LSR被清空 THR：UART的传输与接收是相当独立的：当THR接受到1Byte，UART通过别的寄存器传输。[2]    在启动xv6的过程中，main会调用consoleinit去初始化UART（consoleinit只封装uartinit，后者给其寄存器赋值），让UART在每接受1byte数据时就出发一个接收中断（Receive interrupt）。
+void consoleinit(void) { initlock(&amp;cons."><meta itemprop="datePublished" content="2022-06-23T09:25:49-04:00" />
 <meta itemprop="dateModified" content="2022-06-23T09:25:49-04:00" />
-<meta itemprop="wordCount" content="113">
+<meta itemprop="wordCount" content="306">
 <meta itemprop="keywords" content="" /><meta property="og:title" content="Chap 5: 中断与设备驱动 Interrupts and device drivers" />
 <meta property="og:description" content="目录   导言  5.1 控制台输入 Code:Console input  5.2 控制台输出 Code: Console output  5.3 驱动并发 Concurrency in drivers  5.4 时钟中断 Timer interrupts  5.5 练习 Exercise   导言：  驱动（Device Driver）本质上是管理某个设备的代码。他告诉该设备去执行什么操作，处理中断，与进程进行I/O交互等。由于并发性（Concurrency），与设备的借口通常很繁琐，导致驱动的设计复杂。
  一个设备假如需要被CPU“注意”，它一定有能力发出中断。在发出中断后，中断会被当作Trap处理。不同的设备有自己的中断处理代码。在xv6中，devintr()通过判断是哪个设备发出中断，然会会调用该设备对应的代码。
  通常，一个驱动可以分为 上下两部分（Top/bottom half）。上部代码运行于进程的内核线程，表现为这个进程使用系统调用：比如对控制台的输入输出。下部代码指的是中断期间的代码，比如上述的中断处理代码。上部代码在发送了执行某一个操作的请求后进入等待，此时设备开始运行。在设备运行完毕后，它会发出一个设备中断。此时对应的处理代码（下部代码）会知道什么操作完成了，并且在需要的情况下叫醒等待中的进程，然后让硬件去执行下一个操作。本章通过控制台介绍这一过程。
- 5.1 控制台输入 Code:Console input  控制台的输入输出是通过硬件UART实现的。一定层镀上可以吧UART看作控制台本身（控制台驱动管理UART）。在qemu中，UART是通过代码模拟的。在现实中，UART将会链接RS232接口：
+ 5.1 控制台输入 Code:Console input  控制台的输入输出是通过硬件UART实现的。一定程度上可以把UART看作控制台本身（控制台驱动管理UART）。在qemu中，UART是通过代码模拟的。在现实中，UART将会链接RS232接口：
  Fig.1 RS-232[1]   在xv6中，UART连接着键盘和显示器。回忆第三章中的内存空间，UART是作为一段物理内存地址暴露给软件的。软件可以通过内存地址访问UART的 内存映射的控制寄存器（Memory-mapped control registers）：UART开始于UART0，即0x10000000；每个寄存器占1byte，通过偏移量访问。这些寄存器功能不一，比如：
-  LSR：指示是否传入的char在等待软件接收 RHR：保存传入的char，软件从这里读取数据；每读取一个，UART就会删除被读取的；当没有待读取的数据时，LSR被清空 THR：UART的传输与接收是相当独立的：当THR接受到1Byte，UART通过别的寄存器传输。[2]    在启动xv6的过程中，main会调用consoleinit去初始化UART（通过uartinit给其寄存器赋值），让UART在每接受1byte数据时就出发一个接收中断（Receive interrupt）。在shell启动后，会开启一个fd，指向控制台（init.c）。在通过read读取控制台数据时，最终该系统调用会使用consoleread。它只有在完整地被输入一行数据后才会把字符串放到特定位置。在此之前，它会进入sleep（第七章）。当用户输入一个char时，UART会触发一个中断，激活xv6中的Trap处理机制。通过scause，devintr可以知道中断出发的原因，同时使用另一个硬件PLIC来看到是哪个硬件发出了中断后。会调用制定的处理代码：这个例子中是uartintr。uartintr会不断地读取用户输入到UART（控制台）的数据，把它们移交到consoleintr。后者会不断地把前者送来的数据添加到一个buffer（con.buf）中，直到收到指示一行结束的符号。然后consoleintr会叫醒consoleread，后者开始把传来的整行数据复制到目标用户空间并返回用户空间。
- 5.2 控制台输出 Code: Console output  当一个对控制台的写入（write）被使用时，这个系统调用最终会走到uartputc。由于控制台驱动维护着一个buffer uart_tx_buf，进程不需要等待设备传输完1Byte后再次传输：uartputc的功能就是不断接受来自进程的输出，并把它们放入这个buffer中：uartputc唯一进入等待的情况是，buffer满了。在第一个Byte进入uartputc时，它就会调用uartstart。后者会从buffer中得到数据，向控制台传输1Byte。当uartstart传送完1Byte，它会触发一个中断。由于中断的发生，又会进入uartintr，它会检查数据真的传输完毕了，并且再次调用uartstart去buffer中传输数据。所以只有第一个Byte的uartstart是从uartputc中调用的，之后的uartstart都是在使用（通过前面1Byte的输出造成的中断而产生的）uartintr中的uartstart。" />
+  LSR：指示是否传入的char在等待软件接收 RHR：保存传入的char，软件从这里读取数据；每读取一个，UART就会删除被读取的；当没有待读取的数据时，LSR被清空 THR：UART的传输与接收是相当独立的：当THR接受到1Byte，UART通过别的寄存器传输。[2]    在启动xv6的过程中，main会调用consoleinit去初始化UART（consoleinit只封装uartinit，后者给其寄存器赋值），让UART在每接受1byte数据时就出发一个接收中断（Receive interrupt）。
+void consoleinit(void) { initlock(&amp;cons." />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://hoooao.github.io/os/chap5/" /><meta property="article:section" content="os" />
 <meta property="article:published_time" content="2022-06-23T09:25:49-04:00" />
@@ -35,10 +35,10 @@
 <meta name="twitter:description" content="目录   导言  5.1 控制台输入 Code:Console input  5.2 控制台输出 Code: Console output  5.3 驱动并发 Concurrency in drivers  5.4 时钟中断 Timer interrupts  5.5 练习 Exercise   导言：  驱动（Device Driver）本质上是管理某个设备的代码。他告诉该设备去执行什么操作，处理中断，与进程进行I/O交互等。由于并发性（Concurrency），与设备的借口通常很繁琐，导致驱动的设计复杂。
  一个设备假如需要被CPU“注意”，它一定有能力发出中断。在发出中断后，中断会被当作Trap处理。不同的设备有自己的中断处理代码。在xv6中，devintr()通过判断是哪个设备发出中断，然会会调用该设备对应的代码。
  通常，一个驱动可以分为 上下两部分（Top/bottom half）。上部代码运行于进程的内核线程，表现为这个进程使用系统调用：比如对控制台的输入输出。下部代码指的是中断期间的代码，比如上述的中断处理代码。上部代码在发送了执行某一个操作的请求后进入等待，此时设备开始运行。在设备运行完毕后，它会发出一个设备中断。此时对应的处理代码（下部代码）会知道什么操作完成了，并且在需要的情况下叫醒等待中的进程，然后让硬件去执行下一个操作。本章通过控制台介绍这一过程。
- 5.1 控制台输入 Code:Console input  控制台的输入输出是通过硬件UART实现的。一定层镀上可以吧UART看作控制台本身（控制台驱动管理UART）。在qemu中，UART是通过代码模拟的。在现实中，UART将会链接RS232接口：
+ 5.1 控制台输入 Code:Console input  控制台的输入输出是通过硬件UART实现的。一定程度上可以把UART看作控制台本身（控制台驱动管理UART）。在qemu中，UART是通过代码模拟的。在现实中，UART将会链接RS232接口：
  Fig.1 RS-232[1]   在xv6中，UART连接着键盘和显示器。回忆第三章中的内存空间，UART是作为一段物理内存地址暴露给软件的。软件可以通过内存地址访问UART的 内存映射的控制寄存器（Memory-mapped control registers）：UART开始于UART0，即0x10000000；每个寄存器占1byte，通过偏移量访问。这些寄存器功能不一，比如：
-  LSR：指示是否传入的char在等待软件接收 RHR：保存传入的char，软件从这里读取数据；每读取一个，UART就会删除被读取的；当没有待读取的数据时，LSR被清空 THR：UART的传输与接收是相当独立的：当THR接受到1Byte，UART通过别的寄存器传输。[2]    在启动xv6的过程中，main会调用consoleinit去初始化UART（通过uartinit给其寄存器赋值），让UART在每接受1byte数据时就出发一个接收中断（Receive interrupt）。在shell启动后，会开启一个fd，指向控制台（init.c）。在通过read读取控制台数据时，最终该系统调用会使用consoleread。它只有在完整地被输入一行数据后才会把字符串放到特定位置。在此之前，它会进入sleep（第七章）。当用户输入一个char时，UART会触发一个中断，激活xv6中的Trap处理机制。通过scause，devintr可以知道中断出发的原因，同时使用另一个硬件PLIC来看到是哪个硬件发出了中断后。会调用制定的处理代码：这个例子中是uartintr。uartintr会不断地读取用户输入到UART（控制台）的数据，把它们移交到consoleintr。后者会不断地把前者送来的数据添加到一个buffer（con.buf）中，直到收到指示一行结束的符号。然后consoleintr会叫醒consoleread，后者开始把传来的整行数据复制到目标用户空间并返回用户空间。
- 5.2 控制台输出 Code: Console output  当一个对控制台的写入（write）被使用时，这个系统调用最终会走到uartputc。由于控制台驱动维护着一个buffer uart_tx_buf，进程不需要等待设备传输完1Byte后再次传输：uartputc的功能就是不断接受来自进程的输出，并把它们放入这个buffer中：uartputc唯一进入等待的情况是，buffer满了。在第一个Byte进入uartputc时，它就会调用uartstart。后者会从buffer中得到数据，向控制台传输1Byte。当uartstart传送完1Byte，它会触发一个中断。由于中断的发生，又会进入uartintr，它会检查数据真的传输完毕了，并且再次调用uartstart去buffer中传输数据。所以只有第一个Byte的uartstart是从uartputc中调用的，之后的uartstart都是在使用（通过前面1Byte的输出造成的中断而产生的）uartintr中的uartstart。"/>
+  LSR：指示是否传入的char在等待软件接收 RHR：保存传入的char，软件从这里读取数据；每读取一个，UART就会删除被读取的；当没有待读取的数据时，LSR被清空 THR：UART的传输与接收是相当独立的：当THR接受到1Byte，UART通过别的寄存器传输。[2]    在启动xv6的过程中，main会调用consoleinit去初始化UART（consoleinit只封装uartinit，后者给其寄存器赋值），让UART在每接受1byte数据时就出发一个接收中断（Receive interrupt）。
+void consoleinit(void) { initlock(&amp;cons."/>
 
 	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -86,7 +86,7 @@
 <br>
 <br>
 <h2 id="51-控制台输入-codeconsole-input">5.1 控制台输入 Code:Console input<a href="#51-控制台输入-codeconsole-input" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
-<p>    控制台的输入输出是通过硬件UART实现的。一定层镀上可以吧UART看作控制台本身（控制台驱动管理UART）。在qemu中，UART是通过代码模拟的。在现实中，UART将会链接RS232接口：</p>
+<p>    控制台的输入输出是通过硬件UART实现的。一定程度上可以把UART看作控制台本身（控制台驱动管理UART）。在qemu中，UART是通过代码模拟的。在现实中，UART将会链接RS232接口：</p>
 <figure>
 <div style="text-align:center">
 <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/b8/DB25_Diagram.svg/2880px-DB25_Diagram.svg.png" alt="" style="width:100%; background: rgba(255, 255, 255, .5)">
@@ -101,7 +101,78 @@
 <li><code>THR</code>：UART的传输与接收是相当独立的：当<code>THR</code>接受到1Byte，UART通过别的寄存器传输。[2]</li>
 </ol>
 </blockquote>
-<p>    在启动xv6的过程中，<code>main</code>会调用<code>consoleinit</code>去初始化UART（通过<code>uartinit</code>给其寄存器赋值），让UART在每接受1byte数据时就出发一个<strong>接收中断（Receive interrupt）</strong>。在shell启动后，会开启一个fd，指向控制台（<code>init.c</code>）。在通过<code>read</code>读取控制台数据时，最终该系统调用会使用<code>consoleread</code>。它只有在完整地被输入一行数据后才会把字符串放到特定位置。在此之前，它会进入<code>sleep</code>（第七章）。当用户输入一个char时，UART会触发一个中断，激活xv6中的Trap处理机制。通过<code>scause</code>，<code>devintr</code>可以知道中断出发的原因，同时使用另一个硬件PLIC来看到是哪个硬件发出了中断后。会调用制定的处理代码：这个例子中是<code>uartintr</code>。<code>uartintr</code>会不断地读取用户输入到UART（控制台）的数据，把它们移交到<code>consoleintr</code>。后者会不断地把前者送来的数据添加到一个buffer（<code>con.buf</code>）中，直到收到指示一行结束的符号。然后<code>consoleintr</code>会叫醒<code>consoleread</code>，后者开始把传来的整行数据复制到目标用户空间并返回用户空间。</p>
+<p>    在启动xv6的过程中，<code>main</code>会调用<code>consoleinit</code>去初始化UART（<code>consoleinit</code>只封装<code>uartinit</code>，后者给其寄存器赋值），让UART在每接受1byte数据时就出发一个<strong>接收中断（Receive interrupt）</strong>。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">consoleinit</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="n">initlock</span><span class="p">(</span><span class="o">&amp;</span><span class="n">cons</span><span class="p">.</span><span class="n">lock</span><span class="p">,</span> <span class="s">&#34;cons&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">//调用uartinit()
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">uartinit</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">//右侧的两个是console.c定义的函数
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">devsw</span><span class="p">[</span><span class="n">CONSOLE</span><span class="p">].</span><span class="n">read</span> <span class="o">=</span> <span class="n">consoleread</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="n">devsw</span><span class="p">[</span><span class="n">CONSOLE</span><span class="p">].</span><span class="n">write</span> <span class="o">=</span> <span class="n">consolewrite</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">uartinit</span><span class="p">(</span><span class="kt">void</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">// disable interrupts.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">WriteReg</span><span class="p">(</span><span class="n">IER</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="c1">//...设置寄存器...
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl">  <span class="c1">// enable transmit and receive interrupts.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">WriteReg</span><span class="p">(</span><span class="n">IER</span><span class="p">,</span> <span class="n">IER_TX_ENABLE</span> <span class="o">|</span> <span class="n">IER_RX_ENABLE</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="n">initlock</span><span class="p">(</span><span class="o">&amp;</span><span class="n">uart_tx_lock</span><span class="p">,</span> <span class="s">&#34;uart&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>在shell启动前，其“壳子进程”会开启两个fd，指向控制台（<code>init.c</code>）。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="c1">//init.c
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">if</span><span class="p">(</span><span class="n">open</span><span class="p">(</span><span class="s">&#34;console&#34;</span><span class="p">,</span> <span class="n">O_RDWR</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="n">mknod</span><span class="p">(</span><span class="s">&#34;console&#34;</span><span class="p">,</span> <span class="n">CONSOLE</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">open</span><span class="p">(</span><span class="s">&#34;console&#34;</span><span class="p">,</span> <span class="n">O_RDWR</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">  <span class="n">dup</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>  <span class="c1">// stdout
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">dup</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>  <span class="c1">// stderr
+</span></span></span></code></pre></div><p>在通过<code>read</code>读取控制台数据时，最终该系统调用会使用<code>consoleread</code>（console.c）。它只有在完整地被输入一行数据后才会把字符串放到特定位置。在此之前，它会进入<code>sleep</code>（第七章）。当用户输入一个char时，UART会触发一个中断，激活xv6中的Trap处理机制。通过<code>scause</code>，<code>devintr</code>可以知道中断触发的原因，同时使用另一个硬件PLIC来看到是哪个硬件发出了中断后。会调用指定的处理代码：这个例子中是<code>uartintr</code>。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="k">if</span><span class="p">((</span><span class="n">scause</span> <span class="o">&amp;</span> <span class="mh">0x8000000000000000L</span><span class="p">)</span> <span class="o">&amp;&amp;</span>
+</span></span><span class="line"><span class="cl">     <span class="p">(</span><span class="n">scause</span> <span class="o">&amp;</span> <span class="mh">0xff</span><span class="p">)</span> <span class="o">==</span> <span class="mi">9</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// this is a supervisor external interrupt, via PLIC.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// irq indicates which device interrupted.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="kt">int</span> <span class="n">irq</span> <span class="o">=</span> <span class="n">plic_claim</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">irq</span> <span class="o">==</span> <span class="n">UART0_IRQ</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">      <span class="n">uartintr</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span> <span class="k">else</span> <span class="k">if</span><span class="p">(</span><span class="n">irq</span> <span class="o">==</span> <span class="n">VIRTIO0_IRQ</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">      <span class="n">virtio_disk_intr</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span> <span class="k">else</span> <span class="k">if</span><span class="p">(</span><span class="n">irq</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">      <span class="n">printf</span><span class="p">(</span><span class="s">&#34;unexpected interrupt irq=%d</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">irq</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1">// the PLIC allows each device to raise at most one
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// interrupt at a time; tell the PLIC the device is
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// now allowed to interrupt again.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span><span class="p">(</span><span class="n">irq</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">      <span class="n">plic_complete</span><span class="p">(</span><span class="n">irq</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1">//..timer interrup...
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span> 
+</span></span></code></pre></div><p><code>uartintr</code>会不断地读取用户输入到UART（控制台）的数据，把它们移交到<code>consoleintr</code>。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span>
+</span></span><span class="line"><span class="cl"><span class="nf">uartintr</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">//通过uartgetc读取输入
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">while</span><span class="p">(</span><span class="mi">1</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">c</span> <span class="o">=</span> <span class="n">uartgetc</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">c</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">      <span class="k">break</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">consoleintr</span><span class="p">(</span><span class="n">c</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="c1">// send buffered characters.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">uart_tx_lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="n">uartstart</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">uart_tx_lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>后者会不断地把前者送来的数据添加到一个buffer（<code>con.buf</code>）中，直到收到指示一行结束的符号。然后<code>consoleintr</code>会叫醒<code>consoleread</code>，后者开始把传来的整行数据复制到目标用户空间并返回用户空间。</p>
 <br>
 <br>
 <br>
@@ -110,8 +181,25 @@
 <br>
 <br>
 <h2 id="52-控制台输出-code-console-output">5.2 控制台输出 Code: Console output<a href="#52-控制台输出-code-console-output" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
-<p>    当一个对控制台的写入（<code>write</code>）被使用时，这个系统调用最终会走到<code>uartputc</code>。由于控制台驱动维护着一个buffer <code>uart_tx_buf</code>，进程不需要等待设备传输完1Byte后再次传输：<code>uartputc</code>的功能就是不断接受来自进程的输出，并把它们放入这个buffer中：<code>uartputc</code>唯一进入等待的情况是，buffer满了。在第一个Byte进入<code>uartputc</code>时，它就会调用<code>uartstart</code>。后者会从buffer中得到数据，向控制台传输1Byte。当<code>uartstart</code>传送完1Byte，它会触发一个中断。由于中断的发生，又会进入<code>uartintr</code>，它会检查数据真的传输完毕了，并且再次调用<code>uartstart</code>去buffer中传输数据。所以只有第一个Byte的<code>uartstart</code>是从<code>uartputc</code>中调用的，之后的<code>uartstart</code>都是在使用（通过前面1Byte的输出造成的中断而产生的）<code>uartintr</code>中的<code>uartstart</code>。</p>
-<p>    从上面可以看出，软件和设备的 **解耦（Decoupling）**是通过buffer和中断实现的。在这种解耦中，软件不需要等设备执行完毕才去执行下一个操作，设备也可以处理输入即使没有软件在读取它：下一个<code>read</code>总会读到。这种策略被叫做I/O并发性。</p>
+<p>    当一个对控制台的写入（<code>write</code>）被使用时，这个系统调用最终会走到<code>uartputc</code>。由于控制台驱动维护着一个buffer <code>uart_tx_buf</code>，进程不需要等待设备传输完1Byte后再次传输：<code>uartputc</code>的功能就是不断接受来自进程的输出，并把它们放入这个buffer中：<code>uartputc</code>唯一进入等待的情况是，buffer满了。在第一个Byte进入<code>uartputc</code>时，它就会调用<code>uartstart</code>。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="c1">//uartputc的一部分
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl"><span class="k">while</span><span class="p">(</span><span class="mi">1</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">uart_tx_w</span> <span class="o">==</span> <span class="n">uart_tx_r</span> <span class="o">+</span> <span class="n">UART_TX_BUF_SIZE</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">      <span class="c1">// buffer满了
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="n">sleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">uart_tx_r</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">uart_tx_lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">      <span class="n">uart_tx_buf</span><span class="p">[</span><span class="n">uart_tx_w</span> <span class="o">%</span> <span class="n">UART_TX_BUF_SIZE</span><span class="p">]</span> <span class="o">=</span> <span class="n">c</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">      <span class="n">uart_tx_w</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">      <span class="c1">//首次调用uartstart
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="n">uartstart</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">      <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">uart_tx_lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="k">return</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span></code></pre></div><p>后者会从buffer中得到数据，向控制台传输1Byte。当<code>uartstart</code>传送完1Byte，它会触发一个中断。由于中断的发生，又会进入<code>uartintr</code>，它会检查数据真的传输完毕了（通过调用<code>uartgetc</code>，如果<code>LSR</code>为空，返回<code>-1</code>，参考<code>uartintr</code>代码）。并且再次调用<code>uartstart</code>去buffer中传输数据（所以它在top/bottom-half中都被调用）。所以只有第一个Byte的<code>uartstart</code>是从<code>uartputc</code>中调用的，之后的<code>uartstart</code>都是在使用（通过前面1Byte的输出造成的中断而产生的）<code>uartintr</code>中的<code>uartstart</code>。
+<strong>注：</strong> <code>uartstart</code>会叫醒<code>uartputc</code>如果它因buffer满而睡眠。且它的传输依靠于传递数据给<code>THR</code>。</p>
+<p>    从上面可以看出，软件和设备的 <strong>解耦（Decoupling）</strong> 是通过buffer和中断实现的。在这种解耦中，软件不需要等设备执行完毕才去执行下一个操作，设备也可以处理输入即使没有软件在读取它：下一个<code>read</code>总会读到。这种策略被叫做I/O并发性。</p>
 <br>
 <br>
 <br>
@@ -123,9 +211,15 @@
 <p>    并发性有三个危险：</p>
 <blockquote>
 <ol>
-<li>两个进程在两个CPU中同时调用了同一个驱动（访问同一个设备）</li>
-<li>某个硬件触发了一个设备中断，但该CPU已经在运行驱动了（比如<code>consoleread</code>）。</li>
-<li>在<code>consoleread</code>时，一个硬件可能会对另一个CPU发起一个中断。</li>
+<li>
+<p>两个进程在两个CPU中同时调用了同一个驱动（访问同一个设备）</p>
+</li>
+<li>
+<p>某个硬件触发了一个设备中断，但该CPU已经在运行驱动了（比如<code>consoleread</code>）。</p>
+</li>
+<li>
+<p>在<code>consoleread</code>时，一个硬件可能会对另一个CPU发起一个中断。</p>
+</li>
 </ol>
 </blockquote>
 <p>他们通过 <strong>锁（Lock）</strong> 解决（第六章）。</p>

@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="zh-hans">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta http-equiv="X-UA-Compatible" content="ie=edge">
+	<meta name="theme-color" content="#494f5c">
+	<meta name="msapplication-TileColor" content="#494f5c">
+<meta itemprop="name" content="Part 1: 数据库管理系统概述与关系模型">
+<meta itemprop="description" content="MathJax.Hub.Config({ tex2jax: { skipTags: [&#39;script&#39;, &#39;noscript&#39;, &#39;style&#39;, &#39;textarea&#39;, &#39;pre&#39;], inlineMath: [[&#39;$&#39;,&#39;$&#39;]] } });   目录   数据库管理系统概述 Database Management System   导言  1.1 DBMS应用 DBMS Applications  1.2 DBMS目的 DBMS Purposes  1.3 数据模型 Data Models  1.4 数据抽象 Data Abstraction  1.5 数据库语言 DB Languages  1.6 数据库设计 DB Design  1.7 数据库引擎 DB Engine  1.8 数据库和应用 Database and Application Architecture    关系模型 Relational Model   导言  1."><meta itemprop="datePublished" content="2022-07-03T10:06:08-04:00" />
+<meta itemprop="dateModified" content="2022-07-03T10:06:08-04:00" />
+<meta itemprop="wordCount" content="437">
+<meta itemprop="keywords" content="" /><meta property="og:title" content="Part 1: 数据库管理系统概述与关系模型" />
+<meta property="og:description" content="MathJax.Hub.Config({ tex2jax: { skipTags: [&#39;script&#39;, &#39;noscript&#39;, &#39;style&#39;, &#39;textarea&#39;, &#39;pre&#39;], inlineMath: [[&#39;$&#39;,&#39;$&#39;]] } });   目录   数据库管理系统概述 Database Management System   导言  1.1 DBMS应用 DBMS Applications  1.2 DBMS目的 DBMS Purposes  1.3 数据模型 Data Models  1.4 数据抽象 Data Abstraction  1.5 数据库语言 DB Languages  1.6 数据库设计 DB Design  1.7 数据库引擎 DB Engine  1.8 数据库和应用 Database and Application Architecture    关系模型 Relational Model   导言  1." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://hoooao.github.io/db/part1/" /><meta property="article:section" content="db" />
+<meta property="article:published_time" content="2022-07-03T10:06:08-04:00" />
+<meta property="article:modified_time" content="2022-07-03T10:06:08-04:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Part 1: 数据库管理系统概述与关系模型"/>
+<meta name="twitter:description" content="MathJax.Hub.Config({ tex2jax: { skipTags: [&#39;script&#39;, &#39;noscript&#39;, &#39;style&#39;, &#39;textarea&#39;, &#39;pre&#39;], inlineMath: [[&#39;$&#39;,&#39;$&#39;]] } });   目录   数据库管理系统概述 Database Management System   导言  1.1 DBMS应用 DBMS Applications  1.2 DBMS目的 DBMS Purposes  1.3 数据模型 Data Models  1.4 数据抽象 Data Abstraction  1.5 数据库语言 DB Languages  1.6 数据库设计 DB Design  1.7 数据库引擎 DB Engine  1.8 数据库和应用 Database and Application Architecture    关系模型 Relational Model   导言  1."/>
+
+	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+	<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+	<link rel="manifest" href="/site.webmanifest">
+	<link rel="mask-icon" href="/safari-pinned-tab.svg" color="">
+	<link rel="shortcut icon" href="/favicon.ico">
+
+	<title>Part 1: 数据库管理系统概述与关系模型</title>
+	<link rel="stylesheet" href="https://hoooao.github.io/css/style.min.6b1219507aa24bcc2a46f4f7071edbc5dc448ba85934d68c4af0ca0a7ad89dcd.css" integrity="sha256-axIZUHqiS8wqRvT3Bx7bxdxEi6hZNNaMSvDKCnrYnc0=" crossorigin="anonymous">
+	<style>.bg-img {background-image: url('https://images.unsplash.com/photo-1531265726475-52ad60219627?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=2691&q=80');}</style>
+</head>
+
+<body id="page">
+	
+	<div class="bg-img"></div>
+	<main class="site-main section-inner animated fadeIn faster">
+		<article class="thin">
+			<header class="post-header">
+				<div class="post-meta"><span>Jul 3, 2022</span></div>
+				<h1>Part 1: 数据库管理系统概述与关系模型</h1>
+			</header>
+			<div class="content">
+				<head>
+    <script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML" type="text/javascript"></script>
+    <script type="text/x-mathjax-config">
+        MathJax.Hub.Config({
+            tex2jax: {
+            skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+            inlineMath: [['$','$']]
+            }
+        });
+    </script>
+</head>
+<h2 id="目录">目录<a href="#目录" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<ul>
+<li> <a href="#%E6%95%B0%E6%8D%AE%E5%BA%93%E7%AE%A1%E7%90%86%E7%B3%BB%E7%BB%9F%E6%A6%82%E8%BF%B0-database-management-system">数据库管理系统概述 Database Management System</a>
+<ul>
+<li> <a href="#%E5%AF%BC%E8%A8%80">导言</a></li>
+<li> <a href="#11-dbms%E5%BA%94%E7%94%A8-dbms-applications">1.1 DBMS应用 DBMS Applications</a></li>
+<li> <a href="#12-dbms%E7%9B%AE%E7%9A%84-dbms-purposes">1.2 DBMS目的 DBMS Purposes</a></li>
+<li> <a href="#13-%E6%95%B0%E6%8D%AE%E6%A8%A1%E5%9E%8B-data-models">1.3 数据模型 Data Models</a></li>
+<li> <a href="#14-%E6%95%B0%E6%8D%AE%E6%8A%BD%E8%B1%A1-data-abstraction">1.4 数据抽象 Data Abstraction</a></li>
+<li> <a href="#15-%E6%95%B0%E6%8D%AE%E5%BA%93%E8%AF%AD%E8%A8%80-db-languages">1.5 数据库语言 DB Languages</a></li>
+<li> <a href="#16-%E6%95%B0%E6%8D%AE%E5%BA%93%E8%AE%BE%E8%AE%A1-db-design">1.6 数据库设计 DB Design</a></li>
+<li> <a href="#17-%E6%95%B0%E6%8D%AE%E5%BA%93%E5%BC%95%E6%93%8E-db-engine">1.7 数据库引擎 DB Engine</a></li>
+<li> <a href="#18-%E6%95%B0%E6%8D%AE%E5%BA%93%E5%92%8C%E5%BA%94%E7%94%A8-database-and-application-architecture">1.8 数据库和应用 Database and Application Architecture</a></li>
+</ul>
+</li>
+<li> <a href="#%E5%85%B3%E7%B3%BB%E6%A8%A1%E5%9E%8B-relational-model">关系模型 Relational Model</a>
+<ul>
+<li> <a href="#%E5%AF%BC%E8%A8%80-1">导言</a></li>
+<li> <a href="#19-%E6%A6%82%E5%BF%B5-concepts">1.9 概念 Concepts</a></li>
+<li> <a href="#110-db-%E6%9E%B6%E6%9E%84-db-schema">1.10 DB 架构 DB Schema</a></li>
+<li> <a href="#111-%E9%94%AE-keys">1.11 键 Keys</a></li>
+<li> <a href="#112-%E5%85%B3%E7%B3%BB%E6%9F%A5%E8%AF%A2%E8%AF%AD%E8%A8%80-relational-query-language">1.12 关系查询语言 Relational Query Language</a></li>
+<li> <a href="#113-%E5%85%B3%E7%B3%BB%E4%BB%A3%E6%95%B0-relational-algebra">1.13 关系代数 Relational Algebra</a></li>
+</ul>
+</li>
+</ul>
+<br>
+<hr>
+<br>
+<h1 id="数据库管理系统概述-database-management-system">数据库管理系统概述 Database Management System<a href="#数据库管理系统概述-database-management-system" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h1>
+<h2 id="导言">导言：<a href="#导言" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    **数据库管理系统（DBMS：Database Management System）**由大量相互关联的数据以及操作这些数据的程序组成。数据的集合被叫做数据库。DBMS的目的是实现一个高效的 <strong>存储（Storage）</strong> 与 <strong>取出（Retrieve）</strong>。数据的管理主要有三个方面：1.对数据存储的结构的定义； 2.对数据的操作； 3.安全性。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="11-dbms应用-dbms-applications">1.1 DBMS应用 DBMS Applications<a href="#11-dbms应用-dbms-applications" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>     被DBMS管理的数据有三个特点：高价值，数据量大，并发使用。其本质上是一个复杂的数据管理系统。早期，这个系统是现实世界的后勤部门，处理纸面数据。而现代的DBMS是一个软件系统，有强大的交互性和操作便捷。其主要应用体现在两个方面：1.<strong>线上交易处理(OLTP：Online Transaction Processing)</strong>：即对数据库最熟知的使用，体现为用户大量访问数据，但每次访问只涉及数据库中一小部分数据； 2.数据分析，通常适用于商业决策。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="12-dbms目的-dbms-purposes">1.2 DBMS目的 DBMS Purposes<a href="#12-dbms目的-dbms-purposes" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    OS的 <strong>文件管理系统(File-processing system)</strong> 一定程度上可以看作一个DBMS。假设大学存在一个课程注册的需求，那么会有三个子需求：添加删除学生，教师，和课程；注册学生进入课程；分配成绩，计算GPA，生成成绩单。看起来需求不多，可以使用几个程序实现。但这样的系统的性能和拓展性会很差。其缺点主要体现在以下几个方面：</p>
+<blockquote>
+<ol>
+<li><strong>数据冗余&amp;不连贯（Data redundance &amp; inconsistency）</strong>。在长期使用后，不同的文件（例如不同的部门的文件）可能会使用不同的文件格式，而不同的需求可能会使用不同的语言实现。同时，同一份数据可能会出现在多个文件中。比如一个双专业的学生的信息可能会出现在两个部门的文件中（冗余）。而且当这个学生修改了自己的手机号后，这个修改可能无法同步到所有部门的文件（不连贯）。</li>
+<li>访问困难。主要体现在对有特定 <strong>属性（Attribute）</strong> 的数据的访问。比如有人想统计所有走读生的信息，那么就需要一个新的程序来检索文件：程序开发导致效率低下且使得整个系统臃肿。而使用原有的程序可能无法完美实现该需求。</li>
+<li>数据隔离。同一类数据可能分布在不同的文件中，再次层架访问困难。比如走读生的信息没有集合与一个文件，而是分散在各个部门的文件中。</li>
+<li><strong>原子性（Atomicity）</strong>。一个操作要么（成功）发生，要么完全不发生：不能发生一半。比如给一个课程分发预算，大学预算总额的减少与课程预算的增加一起发生，不能只发生一个。</li>
+<li><strong>并发（Concurrency）</strong>。对单一数据的同时可的不同操作</li>
+<li>安全性。应当保证不同的用户有不同的访问权限。</li>
+</ol>
+</blockquote>
+<p>DBMS，提供通用的方法，用来解决这些问题。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="13-数据模型-data-models">1.3 数据模型 Data Models<a href="#13-数据模型-data-models" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    数据模型是数据库之下的结构，它规范了对数据的描述，数据关系，数据语义，以及对数据的一些限制。存在四种数据模型分类</p>
+<blockquote>
+<ol>
+<li><strong>关系模型（Relational Model）</strong>。关系模型使用一系列 <strong>表单（Tables）</strong> 去描述数据的种类和关系。每一个表单规范一种 <strong>种类（Type）</strong>：种类中的数据存在关系。表单的每一列都是某一个特定的属性，每一行代表一个“个体”。如 <strong>Fig 1</strong> 所体现的一个表单。RM是一种 <strong>基于记录的数据模型（Record-based model）</strong>，也就是说，它有对一些种类的固定的格式的记录。</li>
+<li><strong>实体关系模型（ERD：Entity Relationship Diagram/model）</strong>。ERD由很多基础的对象（也就是“实体”）和对象之间的关系组成。每个实体是现实世界中的物体。</li>
+<li><strong>半结构化数据（Semi-structured Data Model）</strong>。由JSON和XML这类语言支持的模型。每个相同的种类的属性可以不一样。</li>
+<li><strong>面向对象模型（Object-Based Data Model）</strong>。通常可以看作是对于关系模型的升级：支持了OOP语言的特性：封装，方法，和对象。可以储存和运行程序。</li>
+</ol>
+</blockquote>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/Hxmzuoo.png" alt="" style="width:40%">
+<figcaption><b>Fig.1 关系模型例子</b></figcaption>
+</div>
+</figure>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="14-数据抽象-data-abstraction">1.4 数据抽象 Data Abstraction<a href="#14-数据抽象-data-abstraction" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>     数据抽象分为三个层级，不同的人员接触不同的层级。</p>
+<p>     <strong>物理层面（Physical level）</strong>。这是最底层的抽象，它描述数据是如何真实地被储存的。比如它会描述 <em>instructor</em> 这部分数据是如何以Byte连续在磁盘中存储的。这关系到底层的<strong>算法/数据查找方式</strong>和一定程度的硬件。另外，数据库使用一种特殊的数据结构 <strong>索引（Index）</strong> 去找特定的数据，这也是物理层面的关注点。**数据库管理员（DB Administrator）**会面对这一层面。</p>
+<p>     <strong>逻辑层面（Logical level）</strong>。逻辑层面关心储存什么数据，和数据之间什么关系。换句话说，这个层级用来为数据库中的数据的种类和属性在一定程度上做出定义和修改。比如下面的代码就是逻辑层面的体现：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">type</span><span class="w"> </span><span class="n">instructor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">record</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="n">ID</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="nb">char</span><span class="w"> </span><span class="p">(</span><span class="mi">5</span><span class="p">);</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="n">instr_name</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="nb">char</span><span class="w"> </span><span class="p">(</span><span class="mi">20</span><span class="p">);</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="n">dept_name</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="nb">char</span><span class="w"> </span><span class="p">(</span><span class="mi">20</span><span class="p">);</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="n">salary</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="nb">numeric</span><span class="w"> </span><span class="p">(</span><span class="mi">8</span><span class="p">,</span><span class="mi">2</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">end</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>这段代码定义了一个种类<code>instructor</code>，它有四个属性，以键值对的方式声明。例如<code>ID : char (5);</code>表达：这个属性是<code>ID</code>，是一个<code>char</code>类型的数据，长度为<code>20</code>。程序员写SQL就是在面对逻辑层面。</p>
+<p>     <strong>视界层面（View level）</strong>。即用户面对的层面。一个数据库可能提供多个视界，一个用户可能面对一个或多个世界。除了作为一层抽象省去不必要的细节，这个层面也增加了安全性。比如不同的view有不同的权限：一个老师只能看见学生的成绩，看不到学生的住址。</p>
+<p>     这三个抽象层及对应三种 <strong>架构（Schema）</strong> ：physical schema，logical schema，subschemas。一个架构是对数据设计的描述。与之对应的概念叫做 <strong>实例（Instances）</strong>：它是真实存在于数据库中数据的统称。前者可以类比为对一个变量（DB）的声明，而后者则是所赋的值。通常来说，物理架构的改变不会影响逻辑架构，这种行为叫做<strong>物理数据独立性（Physical data independenc）</strong>。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="15-数据库语言-db-languages">1.5 数据库语言 DB Languages<a href="#15-数据库语言-db-languages" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>     一个数据库系统会提供两种语言：**数据定义语言（DDL：Data-definition Language）**和 <strong>数据操作语言（DML：Data-manipulation Language）</strong>。通常来说，一个数据库系统所使用的两者实际上会是同一种语言，比如SQL。</p>
+<p>     DDL会对数据种类做出定义，同时也会实现一些 <strong>数据完整性约束（Data Integrity Constraints）</strong>。上面<em>instructor</em>的例子就是使用SQL为DDL。完整性约束通常有这几种：</p>
+<blockquote>
+<ol>
+<li><strong>值域限制（Domain Constraints）</strong>。它是最基础的限制：比如学校的预算必须大于等于0。</li>
+<li><strong>引用完整性（Referential Integrity）</strong>。比如希望某个数据（属性）出现在不同的关系（种类）中，它确保这个属性真的有出现，在使用的时候不会找不到。</li>
+<li><strong>授权（Authorization）</strong>。实现不同的使用者有不同的 <strong>增删改查（CRUD）</strong> 权限。</li>
+</ol>
+</blockquote>
+<p>DDL语句的输出被存放在 <strong>数据目录（Data Index）</strong>，<strong>元数据（Metadata）</strong> 保存在此。</p>
+<p>    DML实现CRUD。存在两种DML：1. <strong>过程化DMLs（Procedural DMLs）</strong>：让使用者去指明修改什么数据以及如何得到这些数据；2. <strong>声明式 DMLs（Declarative/nonprocedural DMLs）</strong>：只需要指明访问什么数据。前者更加接近底层，而后者更加简单：把指定如何得到数据的问题交给了数据库自己去处理。**查询语言（Query Language）**通常指DML之下负责取出数据的这部分，但两者通常可以交替使用。使用SQL为DML：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="n">instructor</span><span class="p">.</span><span class="n">instr_name</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">instructor</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">where</span><span class="w"> </span><span class="n">instructor</span><span class="p">.</span><span class="n">dept_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;History&#39;</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>    不同于其他计算机语言，比如Java，C++，数据库语言无法实现I/O，网络等。想要实现这些功能必须和其他高级语言合作。应用程序就是这一合作的体现。用户和应用程序交互，应用程序会发送DML语句，到数据库并执行。通过API实现应用程序和DB的交互：C语言有ODBC，Java有JDBC。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="16-数据库设计-db-design">1.6 数据库设计 DB Design<a href="#16-数据库设计-db-design" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>     数据库的涉及主要就是对架构（Logical Schema）们的设计。
+     最开始，通常要弄清这个数据库未来的需求，比如交互方式等。之后，设计者需要选一个DB模型然后把需求和模型相结合实现一个<strong>概念设计（Conceptual Design）</strong>。比如以关系模型为例，概念设计设计需要高清什么属性去涵盖，如何组织归纳这些属性到各个表单中。前者通常是商业决策，而后者是技术相关。有两种解决后者的办法：1. 使用E-R模型；2. 使用一系列算法来 <strong>规范化（Normalization）</strong> 输入的属性和输出的表单。同时，一个合格的概念设计也包括增删改查相关的设计。在概念设计阶段之后首先是 <strong>逻辑设计阶段（Logical-design phase）</strong>，之后是<strong>物理设计阶段（Physical-design phase）</strong>。前者实现数据模型，后者实现文件组织方式和内部储存结构等。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="17-数据库引擎-db-engine">1.7 数据库引擎 DB Engine<a href="#17-数据库引擎-db-engine" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>     一个DBMS通常有三个部分组成：1. <strong>储存管理器（Storage Manager）</strong> 2. <strong>查询处理器（Query Processor）</strong> 3. <strong>交易管理器（Transaction Management）</strong></p>
+<p>    储存管理器提供了数据库的数据与应用程序之间的接口，支持向DB发送的query。它会把DML语句翻译成底层的文件系统的指令。通过它实现CRUD。</p>
+<p>     查询处理器包含DDL intepreter，DML编译器等。是底层相关的。
+     交易管理保证原子化，连贯性，<strong>持久性（Durability）</strong>，是数据安全重要的部分。“交易”不能单纯理解为商业交易，而应当理解为数据的“交易”。为了保证数据安全，交易管理由 <strong>并发管理器（Concurrency-control manager），恢复管理器（Recovery manager）</strong> 组成。后者在交易失败的情况下恢复数据，保证持久性。</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/0S8lCDF.jpg" alt="" style="width:60%">
+<figcaption><b>Fig.2 系统结构</b></figcaption>
+</div>
+</figure>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="18-数据库和应用-database-and-application-architecture">1.8 数据库和应用 Database and Application Architecture<a href="#18-数据库和应用-database-and-application-architecture" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>     早期的DBMS有两层：客户端-服务端。应用程序安装在客户端，向服务端发送请求实现访问数据库。现代的DBMS有三层：客户端（只作为前端）- <strong>应用服务器（Application Server）</strong> - DBMS。这种模式安全性和性能都更好</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/BaGv8nW.jpg" alt="" style="width:60%">
+<figcaption><b>Fig.3 架构</b></figcaption>
+</div>
+</figure>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h1 id="关系模型-relational-model">关系模型 Relational Model<a href="#关系模型-relational-model" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h1>
+<br>
+<hr>
+<br>
+<h2 id="导言-1">导言<a href="#导言-1" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>     <strong>关系模型（RM：Relational Model）</strong> 是最常用的数据库模型，因为它简单。经过半个世纪的发展，它现在有很多 <strong>对象关系（Object-relational）</strong> 的特性。这一模型独立于底层的数据结构和算法。</p>
+<p>     一个关系模型实际上是一个表单的集合，如 <strong>Fig.4</strong>。</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/dOHGWUM.jpg" alt="" style="width:60%">
+<figcaption><b>Fig.4 Instructor Relation</b></figcaption>
+</div>
+</figure>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="19-概念-concepts">1.9 概念 Concepts<a href="#19-概念-concepts" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    在这个模型中三个概念可以交替使用：<strong>table/relation/type</strong>：即表单，关系，种类。这张表可以称为“Instructor Relation”：内部数据都和教师有关。通常来说，row代表一个表单中一组有关联的数据，描述一个实体。每一行也被称为 <strong>元组（Tuple）</strong> 。而列则代表 <strong>属性（Attributes）</strong>。n个attr代表每个元组是 <strong>n-tuple</strong>，即一个tuple中有n个元素。attr的数量也被叫做arity：n个attr也被叫做n-ary。</p>
+<p>    <strong>关系实例（Relation instance）</strong> 就是一个形式的关系的实例化。比如这张实质上存在的表单就是“Department”这一关系的实例。</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/KlDd8Tf.jpg" alt="" style="width:60%">
+<figcaption><b>Fig.5 Department Relation</b></figcaption>
+</div>
+</figure>
+<p>     <strong>值域（Domain）</strong>。每个属性都有自己的值域，它是一个囊括了这一attr所有可能出现的值的集合。传统地说，是 **原子化（Atomic）**的，即不可再分：值域中的元素一定不是另一个集合或者数组。但是现在这一限制通常不再重要了。</p>
+<p>     <strong>NULL</strong>值被很多DBMS支持，表示未知/不存在值。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="110-db-架构-db-schema">1.10 DB 架构 DB Schema<a href="#110-db-架构-db-schema" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>     如之前所说，<strong>架构（Schema）</strong> 与实例是对立的概念。这里的schema通常指logical level的schema。一个relation schema可以类比成类，而instnace可以类比为schema实例化的对象。比如对于上面的 <strong>Department</strong> 实例， 他的架构形如<code>department (dept name, building, budget)</code>。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="111-键-keys">1.11 键 Keys<a href="#111-键-keys" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>     <strong>超级键（Superkey）</strong> ：超级键是由一个或多个attr组成的集合，使用这些属性可以找到某架构中唯一的tuple。比如在 <strong>Instructor Relation</strong> 中，<code>dept_name</code> 无法构成一个超级键。但是 <code>ID</code> 可以：每个ID都是独一无二的，因此可以识别出唯一的Tuple（有的DBMS会自动分配这种唯一的编号给所有Tuple）。虽然ID本身可以当作超级键的唯一元素使之有效，任何包含ID的其他集合也可以成为超级键（这是因为ID可以识别唯一tuple）。比如<code>{ID，dept_name}</code>：后者不起什么作用，但不妨碍这个集合仍然是一个超级键。</p>
+<p>     <strong>候选键（Candidate keys）：</strong> 用最少的元素分别出一个Tuple的超级键。候选键可以有多个：假设每个部门中肯定没有同名的教师，那么<code>{ID}</code>与<code>{name,dept_name}</code>都是候选键，虽然元素数量不同，但都没有多余的元素，保证了“元素最少”。</p>
+<p>     通常数据库设计者会选出一个候选键，那么这个被选中的候选键就被叫做<strong>关系键（Primary key）</strong>。在schema中表现为带下划线的attr：</p>
+<p>        classroom (<span style="border-bottom:1px  solid white;">building, room number</span>, capacity)；</p>
+<p>这些选中的属性的值必须很少被更改或者永远不会变，且非NULL。超级键能得到唯一Tuple也被叫做 <strong>超级键限制（Superkey constraint）</strong> 。</p>
+<p>     另一种和attr有关的限制是 <strong>外键限制（Foreign-key constraint）</strong>。这一限制表达的是：设A为r<sub>1</sub>的某几个attr的集合，A中元素在每个tuple中的值必须和r<sub>2</sub>中的primary key B中同样的attr在一些tuple中的值一样。A被称为一个来自r<sub>1</sub>的外键，引用r<sub>2</sub>. r<sub>1</sub>被称为引用关系，r<sub>2</sub>被称为被引用关系。比如，教师关系中的<code>dept_name</code>就是一个外键，引用了Depatment中的值且<code>dept_name</code>是Department的关系键。实际上它是一种<strong>引用完整性限制（Referential integrity constrain）</strong>。相比后者，前者要求引用的attr同时也必须是被引用方的primary key。它们都可以防止垃圾信息的输入。</p>
+<p>chema之间的这种关系可以用图表来表达：双箭头表达attr1引用attr2，单箭头表达A引用了B的所有primary key的元素。</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/Ud9bs2F.jpg" alt="" style="width:80%">
+<figcaption><b>Fig.6 Schema Diagram</b></figcaption>
+</div>
+</figure>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="112-关系查询语言-relational-query-language">1.12 关系查询语言 Relational Query Language<a href="#112-关系查询语言-relational-query-language" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>     与数据库交互的语言，分为三大类：</p>
+<blockquote>
+<ol>
+<li>Imperative：描述一系列操作来得到结果，比如使用一个循环来得到符合某一条件的数据。是早期的主要方式。</li>
+<li>functional：查询的结果是函数运行的结果，函数可能操作与数据库活着另一个函数的结果。</li>
+<li>declarative：只需要告知想要的信息，不关心如何取得</li>
+</ol>
+</blockquote>
+<p>SQL三种特性都有。</p>
+<p>     两个原生的搜索语言，即没任何语法糖</p>
+<blockquote>
+<p>Relational algebra：是一种函数语言，也是SQL的基础（但是它仍高于物理层面）。
+Relational calculus：declarative，不讨论。</p>
+</blockquote>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="113-关系代数-relational-algebra">1.13 关系代数 Relational algebra<a href="#113-关系代数-relational-algebra" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>     <strong>关系代数 （Relational algebra）</strong>： 把一或两个关系（实例）作为输入，通过一系列操作（组成一个 <strong>表达式（Expression）</strong> ）得到一个新的关系/实例。涉及1个关系的叫做<strong>单元（Unary）</strong>，如：选择，投影，重命名；涉及2个关系叫做<strong>双元（Binary）</strong> ，如：并集，笛卡尔积，集合差。<strong>注：</strong> 一个关系本身也可以算作一个最简单的表达式</p>
+<p>     <strong>选择（Select）</strong>：写作：$\sigma_{predicate}(E)$；表示在表达式 $E$ 中选择符合 $predicate$，即一个判断条件， 的tuples.</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/TYHG5lr.png" alt="" style="width:80%">
+</div>
+</figure>
+<p>$$\text{Fig.7 }\sigma_{\text{depat_name= &lsquo;Physics&rsquo;}}(\textit{Instructor})$$</p>
+<p>     <strong>投影（Project）</strong>：标记为：$\Pi_{attrs}(E)$：把$E$中的指定attrs提取出来变成新的关系。operation之间可以嵌套：$\Pi_{\text{name}}(\sigma_{\text{depat_name= &lsquo;Physics&rsquo;}})$,把 $\sigma$ 的结果当作E。这些都叫做<em>relational-algebra expression</em>。</p>
+<p>     <strong>笛卡尔积(Cartesian product)</strong>：标记为 $A\times B$，$A,B$ 都是关系。它会把两个关系排列组合成一个关系，大小为两者大小的乘积。笛卡尔积有1个限制：不能同名的关系相乘。这导致自己不能乘自己，也不能乘一个表达式（表达式的结果无名）：通过重命名操作解决。结果的R的schema中若有同名的attr，就加前缀，比如 $$\text{Instructor}\times \text{Department}$$ 中就会有<code>Instructor.dept_name</code>与<code>Department.dept_name</code></p>
+<p>     <strong>合并（Join）</strong>：如果说 $\times$ 是一种没有选择的合并/完全的排列组合，那么Join就是有选择的合并，形式为 $r\Join_\theta s$：$r,s$ 是两个关系，$\theta$ 是判断条件。它本质上是select+X的实现：$ r\Join_\theta s = \sigma_\theta (r \times s)$。比如 $$\sigma_{\text{Instructor.dept_name=Department.dept_name}}(\text{Instructor}\times \text{Department}) $$</p>
+<p>$$=$$</p>
+<p>$$ \text{Instructor}\Join_\text{Instructor.dept_name=Department.dept_name} \text{Department}$$</p>
+<p>     <strong>集合操作（Set operation）</strong>：</p>
+<p>         <strong>并集（Union）</strong>：写作 $A\cup B$：把两个关系前后相连。</p>
+<p>         <strong>交集（ Intersection）</strong>：写作 $A\cap B$：提取出两个关系中一样的Tuples。</p>
+<p>         <strong>集合差（Set difference）</strong>：写作 $A - B$：删掉A与B共享的tuple后的A。</p>
+<p>限制：两个关系的attrs完全一致：名称，个数，顺序（同一个schema）。</p>
+<p>     <strong>赋值（Assignment）</strong>：标记为 varName $\leftarrow E$.  可以说是给E的结果关系一个变量名。并没有什么用，只能让结构看起来更清晰。</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/WptMwzm.jpg" alt="" style="width:60%">
+<figcaption><b>Fig.8  Assignment</b></figcaption>
+</div>
+</figure>
+<p>     <strong>重命名（Rename）</strong>：标记为：$\rho_x(E)$ ，$x$为$E$的新名字。可以通过 $\rho_{x(A_1,A_2..A_n)}(E)$ 来同时给属性重命名。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+
+			</div>
+			<hr class="post-end">
+			<footer class="post-info">
+				<p><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-file-text"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>4654 字</p>
+				<p><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-calendar"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>2022-07-03 10:06 -0400</p>
+			</footer>
+		</article>
+		<div class="post-nav thin">
+		</div>
+		<div id="comments" class="thin">
+</div>
+	</main>
+
+	<footer id="site-footer" class="section-inner thin animated fadeIn faster">
+		<p>&copy; 2022 <a href="https://hoooao.github.io/">Xiyu Hao</a> &#183; <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" rel="noopener">CC BY-NC 4.0</a></p>
+		<p>
+			Made with <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> &#183; Theme <a href="https://github.com/Track3/hermit" target="_blank" rel="noopener">Hermit</a> &#183; <a href="https://hoooao.github.io/posts/index.xml" target="_blank" title="rss"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-rss"><path d="M4 11a9 9 0 0 1 9 9"></path><path d="M4 4a16 16 0 0 1 16 16"></path><circle cx="5" cy="19" r="1"></circle></svg></a>
+		</p>
+	</footer>
+
+
+
+	<script src="https://hoooao.github.io/js/bundle.min.5a42c67b729ee2fa1059251688235399704707e04edb4e28c42c6f6dfa49d1d9.js" integrity="sha256-WkLGe3Ke4voQWSUWiCNTmXBHB+BO204oxCxvbfpJ0dk=" crossorigin="anonymous"></script>
+	
+
+</body>
+
+</html>

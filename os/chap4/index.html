@@ -8,21 +8,29 @@
 	<meta name="theme-color" content="#494f5c">
 	<meta name="msapplication-TileColor" content="#494f5c">
 <meta itemprop="name" content="Chap 4：Traps与系统调用 Traps and System calls">
-<meta itemprop="description" content="目录   导言  4.1 RISC-V Trap机制 RISC-V trap machinery  4.2 用户空间的Traps Traps from user space  4.3 使用系统调用 Code: Calling system calls  4.4 系统调用参数 Code: System call arguments  4.5 内核空间的Traps Traps from kernel space  4.6 缺页异常 Page-fault exceptions  4.7 练习 Exercise   导言：  存在三种情况会导致OS停下手边的东西转而去执行一些特定的代码，她们分别是：
- 系统调用：进程调用ecall来让内核去执行一些操作 Exception：当一条指令做了非法的事情，进程会被杀死 设备中断（Device interrputs）：一个设备会向CPU发送注意请求，例如磁盘读写完成
+<meta itemprop="description" content="目录   导言  4.1 RISC-V Trap机制 RISC-V trap machinery  4.2 用户空间的Traps Traps from user space  4.3 使用系统调用 Code: Calling system calls  4.4 系统调用参数 Code: System call arguments  4.5 内核空间的Traps Traps from kernel space  4.6 缺页异常 Page-fault exceptions  4.7 补充  4.8 练习 Exercise   导言：  存在三种情况会导致OS停下手边的东西转而去执行一些特定的代码，它们分别是：
+ 系统调用：进程调用ecall来让内核去执行一些操作
+Exception：当一条指令做了非法的事情，进程会被杀死
+设备中断（Device interrputs）：一个设备会向CPU发送注意请求，例如磁盘读写完成
  这三种让“CPU去执行另一项任务”的行为统一叫做Traps。一个Trap处理的流程通常是：
- Trap让CPU切换控制（Control） CPU保存当前进程的一切寄存器，为了让进程继续执行。 执行对应Trap的代码 恢复之前的进程
- 对于这个被中断的进程来说，Trap是“透明的”，也就是说，当前进程并不会知道自己被一个Trap中断了，因为它会被在未来某一个时刻继续运行（或者被杀死）。
- 4.1 RISC-V Trap机制 RISC-V trap machinery  上述的行为都需要被**控制与状态寄存器（CSRs：Control and Status Registers）**支持，下面是一些常用的CSRs："><meta itemprop="datePublished" content="2022-06-20T09:19:55-04:00" />
+ Trap处理机制让CPU切换控制（Control）
+保存当前进程的一切寄存器，为了让进程继续执行。
+执行对应Trap处理的代码
+恢复之前的进程
+ 对于这个被中断的进程来说，Trap是“透明的”，也就是说，当前进程并不会知道自己被一个Trap打断了，因为它会被在未来某一个时刻继续运行（或者被杀死）。"><meta itemprop="datePublished" content="2022-06-20T09:19:55-04:00" />
 <meta itemprop="dateModified" content="2022-06-20T09:19:55-04:00" />
-<meta itemprop="wordCount" content="579">
+<meta itemprop="wordCount" content="663">
 <meta itemprop="keywords" content="" /><meta property="og:title" content="Chap 4：Traps与系统调用 Traps and System calls" />
-<meta property="og:description" content="目录   导言  4.1 RISC-V Trap机制 RISC-V trap machinery  4.2 用户空间的Traps Traps from user space  4.3 使用系统调用 Code: Calling system calls  4.4 系统调用参数 Code: System call arguments  4.5 内核空间的Traps Traps from kernel space  4.6 缺页异常 Page-fault exceptions  4.7 练习 Exercise   导言：  存在三种情况会导致OS停下手边的东西转而去执行一些特定的代码，她们分别是：
- 系统调用：进程调用ecall来让内核去执行一些操作 Exception：当一条指令做了非法的事情，进程会被杀死 设备中断（Device interrputs）：一个设备会向CPU发送注意请求，例如磁盘读写完成
+<meta property="og:description" content="目录   导言  4.1 RISC-V Trap机制 RISC-V trap machinery  4.2 用户空间的Traps Traps from user space  4.3 使用系统调用 Code: Calling system calls  4.4 系统调用参数 Code: System call arguments  4.5 内核空间的Traps Traps from kernel space  4.6 缺页异常 Page-fault exceptions  4.7 补充  4.8 练习 Exercise   导言：  存在三种情况会导致OS停下手边的东西转而去执行一些特定的代码，它们分别是：
+ 系统调用：进程调用ecall来让内核去执行一些操作
+Exception：当一条指令做了非法的事情，进程会被杀死
+设备中断（Device interrputs）：一个设备会向CPU发送注意请求，例如磁盘读写完成
  这三种让“CPU去执行另一项任务”的行为统一叫做Traps。一个Trap处理的流程通常是：
- Trap让CPU切换控制（Control） CPU保存当前进程的一切寄存器，为了让进程继续执行。 执行对应Trap的代码 恢复之前的进程
- 对于这个被中断的进程来说，Trap是“透明的”，也就是说，当前进程并不会知道自己被一个Trap中断了，因为它会被在未来某一个时刻继续运行（或者被杀死）。
- 4.1 RISC-V Trap机制 RISC-V trap machinery  上述的行为都需要被**控制与状态寄存器（CSRs：Control and Status Registers）**支持，下面是一些常用的CSRs：" />
+ Trap处理机制让CPU切换控制（Control）
+保存当前进程的一切寄存器，为了让进程继续执行。
+执行对应Trap处理的代码
+恢复之前的进程
+ 对于这个被中断的进程来说，Trap是“透明的”，也就是说，当前进程并不会知道自己被一个Trap打断了，因为它会被在未来某一个时刻继续运行（或者被杀死）。" />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://hoooao.github.io/os/chap4/" /><meta property="article:section" content="os" />
 <meta property="article:published_time" content="2022-06-20T09:19:55-04:00" />
@@ -30,12 +38,16 @@
 
 <meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="Chap 4：Traps与系统调用 Traps and System calls"/>
-<meta name="twitter:description" content="目录   导言  4.1 RISC-V Trap机制 RISC-V trap machinery  4.2 用户空间的Traps Traps from user space  4.3 使用系统调用 Code: Calling system calls  4.4 系统调用参数 Code: System call arguments  4.5 内核空间的Traps Traps from kernel space  4.6 缺页异常 Page-fault exceptions  4.7 练习 Exercise   导言：  存在三种情况会导致OS停下手边的东西转而去执行一些特定的代码，她们分别是：
- 系统调用：进程调用ecall来让内核去执行一些操作 Exception：当一条指令做了非法的事情，进程会被杀死 设备中断（Device interrputs）：一个设备会向CPU发送注意请求，例如磁盘读写完成
+<meta name="twitter:description" content="目录   导言  4.1 RISC-V Trap机制 RISC-V trap machinery  4.2 用户空间的Traps Traps from user space  4.3 使用系统调用 Code: Calling system calls  4.4 系统调用参数 Code: System call arguments  4.5 内核空间的Traps Traps from kernel space  4.6 缺页异常 Page-fault exceptions  4.7 补充  4.8 练习 Exercise   导言：  存在三种情况会导致OS停下手边的东西转而去执行一些特定的代码，它们分别是：
+ 系统调用：进程调用ecall来让内核去执行一些操作
+Exception：当一条指令做了非法的事情，进程会被杀死
+设备中断（Device interrputs）：一个设备会向CPU发送注意请求，例如磁盘读写完成
  这三种让“CPU去执行另一项任务”的行为统一叫做Traps。一个Trap处理的流程通常是：
- Trap让CPU切换控制（Control） CPU保存当前进程的一切寄存器，为了让进程继续执行。 执行对应Trap的代码 恢复之前的进程
- 对于这个被中断的进程来说，Trap是“透明的”，也就是说，当前进程并不会知道自己被一个Trap中断了，因为它会被在未来某一个时刻继续运行（或者被杀死）。
- 4.1 RISC-V Trap机制 RISC-V trap machinery  上述的行为都需要被**控制与状态寄存器（CSRs：Control and Status Registers）**支持，下面是一些常用的CSRs："/>
+ Trap处理机制让CPU切换控制（Control）
+保存当前进程的一切寄存器，为了让进程继续执行。
+执行对应Trap处理的代码
+恢复之前的进程
+ 对于这个被中断的进程来说，Trap是“透明的”，也就是说，当前进程并不会知道自己被一个Trap打断了，因为它会被在未来某一个时刻继续运行（或者被杀死）。"/>
 
 	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -68,26 +80,27 @@
 <li> <a href="#44-code-system-call-arguments">4.4 系统调用参数 Code: System call arguments</a></li>
 <li> <a href="#45-traps-from-kernel-space">4.5 内核空间的Traps Traps from kernel space</a></li>
 <li> <a href="#46-page-fault-exceptions">4.6 缺页异常 Page-fault exceptions</a></li>
-<li> <a href="#47-%E7%BB%83%E4%B9%A0-exercise">4.7 练习 Exercise</a></li>
+<li> <a href="#47-%E8%A1%A5%E5%85%85">4.7 补充</a></li>
+<li> <a href="#48-%E7%BB%83%E4%B9%A0-exercise">4.8 练习 Exercise</a></li>
 </ul>
 <br>
 <hr>
 <br>
 <h2 id="导言">导言：<a href="#导言" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
-<p>    存在三种情况会导致OS停下手边的东西转而去执行一些特定的代码，她们分别是：</p>
+<p>    存在三种情况会导致OS停下手边的东西转而去执行一些特定的代码，它们分别是：</p>
 <blockquote>
-<p>系统调用：进程调用<code>ecall</code>来让内核去执行一些操作
-Exception：当一条指令做了非法的事情，进程会被杀死
-<strong>设备中断（Device interrputs）</strong>：一个设备会向CPU发送注意请求，例如磁盘读写完成</p>
+<p>系统调用：进程调用<code>ecall</code>来让内核去执行一些操作</p>
+<p>Exception：当一条指令做了非法的事情，进程会被杀死</p>
+<p><strong>设备中断（Device interrputs）</strong>：一个设备会向CPU发送注意请求，例如磁盘读写完成</p>
 </blockquote>
 <p>这三种让“CPU去执行另一项任务”的行为统一叫做<strong>Traps</strong>。一个Trap处理的流程通常是：</p>
 <blockquote>
-<p>Trap让CPU切换<strong>控制（Control）</strong>
-CPU保存当前进程的一切寄存器，为了让进程继续执行。
-执行对应Trap的代码
-恢复之前的进程</p>
+<p>Trap处理机制让CPU切换<strong>控制（Control）</strong></p>
+<p>保存当前进程的一切寄存器，为了让进程继续执行。</p>
+<p>执行对应Trap处理的代码</p>
+<p>恢复之前的进程</p>
 </blockquote>
-<p>对于这个被中断的进程来说，Trap是“透明的”，也就是说，当前进程并不会知道自己被一个Trap中断了，因为它会被在未来某一个时刻继续运行（或者被杀死）。</p>
+<p>对于这个被中断的进程来说，Trap是“透明的”，也就是说，当前进程并不会知道自己被一个Trap打断了，因为它会被在未来某一个时刻继续运行（或者被杀死）。</p>
 <br>
 <br>
 <br>
@@ -96,26 +109,26 @@ CPU保存当前进程的一切寄存器，为了让进程继续执行。
 <br>
 <br>
 <h2 id="41-risc-v-trap机制-risc-v-trap-machinery">4.1 RISC-V Trap机制 RISC-V trap machinery<a href="#41-risc-v-trap机制-risc-v-trap-machinery" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
-<p>    上述的行为都需要被**控制与状态寄存器（CSRs：Control and Status Registers）**支持，下面是一些常用的CSRs：</p>
+<p>    上述的行为都需要被 <strong>控制与状态寄存器（CSRs：Control and Status Registers）</strong> 支持（satp也是其中之一），下面是一些常用的CSRs：</p>
 <blockquote>
-<p>stvec：保存着Trap handler函数（<code>uservec</code>）的程序地址，进程通过它来跳转到处理Trap的代码
-scause：记录着Trap发生的原因
-sstatus：其中的SIE-bit指示是否能处理interrupts，其中的SPP-bit指示Trap是从什么模式出现的，并控制在调用指令<code>sret</code>后，跳转至目标模式（<code>sret</code>会把<code>sepc</code>寄存器的内容写到<code>pc</code>寄存器，实现跳转模式）。
-sscratch：保存一些重要的进程与内核相关的数据并且用来保存进程的寄存器。
-sepc：用来保存Trap发生时的PC，用来之后继续进程</p>
+<p>stvec：保存着Trap handler函数（<code>uservec/kernelvec</code>）的程序地址，进程通过它来跳转到处理Trap的代码</p>
+<p>scause：记录着Trap发生的原因</p>
+<p>sstatus：其中的SIE-bit指示是否能处理interrupts，其中的SPP-bit指示Trap是从什么模式出现的，并控制在调用指令<code>sret</code>后，跳转至目标模式（<code>sret</code>会把<code>sepc</code>寄存器的内容写到<code>pc</code>寄存器，实现跳转模式），例如0是UM。</p>
+<p>sscratch：保存一些重要的进程与内核相关的数据并且用来保存进程的寄存器。</p>
+<p>sepc：用来保存Trap发生时的PC，用来之后继续进程</p>
 </blockquote>
 <p>    简化的流程：</p>
 <blockquote>
-<p>Trap发生后，如果是被一个设备中断引起，同时SIE未设置，则忽略这个Trap；
-把SIE清楚（之后的过程中不会处理新的设备中断）；
-把<code>pc</code>放入<code>sepc</code>；
-把当前的模式放入SPP；
+<p>Trap发生后，如果是被一个设备中断引起，同时SIE未设置，则忽略这个Trap；</p>
+<p>把SIE清除（之后的过程中不会处理新的设备中断）；
+把<code>pc</code>放入<code>sepc</code>；</p>
+<p>把当前的模式放入SPP；
 记录<code>scause</code>；
-切换至SM（kernel）；
-把<code>stevec</code>的值放入<code>pc</code>；
+切换至SM（kernel）；</p>
+<p>把<code>stevec</code>的值放入<code>pc</code>；
 开始处理。</p>
 </blockquote>
-<p>    **注：**在处理Trap的时候，CPU不负责切换<code>satp</code>，kstack,和保存除<code>pc</code>之外的寄存器。这样给了软件更多的灵活度，比如对于一些操作系统，它们不需要切换<code>satp</code>去处理Trap。但是同时也要求处理Trap的程序来做这些工作。</p>
+<p>    <strong>注：</strong> 在处理Trap的时候，CPU不负责切换<code>satp</code>，kstack,和保存除<code>pc</code>之外的寄存器。这样给了软件更多的灵活度，比如对于一些操作系统，它们不需要切换<code>satp</code>去处理Trap。但是同时也要求处理Trap的程序来做这些工作。这里的“CPU不负责”指的是CPU的指令不会去执行一些内容。</p>
 <br>
 <br>
 <br>
@@ -125,8 +138,8 @@ sepc：用来保存Trap发生时的PC，用来之后继续进程</p>
 <br>
 <h2 id="42-用户空间的traps-traps-from-user-space">4.2 用户空间的Traps Traps from user space<a href="#42-用户空间的traps-traps-from-user-space" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
 <p>    处理Trap的函数调用顺序是：<code>uservec-&gt;usertrap-&gt;usertrapret-&gt;userret</code>。</p>
-<p>    已知<code>stvec</code>会指向<code>uservec</code>，但问题是，在切换<code>satp</code>之后，<code>uservec</code>的地址必须要背内核的内存空间映射，才能继续运行。解决方法：xv6为每个进程，包括kernel，分配了一个page叫做<code>trampoline</code>，其内容定义（<code>uservec，userret</code>）在<code>trampoline.S</code>，位于虚拟内存中的<code>TRAMPOLINE</code>。其在各个进程与内核中的VA是一样的（<code>TRAMPPOLINE</code>）。</p>
-<p>    当Trap出现，使用<code>stvec</code>找到位于<code>trampoline</code>中的<code>uservec</code>。在<code>uservec</code>运行的开始，32个寄存器保存着这个进程的数据，它会使用指令来交换<code>sscratch</code>与<code>a0</code>的值，这样原<code>a0</code>就被保存了：此时<code>uservec</code>就可以使用<code>a0</code>而不用担心数据损坏了。之前原来的<code>sscratch</code>中保存的实际上是一个page的地址，这个page被叫做<code>trapframe</code>，邻接<code>trampoline</code>的正下方。它是一个每个进程都独有的内存空间，足够存放32个寄存器和其他数据，而现在<code>a0</code>指向了这个空间。<code>uservec</code>通过指令把每个寄存器依次放入了<code>trapframe</code>（从<code>0x40</code>开始是因为之前的偏移量中存放着其他数据）。最后在把<code>sscratch</code>中保存的原<code>a0</code>放入<code>trapframe</code>：所有的寄存器的对应的值都被保存了。</p>
+<p>    已知<code>stvec</code>会指向<code>uservec</code>，但问题是，在切换<code>satp</code>之后，<code>uservec</code>的地址必须要被内核的内存空间映射，才能继续运行。解决方法：xv6为每个进程，包括kernel，分配了一个page叫做<code>trampoline（蹦床）</code>，其内容定义（包括<code>uservec，userret</code>两个函数）在<code>trampoline.S</code>（内存地址顶部），位于虚拟内存中的<code>TRAMPOLINE</code>。其在各个进程与内核中的VA是一样的（<code>TRAMPPOLINE</code>）。</p>
+<p>    当Trap出现，使用<code>stvec</code>找到位于<code>trampoline</code>中的<code>uservec</code>。在<code>uservec</code>运行的开始，32个用户寄存器(非CSRs，它们可以被user code使用)保存着这个进程的数据，它会使用指令来交换<code>sscratch</code>与<code>a0</code>的值，这样原<code>a0</code>就被保存了：此时<code>uservec</code>就可以使用<code>a0</code>而不用担心数据损坏了。之前原来的<code>sscratch</code>中保存的实际上是一个page的地址，这个page被叫做<code>trapframe</code>，其地址邻接<code>trampoline</code>的正下方。它是一个每个进程都独有的内存空间，足够存放32个寄存器和其他数据，而现在<code>a0</code>指向了这个空间。<code>uservec</code>通过指令把每个寄存器依次放入了<code>trapframe</code>（从<code>0x40</code>开始是因为之前的偏移量中存放着其他数据）。最后在把<code>sscratch</code>中保存的原<code>a0</code>放入<code>trapframe</code>：所有的寄存器的对应的值都被保存了。</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="nl">uservec</span><span class="p">:</span>    
 </span></span><span class="line"><span class="cl">        <span class="c1">//交换两个寄存器的值
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="n">csrrw</span> <span class="n">a0</span><span class="p">,</span> <span class="n">sscratch</span><span class="p">,</span> <span class="n">a0</span>
@@ -166,11 +179,11 @@ sepc：用来保存Trap发生时的PC，用来之后继续进程</p>
 </span></span></span><span class="line"><span class="cl"><span class="cp"></span>
 </span></span><span class="line"><span class="cl">        <span class="cp"># jump to usertrap(), which does not return
 </span></span></span><span class="line"><span class="cl"><span class="cp"></span>        <span class="n">jr</span> <span class="n">t0</span>
-</span></span></code></pre></div><p>    <code>usertrap</code>首先会把<code>stvec</code>设置为<code>kernelvec</code>，为可能的内核中出现的Trap服务。然后把<code>sepc</code>的值放入<code>p-&gt;trapframe-&gt;epc</code>中（<code>p</code>指的是原进程），防止哪种使用其他进程覆盖掉<code>sepc</code>从而丢失原<code>pc</code>。之后它会取出<code>scause</code>中的值，用作Trap类型的判断：</p>
+</span></span></code></pre></div><p>    <code>usertrap</code>首先会把<code>stvec</code>设置为<code>kernelvec</code>，为可能的内核中出现的Trap服务。然后把<code>sepc</code>的值放入<code>p-&gt;trapframe-&gt;epc</code>中（<code>p</code>指的是原进程），防止使用其他进程覆盖掉<code>sepc</code>从而丢失原<code>pc</code>。之后它会取出<code>scause</code>中的值，用作Trap类型的判断：</p>
 <blockquote>
-<p>系统调用：执行<code>syscall</code>，并且把<code>epc+=4</code>，用来跳过原<code>pc</code>对<code>ecall</code>的调用指令。
-设备中断：调用<code>devintr</code>。
-Exception：杀死原进程。</p>
+<p>系统调用：执行<code>syscall</code>，并且把<code>epc+=4</code>，用来跳过原<code>pc</code>对<code>ecall</code>的调用指令。</p>
+<p>设备中断：调用<code>devintr</code>。</p>
+<p>Exception：杀死原进程。</p>
 </blockquote>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">usertrap</span><span class="p">(</span><span class="kt">void</span><span class="p">){</span>
 </span></span><span class="line"><span class="cl">
@@ -197,7 +210,8 @@ Exception：杀死原进程。</p>
 </span></span><span class="line"><span class="cl">    <span class="c1">//修正偏移量
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">p</span><span class="o">-&gt;</span><span class="n">trapframe</span><span class="o">-&gt;</span><span class="n">epc</span> <span class="o">+=</span> <span class="mi">4</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">    <span class="c1">// 因为使用完了寄存器，可以允许Interrupts
+</span></span><span class="line"><span class="cl">    <span class="c1">//RISV-C的Trap处理硬件自动关闭中断使用
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// 因为使用完了寄存器，可以允许Interrupts，手动开启
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">intr_on</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">    <span class="c1">//系统调用
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">syscall</span><span class="p">();</span>
@@ -229,6 +243,7 @@ Exception：杀死原进程。</p>
 </span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">proc</span> <span class="o">*</span><span class="n">p</span> <span class="o">=</span> <span class="n">myproc</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="c1">//在切换回用户空间前，禁止interrupts。
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="c1">//因为这段时间中，stvec指向usertrap：不能处理interrupts
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">intr_off</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="c1">//sevec切换回uservec
@@ -249,11 +264,14 @@ Exception：杀死原进程。</p>
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">uint64</span> <span class="n">satp</span> <span class="o">=</span> <span class="n">MAKE_SATP</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">pagetable</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="c1">//调用userret，传入参数a0=trapframe, a1=satp
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="c1">//fn计算到目标的Trampoline中的某行，即userret
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">uint64</span> <span class="n">fn</span> <span class="o">=</span> <span class="n">TRAMPOLINE</span> <span class="o">+</span> <span class="p">(</span><span class="n">userret</span> <span class="o">-</span> <span class="n">trampoline</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl">  <span class="p">((</span><span class="kt">void</span> <span class="p">(</span><span class="o">*</span><span class="p">)(</span><span class="n">uint64</span><span class="p">,</span><span class="n">uint64</span><span class="p">))</span><span class="n">fn</span><span class="p">)(</span><span class="n">TRAPFRAME</span><span class="p">,</span> <span class="n">satp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">//使用fn作为一个函数指针，传参运行 
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="p">((</span><span class="kt">void</span> <span class="p">(</span><span class="o">*</span><span class="p">)(</span><span class="n">uint64</span><span class="p">,</span><span class="n">uint64</span><span class="p">))</span><span class="n">fn</span><span class="p">)(</span><span class="n">TRAPFRAME</span><span class="p">,</span> <span class="n">satp</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span></code></pre></div><p>     <code>userret</code>的行为与<code>uservec</code>相反：</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl">        <span class="c1">//吧satp换成原进程的pt
+</span></span></code></pre></div><p><strong>注：</strong> 希望获得<code>satp</code>的指针是因为想把它作为参数传入<code>Trampoline.S</code> 这个汇编程序中。由于它是汇编程序，给予指针比在其中获取指针更方便</p>
+<p>     <code>userret</code>的行为与<code>uservec</code>相反：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl">        <span class="c1">//把satp换成原进程的pt
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="n">csrw</span> <span class="n">satp</span><span class="p">,</span> <span class="n">a1</span>
 </span></span><span class="line"><span class="cl">        <span class="n">sfence</span><span class="p">.</span><span class="n">vma</span> <span class="n">zero</span><span class="p">,</span> <span class="n">zero</span>
 </span></span><span class="line"><span class="cl">
@@ -272,7 +290,12 @@ Exception：杀死原进程。</p>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">        <span class="c1">//返回sepc指向的位置
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="n">sret</span>
-</span></span></code></pre></div><br>
+</span></span></code></pre></div><p><strong>注：</strong></p>
+<blockquote>
+<p>保存在trapframe中的<code>a0</code>的值已经被更改了： 在调用系统调用后，这个系统调用的返回值写入了<code>a0</code>。
+除了修改<code>pc</code>的值为<code>sepc</code>的值，<code>sret</code>同时修改MODE，并且允许中断。</p>
+</blockquote>
+<br>
 <br>
 <br>
 <hr>
@@ -280,7 +303,7 @@ Exception：杀死原进程。</p>
 <br>
 <br>
 <h2 id="43-code-calling-system-calls">4.3 Code: Calling system calls<a href="#43-code-calling-system-calls" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
-<p>    在第二章，<code>initcode.S</code>调用<code>exec</code>最终开启了第一个进程<code>console</code>。细节地说，<code>initcode.S</code>中的<code>start</code>函数给寄存器<code>a1，a0</code>传递参数，并且把一个系统调用的特定号码放入<code>a7</code>。这个号码定义在<code>syscall.c</code> 的<code>syscalls</code>数组中，对应着特定的系统调用地址。<code>start</code>最后一行使用了<code>ecall</code>，它使得trap产生并执行<code>uservec，usertrap，syscall</code>。在<code>syscall</code>中，<code>a7</code>的值会与上述的数组对比，得到目标系统调用：<code>initcode.S</code>调用了<code>SYS_exec</code>，从而调用<code>exec</code>。在运行完毕后，系统调用会把返回值放入<code>a0</code>，负数代表运行出错，<code>0</code>或正数代表成功：如果系统调用号码不存在，返回<code>-1</code>。</p>
+<p>    在第二章，<code>initcode.S</code>调用<code>exec</code>最终开启了第一个进程<code>console</code>。细节地说，<code>initcode.S</code>中的<code>start</code>函数给寄存器<code>a1，a0</code>传递参数，并且把一个系统调用的特定号码放入<code>a7</code>。这个号码定义在<code>syscall.c</code> 的<code>syscalls</code>数组中，对应着特定的系统调用地址。<code>start</code>最后一行使用了<code>ecall</code>，它切换运行模式，保存<code>pc</code>与<code>sepc</code>， 使得trap产生并执行<code>uservec，usertrap，syscall</code>。在<code>syscall</code>中，<code>a7</code>的值会与上述的数组对比，得到目标系统调用：<code>initcode.S</code>调用了<code>SYS_exec</code>，从而调用<code>exec</code>系统调用。在运行完毕后，系统调用会把返回值放入<code>a0</code>，负数代表运行出错，<code>0</code>或正数代表成功：如果系统调用号码不存在，返回<code>-1</code>。</p>
 <br>
 <br>
 <br>
@@ -289,7 +312,13 @@ Exception：杀死原进程。</p>
 <br>
 <br>
 <h2 id="44-code-system-call-arguments">4.4 Code: System call arguments<a href="#44-code-system-call-arguments" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
-<p>    在第一章中讨论的所有以函数形式出现的系统调用实际上都是对于该系统调用的封装。当这些函数被传参时，如给其他函数传参一样：参数会帮按顺序放入寄存器中（并且在调用<code>uservec</code>时放入<code>p-&gt;trapframe</code>）。xv6使用<code>argint，argstr，argaddr</code>来分别从寄存器中拿到整型，字符串，和指针。比如：</p>
+<p>    在第一章中讨论的所有以函数形式出现的系统调用实际上都是对于该系统调用的。这些封装函数统一定义在<code>usys.S</code>（通过<code>usys.pl</code> 生成）中。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="p">.</span><span class="n">global</span> <span class="n">fork</span>
+</span></span><span class="line"><span class="cl"><span class="nl">fork</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl"> <span class="n">li</span> <span class="n">a7</span><span class="p">,</span> <span class="n">SYS_fork</span>
+</span></span><span class="line"><span class="cl"> <span class="n">ecall</span>
+</span></span><span class="line"><span class="cl"> <span class="n">ret</span>
+</span></span></code></pre></div><p>这是<code>fork()</code>的定义，只是把特定的常数放到寄存器<code>a7</code>中并调用<code>ecall</code>进入trap。从trap处理中回来之后调用<code>ret</code>返回用户代码。当这些封装函数被传参时，如给其他函数传参一样：参数会按顺序放入寄存器（<code>a0,a1...</code>）中（并且在调用<code>uservec</code>时放入<code>p-&gt;trapframe</code>）。xv6使用<code>argint，argstr，argaddr</code>来分别从寄存器中拿到整型，字符串，和指针。比如：</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="c1">// Fetch the nth 32-bit system call argument.
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kt">int</span> <span class="nf">argint</span><span class="p">(</span><span class="kt">int</span> <span class="n">n</span><span class="p">,</span> <span class="kt">int</span> <span class="o">*</span><span class="n">ip</span><span class="p">)</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">  <span class="o">*</span><span class="n">ip</span> <span class="o">=</span> <span class="n">argraw</span><span class="p">(</span><span class="n">n</span><span class="p">);</span>
@@ -313,10 +342,10 @@ Exception：杀死原进程。</p>
 </span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p>后者通过<code>p-&gt;trapframe</code>取出原进程保存的寄存器的值。</p>
-<p>    虽然得到寄存器中的值对于内核来说相对简单，但，一直调用某个系统调用的进程的内存空间与内核不共享PT，当参数是指针式，会出现两个问题：</p>
+<p>    虽然得到寄存器中的值对于内核来说相对简单，但一直调用某个系统调用的进程的内存空间与内核不共享PT，当参数是指针式，会出现两个问题：</p>
 <blockquote>
-<p>1.内核无法直接使用进程提供的指针去得到指针指向的数据。
-2.指针指向的数据可能是恶意的。
+<p>1.内核无法直接使用进程提供的指针去得到指针指向的数据。</p>
+<p>2.指针指向的数据可能是恶意的。
 所以需要一种能把数据取出，又能保证安全的方法。</p>
 </blockquote>
 <p>    xv6中使用一些函数达成此目的，比如<code>fetchstr</code>:</p>
@@ -338,7 +367,7 @@ Exception：杀死原进程。</p>
 <br>
 <br>
 <h2 id="45-traps-from-kernel-space">4.5 Traps from kernel space<a href="#45-traps-from-kernel-space" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
-<p>    内核中的Trap不同于用户的Trap处理。当位于内核中时，<code>stvec</code>一定指向<code>kernelvec</code>，且在保存寄存器后可直接进入<code>kerneltrap</code>（保存寄存器是因为内核可能切换线程，这也导致寄存器必须要保存到这个进程自己的栈中）。在<code>kerneltrap</code>中，由于内核可以直接运行系统调用，它只处理报错和设备中断。如果是一个设备中断，内核会调用<code>devintr</code>；若是一个报错，内核会停止运行。另外，如果这个中断是一个 <strong>时钟中断（Timer interrupt）</strong>，内核调用<code>yield</code>，使得另一个进程考试运行（而未来某一时刻原线程也会继续运行&ndash;Chap7）。当<code>kerneltrap</code>执行完毕，一切寄存器（包括<code>sepc</code>）都会复原，原线程继续运行。<strong>注：</strong> 在<code>usertrap</code>中，<code>stvec</code>会把<code>uservec</code>切换至<code>kernelvec</code>，换句话说，在奇幻之前，在内核运行时的<code>stvec</code>会有一段时间是<code>uservec</code>，这就是为什么一定要把中断关掉，防止在内核中使用<code>uservec</code>。</p>
+<p>    内核中的Trap不同于用户的Trap处理。当位于内核中时，<code>stvec</code>一定指向<code>kernelvec</code>，且在保存寄存器后可直接进入<code>kerneltrap</code>（保存寄存器是因为内核可能切换线程，这也导致寄存器必须要保存到这个进程自己的栈中）。在<code>kerneltrap</code>中，由于内核可以直接运行系统调用，它只处理报错和设备中断。如果是一个设备中断，内核会调用<code>devintr</code>；若是一个报错，内核会停止运行。另外，如果这个中断是一个 <strong>时钟中断（Timer interrupt）</strong>，内核调用<code>yield</code>，使得另一个进程考试运行（而未来某一时刻原线程也会继续运行&ndash;Chap7）。当<code>kerneltrap</code>执行完毕，一切寄存器（包括<code>sepc</code>）都会复原，原线程继续运行。<strong>注：</strong> 在<code>usertrap</code>中，<code>stvec</code>会把<code>uservec</code>切换至<code>kernelvec</code>，换句话说，在切换之前，在内核运行时的<code>stvec</code>会有一段时间是<code>uservec</code>，这就是为什么一定要把中断关掉，防止在内核中使用<code>uservec</code>。</p>
 <br>
 <br>
 <br>
@@ -358,7 +387,45 @@ Exception：杀死原进程。</p>
 <br>
 <br>
 <br>
-<h2 id="47-练习-exercise">4.7 练习 Exercise<a href="#47-练习-exercise" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<h2 id="47-补充">4.7 补充<a href="#47-补充" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>     1. 与UM相比，SM实际上只多了两个权限：</p>
+<blockquote>
+<ol>
+<li>可以读写控制寄存器，比如<code>satp,stvec</code>；</li>
+<li>可以使用PTE中<code>PTE_U</code>未设置的Page。这个bit位于PTE的后10位之一，指示UM是否可以访问该PTE。但是假如<code>PTE_U</code>设置了，SM就<strong>不能访问</strong>了：SM并不一定向下管控UM。
+注：SM中，对地址的访问仍然严格受限于<code>satp</code>提供的PT。换句话说，SM完全无法直接访问PA（即使在kernel中也只是直接映射使用VA）。</li>
+</ol>
+</blockquote>
+<p>     2. Qemu提供了查看该进程所有PTE的功能：使用快捷键<code>Ctrl+A-&gt;B</code>进入qemu监视器。使用<code>info mem</code>命令查看。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="p">(</span><span class="n">qemu</span><span class="p">)</span> <span class="n">info</span> <span class="n">mem</span>
+</span></span><span class="line"><span class="cl"><span class="n">vaddr</span>            <span class="n">paddr</span>            <span class="n">size</span>             <span class="n">attr</span>
+</span></span><span class="line"><span class="cl"><span class="o">----------------</span> <span class="o">----------------</span> <span class="o">----------------</span> <span class="o">-------</span>
+</span></span><span class="line"><span class="cl"><span class="mo">0000000000000000</span> <span class="mf">0000000087f</span><span class="mi">61000</span> <span class="mo">0000000000001000</span> <span class="n">rwxu</span><span class="o">-</span><span class="n">a</span><span class="o">-</span>
+</span></span><span class="line"><span class="cl"><span class="mo">0000000000001000</span> <span class="mf">0000000087f5e000</span> <span class="mo">0000000000001000</span> <span class="n">rwxu</span><span class="o">-</span><span class="n">ad</span>
+</span></span><span class="line"><span class="cl"><span class="mo">0000000000002000</span> <span class="mf">0000000087f</span><span class="mi">5</span><span class="n">d000</span> <span class="mo">0000000000001000</span> <span class="n">rwx</span><span class="o">----</span>
+</span></span><span class="line"><span class="cl"><span class="mo">0000000000003000</span> <span class="mf">0000000087f</span><span class="mi">5</span><span class="n">c000</span> <span class="mo">0000000000001000</span> <span class="n">rwxu</span><span class="o">-</span><span class="n">ad</span>
+</span></span><span class="line"><span class="cl"><span class="mf">0000003ff</span><span class="n">fffe000</span> <span class="mf">0000000087f</span><span class="mi">70000</span> <span class="mo">0000000000001000</span> <span class="n">rw</span><span class="o">---</span><span class="n">ad</span>
+</span></span><span class="line"><span class="cl"><span class="mf">0000003ff</span><span class="n">ffff000</span> <span class="mo">00000000</span><span class="mi">80007000</span> <span class="mo">0000000000001000</span> <span class="n">r</span><span class="o">-</span><span class="n">x</span><span class="o">--</span><span class="n">a</span><span class="o">-</span>
+</span></span></code></pre></div><p>这是<code>shell</code>的PT，只有6个PTE。<code>attr</code>是权限bits：r/w/x：读/写/执行；u：PTE_U；ab：曾被读过/写过。</p>
+<p>     3. 虽然Trapoline与Trapframe都在用户空间中，但UM无法写入他们的地址。</p>
+<p>     4. <code>ecall</code>有三个功能（提供于CPU而非OS）：</p>
+<blockquote>
+<ol>
+<li>改变MODE位SM。并没有直接的方式来看MODE，只能通过当前所运行的代码来猜当前的权限</li>
+<li>保存<code>pc</code>到<code>sepc</code>，这就是为什么说CPU不负责保存寄存器，除了<code>pc</code>。</li>
+<li>让<code>pc</code>跳转到<code>stvec</code>。
+注：此时不能使用C语言，因为<code>sp</code>未指向任何栈，直到开始使用<code>kstack</code>。</li>
+</ol>
+</blockquote>
+<p>     5. <code>hartid</code>：实际上就是当前代码所运行于的CPU核心的ID，保存在寄存器<code>tp</code>中。<code>myproc()</code>使用这个值去一个特定的数组中找到对应的进程，即“当前进程”。XV6只使用1个核心，所以<code>hartid</code>是个定值。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="48-练习-exercise">4.8 练习 Exercise<a href="#48-练习-exercise" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
 <blockquote>
 <ol>
 <li>The functions copyin and copyinstr walk the user page table in software. Set up
