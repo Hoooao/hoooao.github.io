@@ -7,7 +7,28 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>zh-hans</language>
     <copyright>This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.</copyright>
-    <lastBuildDate>Sun, 03 Jul 2022 10:06:08 -0400</lastBuildDate><atom:link href="https://hoooao.github.io/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Wed, 13 Jul 2022 19:11:24 -0400</lastBuildDate><atom:link href="https://hoooao.github.io/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Part2</title>
+      <link>https://hoooao.github.io/db/part2/</link>
+      <pubDate>Wed, 13 Jul 2022 19:11:24 -0400</pubDate>
+      
+      <guid>https://hoooao.github.io/db/part2/</guid>
+      <description>目录  导言： </description>
+    </item>
+    
+    <item>
+      <title>Labs</title>
+      <link>https://hoooao.github.io/os/labs/</link>
+      <pubDate>Mon, 04 Jul 2022 19:47:54 -0400</pubDate>
+      
+      <guid>https://hoooao.github.io/os/labs/</guid>
+      <description>目录  导言： 6.S081 Lab详解。  Lab 2 System Calls System call tracing  目标：实现一个对系统调用的追踪的系统调用trace。追踪的信息包括当前PID，系统调用名称，系统调用返回值。trace接受一个int作为参数，这个数字用来作为一个“mask“。22个系统调用（包括trace）的值（从1到22）会和这个mask进行&amp;amp;的操作，来判定该系统调用是否被trace。
+ 考察：对fork(),exec(),proc的理解。
+ 提供了user/trace.c：这个文件有基本的对参数的检查以及对trace系统调用的使用和exec()执行。这个文件不需要改动。
+int main(int argc, char *argv[]) { int i; char *nargv[MAXARG]; if(argc &amp;lt; 3 || (argv[1][0] &amp;lt; &amp;#39;0&amp;#39; || argv[1][0] &amp;gt; &amp;#39;9&amp;#39;)){ fprintf(2, &amp;#34;Usage: %s mask command\n&amp;#34;, argv[0]); exit(1); } //在这里调用了trace  if (trace(atoi(argv[1])) &amp;lt; 0) { fprintf(2, &amp;#34;%s: trace failed\n&amp;#34;, argv[0]); exit(1); } //把传入的参数传入数组，用来在exec中传参  for(i = 2; i &amp;lt; argc &amp;amp;&amp;amp; i &amp;lt; MAXARG; i++){ nargv[i-2] = argv[i]; } //运行目标程序  exec(nargv[0], nargv); exit(0); }  添加一个名为trace的系统调用。根据提示，为了让trace被编译，需要把它一特定的格式在syscall.</description>
+    </item>
+    
     <item>
       <title>Part 1: 数据库管理系统概述与关系模型</title>
       <link>https://hoooao.github.io/db/part1/</link>
@@ -116,26 +137,6 @@ This theme has 3 CSS classes made for figure elements:
       <description>Just define the image URL in the content’s front matter, the featured image will be displayed as the background.
 For example:
 ---images:- https://picsum.photos/1024/768/?random---This is an array, you can set multiple urls, only the first url will be used. These images is also used in Twitter Cards and the Open Graph metadata.</description>
-    </item>
-    
-    <item>
-      <title>Typography</title>
-      <link>https://hoooao.github.io/posts/typography/</link>
-      <pubDate>Sat, 29 Sep 2018 11:36:33 +0800</pubDate>
-      
-      <guid>https://hoooao.github.io/posts/typography/</guid>
-      <description>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
- An apple is a sweet, edible fruit produced by an apple tree (Malus pumila).</description>
-    </item>
-    
-    <item>
-      <title>Creating a New Theme</title>
-      <link>https://hoooao.github.io/posts/creating-a-new-theme/</link>
-      <pubDate>Sun, 28 Sep 2014 00:00:00 +0000</pubDate>
-      
-      <guid>https://hoooao.github.io/posts/creating-a-new-theme/</guid>
-      <description>Introduction This tutorial will show you how to create a simple theme in Hugo. I assume that you are familiar with HTML, the bash command line, and that you are comfortable using Markdown to format content. I&amp;rsquo;ll explain how Hugo uses templates and how you can organize your templates to create a theme. I won&amp;rsquo;t cover using CSS to style your theme.
-We&amp;rsquo;ll start with creating a new site with a very basic template.</description>
     </item>
     
   </channel>

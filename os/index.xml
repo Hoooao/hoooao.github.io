@@ -6,8 +6,85 @@
 		<generator>Hugo -- gohugo.io</generator>
 		<language>zh-hans</language>
 		<copyright>This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.</copyright>
-		<lastBuildDate>Thu, 23 Jun 2022 09:25:49 -0400</lastBuildDate>
+		<lastBuildDate>Mon, 04 Jul 2022 19:47:54 -0400</lastBuildDate>
 		<atom:link href="https://hoooao.github.io/os/index.xml" rel="self" type="application/rss+xml" />
+		
+		<item>
+			<title>Labs</title>
+			<link>https://hoooao.github.io/os/labs/</link>
+			<pubDate>Mon, 04 Jul 2022 19:47:54 -0400</pubDate>
+			
+			<guid>https://hoooao.github.io/os/labs/</guid>
+			<description>目录  导言： 6.S081 Lab详解。  Lab 2 System Calls System call tracing  目标：实现一个对系统调用的追踪的系统调用trace。追踪的信息包括当前PID，系统调用名称，系统调用返回值。trace接受一个int作为参数，这个数字用来作为一个“mask“。22个系统调用（包括trace）的值（从1到22）会和这个mask进行&amp;amp;的操作，来判定该系统调用是否被trace。
+ 考察：对fork(),exec(),proc的理解。
+ 提供了user/trace.c：这个文件有基本的对参数的检查以及对trace系统调用的使用和exec()执行。这个文件不需要改动。
+int main(int argc, char *argv[]) { int i; char *nargv[MAXARG]; if(argc &amp;lt; 3 || (argv[1][0] &amp;lt; &amp;#39;0&amp;#39; || argv[1][0] &amp;gt; &amp;#39;9&amp;#39;)){ fprintf(2, &amp;#34;Usage: %s mask command\n&amp;#34;, argv[0]); exit(1); } //在这里调用了trace  if (trace(atoi(argv[1])) &amp;lt; 0) { fprintf(2, &amp;#34;%s: trace failed\n&amp;#34;, argv[0]); exit(1); } //把传入的参数传入数组，用来在exec中传参  for(i = 2; i &amp;lt; argc &amp;amp;&amp;amp; i &amp;lt; MAXARG; i++){ nargv[i-2] = argv[i]; } //运行目标程序  exec(nargv[0], nargv); exit(0); }  添加一个名为trace的系统调用。根据提示，为了让trace被编译，需要把它一特定的格式在syscall.</description>
+			<content type="html"><![CDATA[<h2 id="目录">目录</h2>
+<br>
+<hr>
+<br>
+<h2 id="导言">导言：</h2>
+<pre><code>6.S081 Lab详解。
+</code></pre>
+<h2 id="lab-2-system-calls">Lab 2 System Calls</h2>
+<h3 id="system-call-tracing">System call tracing</h3>
+<p>    目标：实现一个对系统调用的追踪的系统调用<code>trace</code>。追踪的信息包括当前<code>PID</code>，系统调用名称，系统调用返回值。<code>trace</code>接受一个<code>int</code>作为参数，这个数字用来作为一个“mask“。22个系统调用（包括<code>trace</code>）的值（从1到22）会和这个mask进行<code>&amp;</code>的操作，来判定该系统调用是否被trace。</p>
+<p>    考察：对<code>fork(),exec(),proc</code>的理解。</p>
+<p>    提供了user/trace.c：这个文件有基本的对参数的检查以及对<code>trace</code>系统调用的使用和<code>exec()</code>执行。这个文件不需要改动。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">int</span>
+</span></span><span class="line"><span class="cl"><span class="nf">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span> <span class="o">*</span><span class="n">argv</span><span class="p">[])</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">i</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">char</span> <span class="o">*</span><span class="n">nargv</span><span class="p">[</span><span class="n">MAXARG</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">argc</span> <span class="o">&lt;</span> <span class="mi">3</span> <span class="o">||</span> <span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="sc">&#39;0&#39;</span> <span class="o">||</span> <span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="sc">&#39;9&#39;</span><span class="p">)){</span>
+</span></span><span class="line"><span class="cl">    <span class="n">fprintf</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s">&#34;Usage: %s mask command</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">]);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">//在这里调用了trace
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span> <span class="p">(</span><span class="n">trace</span><span class="p">(</span><span class="n">atoi</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="n">fprintf</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s">&#34;%s: trace failed</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">]);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">  
+</span></span><span class="line"><span class="cl">  <span class="c1">//把传入的参数传入数组，用来在exec中传参
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">for</span><span class="p">(</span><span class="n">i</span> <span class="o">=</span> <span class="mi">2</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">argc</span> <span class="o">&amp;&amp;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">MAXARG</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="n">nargv</span><span class="p">[</span><span class="n">i</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">argv</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">//运行目标程序
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">exec</span><span class="p">(</span><span class="n">nargv</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">nargv</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="n">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>    添加一个名为<code>trace</code>的系统调用。根据提示，为了让<code>trace</code>被编译，需要把它一特定的格式在<code>syscall.h</code>，<code>syscall.c</code>两个文件中提及。在<code>syscall.h</code>添加<code>#define SYS_trace  22</code>，在<code>syscall.c</code>添加<code>[SYS_trace]   sys_trace,extern uint64 sys_trace(void);</code>。现在进入xv6调用该系统调用会失败，因为还没实现<code>trace</code>。由于mask是进程的属性，可以把它添加到<code>proc.h</code>的<code>struct proc</code>中:<code>int sysMask;</code>。</p>
+<p>    在<code>sysproc.c</code>中真正实现<code>sys_trace(void)</code>。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="n">uint64</span>
+</span></span><span class="line"><span class="cl"><span class="nf">sys_trace</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">sysMask</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">   <span class="c1">//调用argint获取mask参数
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>   <span class="c1">//这里的0指a0寄存器
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">(</span><span class="n">argint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">sysMask</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    		<span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  
+</span></span><span class="line"><span class="cl">  <span class="c1">//通过myproc()得到当前进程
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">struct</span> <span class="n">proc</span> <span class="o">*</span><span class="n">p</span><span class="o">=</span><span class="n">myproc</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">//设置mask bit
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">p</span><span class="o">-&gt;</span><span class="n">sysMask</span><span class="o">=</span><span class="n">sysMask</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>    之后就可以开始设置<code>fork</code>了。需要修改它是因为要让子进程知道mask。比如shell在调用系统调用后，会自动<code>fork</code>。直接添加<code>np-&gt;sysMask=p-&gt;sysMask;</code>即可。</p>
+<p>     最后在<code>syscall.c</code>的<code>syscall()</code>中添加输出语句:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="c1">//由于没有找到更好的办法去得到当前所使用的系统调用的名字
+</span></span></span><span class="line"><span class="cl"><span class="c1">//便按顺序创建了包含所有系统调用名字的数组
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">static</span> <span class="kt">char</span> <span class="o">*</span><span class="n">arr</span><span class="p">[]</span><span class="o">=</span><span class="p">{</span><span class="s">&#34;&#34;</span><span class="p">,</span><span class="s">&#34;fork&#34;</span><span class="p">,</span><span class="s">&#34;exit&#34;</span><span class="p">,</span><span class="s">&#34;wait&#34;</span><span class="p">,</span><span class="s">&#34;pipe&#34;</span><span class="p">,</span><span class="s">&#34;read&#34;</span><span class="p">,</span><span class="s">&#34;kill&#34;</span><span class="p">,</span><span class="s">&#34;exec&#34;</span><span class="p">,</span><span class="s">&#34;fstat&#34;</span><span class="p">,</span><span class="s">&#34;chdir&#34;</span><span class="p">,</span><span class="s">&#34;dup&#34;</span><span class="p">,</span><span class="s">&#34;getpid&#34;</span><span class="p">,</span><span class="s">&#34;sbrk&#34;</span><span class="p">,</span><span class="s">&#34;sleep&#34;</span><span class="p">,</span><span class="s">&#34;uptime&#34;</span><span class="p">,</span><span class="s">&#34;open&#34;</span><span class="p">,</span><span class="s">&#34;write&#34;</span><span class="p">,</span><span class="s">&#34;mknod&#34;</span><span class="p">,</span><span class="s">&#34;unlink&#34;</span><span class="p">,</span><span class="s">&#34;link&#34;</span><span class="p">,</span><span class="s">&#34;mkdir&#34;</span><span class="p">,</span><span class="s">&#34;close&#34;</span><span class="p">,</span><span class="s">&#34;trace&#34;</span><span class="p">};</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">//判断该进程的sysMask是否被设
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">if</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">sysMask</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">//使用&amp;判断mask是否覆盖当前系统调用
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">sysMask</span><span class="o">&amp;</span><span class="p">(</span><span class="mi">1</span><span class="o">&lt;&lt;</span><span class="n">num</span><span class="p">))</span> <span class="n">printf</span><span class="p">(</span><span class="s">&#34;%d: syscall %s -&gt; %d</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">pid</span><span class="p">,</span><span class="n">arr</span><span class="p">[</span><span class="n">num</span><span class="p">],</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">trapframe</span><span class="o">-&gt;</span><span class="n">a0</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div>]]></content>
+		</item>
 		
 		<item>
 			<title>Chap 5: 中断与设备驱动 Interrupts and device drivers</title>
@@ -544,10 +621,28 @@ Exception：当一条指令做了非法的事情，进程会被杀死
 <br>
 <br>
 <h2 id="46-page-fault-exceptions">4.6 Page-fault exceptions</h2>
-<p>    xv6对于Exception的处理很简单：杀死出现报错的进程，或停止内核运行。但在现实中，Exception本身可以实现一些优化和功能。比如<code>Page fault exception</code>在其他的操作系统中有三个应用：<strong>写入时复制（COW fork：Copy-on-Write fork）</strong>，<strong>懒分配（Lazy Allocation）</strong>，<strong>硬盘分页（Paging from disk）</strong>。</p>
+<p>    xv6对于Exception的处理很简单：杀死出现报错的进程，或停止内核运行。但在现实中，Exception本身可以实现一些优化和功能。比如<code>Page fault exception</code>在其他的操作系统中有多个应用：<strong>写入时复制（COW fork：Copy-on-Write fork）</strong>，<strong>懒分配（Lazy Allocation）</strong>，<strong>硬盘分页（Paging from disk）</strong>，<strong>Zero-fill on demand</strong>，<strong>Demand-paging</strong>，<strong>Memory map files</strong>。这些功能的实现全部依靠虚拟内存实现。除了分割各个进程的内存空间，在这个语境下更重要的是虚拟内存实现了 <strong>Level of Indirection</strong>：也就是虚拟与物理内存之间的映射关系。比如<code>Trampoline,gurar</code>都得益于这种indirection。这些功能都借助<code>Page fault exception</code>发生后OS的行为：</p>
+<blockquote>
+<ol>
+<li>出现错误的虚拟内存地址会被放到```stval``寄存器中，</li>
+<li>错误出现的种类会被放入<code>scause</code>中。13：读取导致；15：写入导致；12：执行导致。</li>
+<li>导致错误发生的指令的虚拟地址保存在<code>sepc</code>（之后被放入<code>epc</code>）。这个不是上面“发生错误的地址”，而是导致错误（比如某个指令写入了没有权限的位置）的指令的地址。</li>
+</ol>
+</blockquote>
 <p>    <strong>写入时复制（COW fork：Copy-on-Write fork）</strong>。当使用<code>fork</code>时，父进程的内存被完整复制了一份给子进程。但通常子进程的目的只是调用<code>exec</code>来开启另一个进程。所以为子进程分配完整的内存有些浪费。而COW实现了父子共用内存，并为子进程按需分配内存。当使用了<code>fork</code>后，OS并未分配任何新的内存给子进程，只是把子进程的内存空间映射到与父进程一样的物理内存地址，并且把子进程的PTE设置为<strong>只读（Read only）</strong>：所以当子进程想要对某一个内存地址进行操作的时候（除了读），会触发<code>page fault exception</code>。出发的原因会被记录在<code>scause</code>中，之后内核会把出发报错的page真正地复制给子进程的PTE，然后先前导致报错的指令就可以继续运行了。</p>
-<p>    <strong>懒分配（Lazy Allocation）</strong>。通过<code>sbrk</code>，一个进程可以要更多的物理内存，但有时进程会滥用<code>sbrk</code>。所以当<code>sbrk</code>被使用的时候，OS会增长内存空间，但会在PT中把这些PTE标记为无效（PTE_V）。所以当进程使用这个地址的时候，会出现<code>page fault exception</code>。此时OS才会真正地分配物理内存。</p>
-<p>    <strong>硬盘分页（Paging from disk）</strong>。当内存使用过多内存时，OS会把一些page写入磁盘，并把这些page对应的PTE标记成无效。所以当进程使用这些page时会出现<code>page fault exception</code>。OS会把制定的page重新从磁盘中写入内存，并更新PTE（当一个page被召回时，如果内存不够用，会把另一个page写入硬盘）。</p>
+<p>    <strong>懒分配（Lazy Allocation）</strong>。通过<code>sbrk</code><strong>积极分配（Eager allocation）</strong>，一个进程可以要更多的物理内存，但有时进程会滥用<code>sbrk</code>。但是通过懒分配，当<code>sbrk</code>被使用的时候，OS虽然会增长内存空间（<code>p-&gt;size</code>增加），但会在PT中把这些PTE标记为无效（PTE_V）。所以当进程使用这个地址的时候，由于PTE无效（根本就没有map）会出现<code>page fault exception</code>。此时出错的虚拟地址小于进程内存空间大小，但是大于栈的位置（<code>p-&gt;stack</code>）。之后OS才会真正地分配物理内存，把这个新page映射到PTE中，重新开始运行导致错误的指令的地址。</p>
+<blockquote>
+<p>代码层面：在调用<code>sbrk</code>之后，单纯只增加<code>p-&gt;sz</code>的大小，而不真正的分配空。修改Trap机制，让它可以监测到错误的发生。然后得到错误发生的虚拟地址，分配内存，初始化page，映射PTE，继续运行。
+注：需要关注<code>uvmunmap</code>的机制。由于进程取消映射的PTE实际上可能只是懒分配的</p>
+</blockquote>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="nl">uvmunmap</span><span class="p">:</span> <span class="c1">//这部分需要被修改，它本质是在禁止空间内可以存在PTE_V无效的page
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span> <span class="k">if</span><span class="p">((</span><span class="o">*</span><span class="n">pte</span> <span class="o">&amp;</span> <span class="n">PTE_V</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">      <span class="n">panic</span><span class="p">(</span><span class="s">&#34;uvmunmap: not mapped&#34;</span><span class="p">);</span>
+</span></span></code></pre></div><p>    <strong>硬盘分页（Paging from disk）</strong>。当内存使用过多内存时，OS会把一些page写入磁盘，并把这些page对应的PTE标记成无效。所以当进程使用这些page时会出现<code>page fault exception</code>。OS会把制定的page重新从磁盘中写入内存，并更新PTE（当一个page被召回时，如果内存不够用，会把另一个page写入硬盘）。选择哪个page被驱逐通常基于 <strong>LRU： Least Recently Used</strong>算法（通过看PTE中的Access bit得知是否是LRU）。同时会优先选择驱逐 <strong>非</strong> Dirty Page（通过看PTE的dirty bit），也就是没有修改过的Page。</p>
+<p>     <strong>Zero-fill on demand</strong>。虽然Xv6中只有一个segment，但是对于其他操作系统可能会有一个<code>.bss</code>段在ELF中，代表未赋值的静态变量。它们的值在赋值前实际上都是0。因为这些变量的值都一样，那么可以让这些静态变量全部指向1个值为0的page：也就是把它们对应的PTE指向一个内容为0的page。这样不需要为每个变量都分配自己的物理内存了。由于这个page的权限将会是只读，所以当程序试图去修改它的值的时候，会触发Page fault。之后分配新的page给这个变量，映射到它的PTE，重新运行指令。优点：省空间；可以让<code>exec</code>少做一些初始化工作。</p>
+<p>     <strong>Demand Paging</strong>。当一个进程被加载到程序之后，实际上它的很多内容（比如在data和text段）不会用到，可以使用类似懒分配的逻辑来优化。当<code>exec</code>执行时，可以只分配虚拟内存，并且设置PTE_V无效。一旦这个程序开始运行，它必然从自己虚拟地址的<code>0x0</code>开始，由于PTE无效，产生Pagde Fault：从文件中真正读取这个pagde到内存中，并且映射到PTE，重新开始运行指令。</p>
+<p>    <code>Memory map files</code>。为了读写一个文件，使用<code>ld，sd</code>指令（分别为load，store），同时需要使用<code>mmap(va,len,protect,flags,fd,offset)</code>：它可以把fd的文件从offset开始以protect定义的权限（r/w）去音社长<code>len</code> byte的内容到va中。结束之后使用<code>unmap(va,len)</code>来取消映射PTE，恢复Dirty bit
+这一过程也是使用懒分配的：不会把整个文件读进内存，只有在使用的时候才出发Page Fault；之后kernel去磁盘中读取文件并且映射到PTE。在一些内存管理中存在<strong>VMA：virtual memory area</strong>，记录着虚拟内存的映射关系。这一文件的off，fd都会被记录在vma中供未来使用，虽然文件本身不在内存中。<strong>注：</strong> flag标注一些文件是否共享于进程之间的信息。</p>
 <br>
 <br>
 <br>
