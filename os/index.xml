@@ -468,8 +468,8 @@ SIP: Supervisor Interrupt Pending: CPU通过该寄存器去看什么中断进来
 <blockquote>
 <h3 id="参考">参考:</h3>
 <p>    [1] RS-232: <a href="https://upload.wikimedia.org/wikipedia/commons/thumb/b/b8/DB25_Diagram.svg/2880px-DB25_Diagram.svg.png">https://upload.wikimedia.org/wikipedia/commons/thumb/b/b8/DB25_Diagram.svg/2880px-DB25_Diagram.svg.png</a></p>
-<p>    [2] THR寄存器：https://www.lammertbies.nl/comm/info/serial-uart
-    [3] UART Registers: <a href="http://www.byterunner.com/16550.html">http://www.byterunner.com/16550.html</a></p>
+<p>    [2] THR寄存器：https://www.lammertbies.nl/comm/info/serial-uart</p>
+<p>    [3] UART Registers: <a href="http://www.byterunner.com/16550.html">http://www.byterunner.com/16550.html</a></p>
 </blockquote>
 ]]></content>
 		</item>
