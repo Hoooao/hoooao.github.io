@@ -6,8 +6,387 @@
 		<generator>Hugo -- gohugo.io</generator>
 		<language>zh-hans</language>
 		<copyright>This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.</copyright>
-		<lastBuildDate>Mon, 04 Jul 2022 19:47:54 -0400</lastBuildDate>
+		<lastBuildDate>Wed, 20 Jul 2022 17:48:44 -0400</lastBuildDate>
 		<atom:link href="https://hoooao.github.io/os/index.xml" rel="self" type="application/rss+xml" />
+		
+		<item>
+			<title>Chap 6: 锁 Locking</title>
+			<link>https://hoooao.github.io/os/chap6/</link>
+			<pubDate>Wed, 20 Jul 2022 17:48:44 -0400</pubDate>
+			
+			<guid>https://hoooao.github.io/os/chap6/</guid>
+			<description>目录   6.1 竞争冒险 Race condition  6.2 Code：锁 Code: Lock  6.3 锁的使用 Code: Using Locks  6.4 死锁和锁的顺序 Deadlock and lock ordering  6.5 锁和中断处理器 Locks and interrupt handlers  6.6 指令和内存顺序 Instruction and memory ordering  6.7 睡眠锁 Sleep-locks  6.7 UART中的锁 Case study  6.8 练习 Exercises   导言：  操作系统通常会 交错（Interleave） 运行不同的活动，这种交错主要由于3种行为
+   多核CPU共用ram。由于一台计算机中可以有多个CPU/核心，但是只有一个内存空间，这就导致多个CPU可能在同一时刻访问一个地址并修改。
+  即使在单核中，CPU也会进行分时，在不同的线程之间切换，而不同的线程可能会访问同一个数据。
+  设备中断。设备中断可能会在不恰当的时间发生，导致修改了它中断掉的代码正在使用的数据。
+    内核中有很多这样的例子。其中一个被共用的内存资源就是代码本身。比如多个CPU可能同时使用kalloc.</description>
+			<content type="html"><![CDATA[<h2 id="目录">目录</h2>
+<ul>
+<li> <a href="#61-%E7%AB%9E%E4%BA%89%E5%86%92%E9%99%A9-race-condition">6.1 竞争冒险 Race condition</a></li>
+<li> <a href="#62-code%E9%94%81---code-lock">6.2 Code：锁    Code: Lock</a></li>
+<li> <a href="#63-%E9%94%81%E7%9A%84%E4%BD%BF%E7%94%A8-code-using-locks">6.3 锁的使用  Code: Using Locks</a></li>
+<li> <a href="#64-%E6%AD%BB%E9%94%81%E5%92%8C%E9%94%81%E7%9A%84%E9%A1%BA%E5%BA%8F-deadlock-and-lock-ordering">6.4 死锁和锁的顺序 Deadlock and lock ordering</a></li>
+<li> <a href="#65-%E9%94%81%E5%92%8C%E4%B8%AD%E6%96%AD%E5%A4%84%E7%90%86%E5%99%A8-locks-and-interrupt-handlers">6.5 锁和中断处理器 Locks and interrupt handlers</a></li>
+<li> <a href="#66-%E6%8C%87%E4%BB%A4%E5%92%8C%E5%86%85%E5%AD%98%E9%A1%BA%E5%BA%8F-instruction-and-memory-ordering">6.6 指令和内存顺序 Instruction and memory ordering</a></li>
+<li> <a href="#67-%E7%9D%A1%E7%9C%A0%E9%94%81-sleep-locks">6.7 睡眠锁 Sleep-locks</a></li>
+<li> <a href="#67-uart%E4%B8%AD%E7%9A%84%E9%94%81-case-study">6.7 UART中的锁 Case study</a></li>
+<li> <a href="#68-%E7%BB%83%E4%B9%A0-exercises">6.8 练习 Exercises</a></li>
+</ul>
+<br>
+<hr>
+<br>
+<h2 id="导言">导言：</h2>
+<p>     操作系统通常会 <strong>交错（Interleave）</strong> 运行不同的活动，这种交错主要由于3种行为</p>
+<blockquote>
+<ol>
+<li>
+<p>多核CPU共用ram。由于一台计算机中可以有多个CPU/核心，但是只有一个内存空间，这就导致多个CPU可能在同一时刻访问一个地址并修改。</p>
+</li>
+<li>
+<p>即使在单核中，CPU也会进行分时，在不同的线程之间切换，而不同的线程可能会访问同一个数据。</p>
+</li>
+<li>
+<p>设备中断。设备中断可能会在不恰当的时间发生，导致修改了它中断掉的代码正在使用的数据。</p>
+</li>
+</ol>
+</blockquote>
+<p>    内核中有很多这样的例子。其中一个被共用的内存资源就是代码本身。比如多个CPU可能同时使用<code>kalloc.c</code>，后者会去修改那个记录着可用分页的自由表。当两个CPU同时调用其中函数的时候，内存的自由表的表头可能同时会被两个CPU获取。为了禁止这种并发导致的不合法行为，操作系统设计者通过<strong>并发控制（Concurrent control）<strong>解决。它的实现有多种，<strong>锁（Locks）</strong> 就是其中一种。一个锁保证了在一个瞬间只有一个CPU（进程）可以拥有它，使得被“锁住”的数据只能被这个CPU访问，从而实现对数据的保护。锁存在一个劣势：由于它会序列化并发的进程，也就是说多个进程访问同一个数据，后面的会等待前面的进程结束再运行。这让并发不再并发，降低性能。随意也随之出现了</strong>Lock-free Programming</strong>，即不需要锁的实现，但是更加复杂。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="61-竞争冒险-race-condition">6.1 竞争冒险 Race condition</h2>
+<p>    举个例子：假设有函数<code>push</code>，用来给一个链表添加节点到头节点的位置上。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="k">struct</span> <span class="n">element</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">data</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">struct</span> <span class="n">element</span> <span class="o">*</span><span class="n">next</span><span class="p">;</span> 
+</span></span><span class="line"><span class="cl"><span class="p">};</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">struct</span> <span class="n">element</span> <span class="o">*</span><span class="n">list</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> 
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kt">void</span> 
+</span></span><span class="line"><span class="cl"><span class="nf">push</span><span class="p">(</span><span class="kt">int</span> <span class="n">data</span><span class="p">)</span> 
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">struct</span> <span class="n">element</span> <span class="o">*</span><span class="n">l</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">l</span> <span class="o">=</span> <span class="n">malloc</span><span class="p">(</span><span class="k">sizeof</span> <span class="o">*</span><span class="n">l</span><span class="p">);</span> <span class="c1">//13
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">l</span><span class="o">-&gt;</span><span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="p">;</span>        <span class="c1">//14
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">l</span><span class="o">-&gt;</span><span class="n">next</span> <span class="o">=</span> <span class="n">list</span><span class="p">;</span>        <span class="c1">//15
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">list</span> <span class="o">=</span> <span class="n">l</span><span class="p">;</span>              <span class="c1">//16
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span>
+</span></span></code></pre></div><p>    假如现在有两个CPU共享一个链表并且几乎同时调用了这个方法。当它们都运行到第15行的时候，某个CPU会率先执行赋值操作，把新建的节点指向之前的头节点<code>list</code>。而在它执行第16行之前，另一个CPU也执行了第15行，让自己的新建的节点也一样指向了之前的头节点。这里就出现了不合法的行为：有两个新建的元素都指向了之前的头节点。当地一个CPU运行了16行之后，后一个CPU将会覆盖前者的修改，导致 <strong>更新丢失（Update lost）</strong>。</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/EE5fG75.png" alt="" style="width:100%; background: rgba(255, 255, 255, .5)">
+<figcaption><b>Fig.1 竞争例子</b></figcaption>
+</div>
+</figure>
+<p>    16行的更新丢失被叫做<strong>Race condition</strong>，存在“竞争关系”。这种竞争情况导致的结果难以预测，具体的结果取决于它准确地发生在什么时候。这种情况很难重新实现，因为要求的巧合程度较高。比如在debug的时候加入了一个<code>printf</code>，就可能导致bug不存在了。</p>
+<p>    使用锁就可以解决上述问题。锁确保了CPU之间的 <strong>互斥关系(Mutul-exclusive)</strong>，即只可能有1个CPU能执行某些关键代码.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="c1">//修改上面的代码...
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">struct</span> <span class="n">element</span> <span class="o">*</span><span class="n">list</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> 
+</span></span><span class="line"><span class="cl"><span class="c1">//创建一个锁
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">struct</span> <span class="n">lock</span> <span class="n">listlock</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">push</span><span class="p">(</span><span class="kt">int</span> <span class="n">data</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">struct</span> <span class="n">element</span> <span class="o">*</span><span class="n">l</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">l</span> <span class="o">=</span> <span class="n">malloc</span><span class="p">(</span><span class="k">sizeof</span> <span class="o">*</span><span class="n">l</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">l</span><span class="o">-&gt;</span><span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">//关键部分
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">listlock</span><span class="p">);</span> 
+</span></span><span class="line"><span class="cl">    <span class="n">l</span><span class="o">-&gt;</span><span class="n">next</span> <span class="o">=</span> <span class="n">list</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">list</span> <span class="o">=</span> <span class="n">l</span><span class="p">;</span> 
+</span></span><span class="line"><span class="cl">    <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">listlock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>被锁住的部分（即<code>acquire(), release()</code>之间的代码）被叫做<strong>关键部分（Critical section）</strong>。这个例子中可以说“锁在保护<code>list</code>”。当我们说锁在保护某一数据的时候，实际上指的是锁在保护这一数据的 <strong>不变量（Invariant）</strong> 。这里说的不变量只是数据/数据结构的一种属性，而不是真正的某个值。在上面的例子中的不变量就是“<code>list</code>永远指向第一个元素，而所有元素都指向下一个元素”这一属性。被保护的意思不是说锁让不变量永远为真，而是说在不变量被破坏（不为真）到恢复（为真）的期间能正常运行。比如上面的例子中的<code>l-&gt;next = list;</code>就导致<code>list</code>并没有指向第一个元素，代表着不变量不为真，但是下一行又一次让<code>list</code>指向了第一个元素，即不变量得到了恢复。</p>
+<p>    锁的代价就是在序列化对关键部分的并发之后的性能降低。多个进程想要获取同一锁的情况叫做<strong>冲突（Conflict）<strong>或者</strong>锁竞争（Lock Contention）</strong>，内核的设计要避免出现过多的锁竞争.同时，获取锁和释放锁的位置也会影响性能。比如即使在<code>push</code>最开始就获取锁也是正确的，但是会造成更多指令被序列化。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="62-code锁--ensp-code-lock">6.2 Code：锁    Code: Lock</h2>
+<p>    xv6中提供了两种锁:<strong>自旋锁（Spinlocks）</strong> 和 <strong>睡眠锁（Sleep-locks）</strong>。本节主要介绍自旋锁。自旋锁本质上只是一个结构体，其中最重要的属性是<code>locked</code>，用来表达锁是否获取了。如果为1则说明锁被获取了，其他进程不能继续运行（后续的进程会一直执行<code>acquire</code>中的一个循环，直到获得了锁，这就是为什么它叫自旋锁）。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="c1">// Mutual exclusion lock.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">struct</span> <span class="n">spinlock</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="n">uint</span> <span class="n">locked</span><span class="p">;</span>     
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="c1">// For debugging:
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="kt">char</span> <span class="o">*</span><span class="n">name</span><span class="p">;</span>        <span class="c1">// Name of lock.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">struct</span> <span class="n">cpu</span> <span class="o">*</span><span class="n">cpu</span><span class="p">;</span>   <span class="c1">// The cpu holding the lock.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">};</span>
+</span></span></code></pre></div><p>    观察这个<em>错误</em> 版本的<code>acquire()</code>：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="c1">//错误演示：
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="mi">1</span>  <span class="kt">void</span> <span class="nf">acquire</span><span class="p">(</span><span class="k">struct</span> <span class="n">spinlock</span> <span class="o">*</span><span class="n">lk</span><span class="p">)</span> 
+</span></span><span class="line"><span class="cl"><span class="mi">2</span>  <span class="p">{</span>   
+</span></span><span class="line"><span class="cl"><span class="mi">3</span>    <span class="c1">//不停自旋
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="mi">4</span>     <span class="k">for</span><span class="p">(;;)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="mi">5</span>         <span class="c1">//如果结构体内的locked属性还没为1
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="mi">6</span>         <span class="c1">//说明没有进程正在持有该锁
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="mi">7</span>         <span class="k">if</span><span class="p">(</span><span class="n">lk</span><span class="o">-&gt;</span><span class="n">locked</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="mi">8</span>             <span class="c1">//成功获取
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="mi">9</span>             <span class="n">lk</span><span class="o">-&gt;</span><span class="n">locked</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="mi">10</span>            <span class="k">break</span><span class="p">;</span>  
+</span></span><span class="line"><span class="cl"><span class="mi">11</span>       <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="mi">12</span>  <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="mi">13</span> <span class="p">}</span>
+</span></span></code></pre></div><p>看起来似乎没什么问题，但实际上这个函数本身也可能会由于并发而错误运行。这里存在一个问题就是第7行的代码可能造成像是之前的<code>push</code>中的错误一样，两个CPU可能同时执行这一行的指令。也就是说两个进程都认为此时没有其他进程获取这个锁，并且进入第9行。这导致两个CPU中的进程都成功获得了锁，使得锁没什么用。所以这一判断(7)和赋值(9)就变成了实现锁的障碍。大部分CPU都会支持一些指令，从硬件层面完成这两个步骤，让这两个步骤变成真正意义上的一个步骤，即原子化：即要么完全发生，要么完全不发生。RISC-V使用的指令叫做<code>amoswap r1,r2,a</code>，即 <strong>Atomic memory swap</strong>。前两个<code>r</code>是寄存器，<code>a</code>是一个物理地址. 这个指令的大致步骤为</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="n">lock</span> <span class="n">addr</span><span class="p">;</span> 
+</span></span><span class="line"><span class="cl"><span class="n">tmp</span> <span class="o">&lt;-</span> <span class="o">*</span><span class="n">addr</span><span class="p">;</span> 
+</span></span><span class="line"><span class="cl"><span class="o">*</span><span class="n">addr</span> <span class="o">&lt;-</span> <span class="n">r1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="n">r2</span> <span class="o">&lt;-</span> <span class="n">tmp</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="n">unlock</span> <span class="n">addr</span><span class="p">;</span>
+</span></span></code></pre></div><p>所以把两个寄存器都传同一个，就可以交换这个寄存器和物理地址里的值。同时有独立的硬件保护（硬件层面上锁而非软件层面）被操作的地址，让别的CPU无法同时访问。CPU具体的实现方法依赖于内存系统的实现，所说的“硬件”可能是内存管理器，也可能是缓存相关的硬件等等。</p>
+<p>    xv6中使用了**__sync_lock_test_and_set()**这一C的标准库中的函数，它封装了上述的指令。当这个函数被调用的时候，会调用这一指令把<code>locked</code>设置为1（无论之前的值是什么），并返回<code>locked</code>之前的值，假如返回值是0，则说明这个锁之前没有被其他进程正在使用，即可继续运行；如果返回值是1，则会持续循环，直到返回值为0.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="c1">//acquire的正确实现：
+</span></span></span><span class="line"><span class="cl"><span class="c1">// Loops (spins) until the lock is acquired.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kt">void</span>
+</span></span><span class="line"><span class="cl"><span class="nf">acquire</span><span class="p">(</span><span class="k">struct</span> <span class="n">spinlock</span> <span class="o">*</span><span class="n">lk</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="n">push_off</span><span class="p">();</span> <span class="c1">// disable interrupts to avoid deadlock.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">(</span><span class="n">holding</span><span class="p">(</span><span class="n">lk</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;acquire&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="c1">// On RISC-V, sync_lock_test_and_set turns into an atomic swap:
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="c1">//   a5 = 1
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="c1">//   s1 = &amp;lk-&gt;locked
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="c1">//   amoswap.w.aq a5, a5, (s1)
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="c1">// 这里就是“自旋的开始”
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">while</span><span class="p">(</span><span class="n">__sync_lock_test_and_set</span><span class="p">(</span><span class="o">&amp;</span><span class="n">lk</span><span class="o">-&gt;</span><span class="n">locked</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="n">__sync_synchronize</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="c1">// Record info about lock acquisition for holding() and debugging.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">lk</span><span class="o">-&gt;</span><span class="n">cpu</span> <span class="o">=</span> <span class="n">mycpu</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>在设置locked之后，acquire函数会去设置<code>lk-&gt;cpu</code>来为debug服务。<code>release()</code>有类似的实现，只不过方向和<code>acquire</code>完全相反。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span>
+</span></span><span class="line"><span class="cl"><span class="nf">release</span><span class="p">(</span><span class="k">struct</span> <span class="n">spinlock</span> <span class="o">*</span><span class="n">lk</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">//微获取就释放
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">(</span><span class="o">!</span><span class="n">holding</span><span class="p">(</span><span class="n">lk</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;release&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">//清空CPU
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">lk</span><span class="o">-&gt;</span><span class="n">cpu</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  
+</span></span><span class="line"><span class="cl">  <span class="n">__sync_synchronize</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="n">__sync_lock_release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">lk</span><span class="o">-&gt;</span><span class="n">locked</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="n">pop_off</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>它首先会清空l<code>k-&gt;cpu</code>，同样地它会调用一个函数<code>__sync_lock_release</code>来原子化地把<code>locked</code>换成0.后面这个函数同样封装了<code>amoswap</code>。不同于<code>acquire</code>, <code>release</code>不需要把n步合并成一步。但是这里仍然使用了这个<code>amoswap</code>是因为在某些情况下，<code>store</code>可能会分步进行，这取决于更多底层的实现。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="63-锁的使用ensp-code-using-locks">6.3 锁的使用  Code: Using Locks</h2>
+<p>    OS很多地方都使用了锁，而锁的使用需要考虑 &ldquo;给谁用，用多少&rdquo;。通常有两个场景需要锁：一个会被一个CPU 写，被另一个CPU读/写的变量，锁可以帮助这两个操作不重合；给不变量使用，就像<code>push</code>中所指出的。除了这一考虑，还需要思考什么时候不用锁防止滥用。其中一个情况就是不存在并发/平行运行的时候：此时只需要关心一个线程。有一些简单的操作系统曾运行于单核，当它们被移植到多核处理器上之后，常常会实现<strong>Big kernel lock</strong>。在这种设计下，一旦进入内核，便会获取一个锁，直到返回到用户空间才会释放：一个大锁锁住了整个内核，使得并发不可能。xv6中存在锁很大程度牺牲性能的例子，比如<code>kalloc</code>。当多个进程同时申请堆内存的时候，这些进程会被序列化，在得到锁之前只能等待。一个解决方法是使用多个自由表来保存可用的page，同时使用多个锁去分别保护每一个自由表。正向的例子是xv6对文件的管理：每一个文件都有自己的锁，所以处理不同文件的进程可以并行。甚至在此基础上可以更加优化：比如使用不同的锁给一个文件不同的部位，这样多个进程就能同时操作同一个文件了。</p>
+<p>    现在有三种理解锁的视角：</p>
+<blockquote>
+<ol>
+<li>
+<p>锁避免更新失败，比如<code>push</code>中所演示的。</p>
+</li>
+<li>
+<p>锁使得多个操作/指令原子化</p>
+</li>
+<li>
+<p>锁保护不变量</p>
+</li>
+</ol>
+</blockquote>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="64-死锁和锁的顺序-deadlock-and-lock-ordering">6.4 死锁和锁的顺序 Deadlock and lock ordering</h2>
+<p>    在理想状态下，当任何代码使用多个锁的时候，它们获取锁的顺序一定要<em>相对位置上一样</em>。举个例子，有两段代码，代码1先获取 A锁 再获取 获取 B锁 再获取 A锁，此时可以说这两个代码的获取锁的顺序是不同的。而这种情况可能导致<strong>死锁（Deadlock）</strong> ：假如代码1刚好获取了A锁，代码2获取了B锁，在运行一段时间之后，在两者都没有释放自己的锁的情况下，前者又去获取B锁，后者又去获取A锁，那么这个时候，它们就会互相等待对方先释放自己的锁，这就会造成两个进程永远自旋，导致死锁。
+这种对锁使用的相对位置的要求叫<strong>Lock-order chain</strong>。这种链对OS来说是全局的，即每个进程都需要遵守。xv6中有很多针对进程锁（每个进程都有自己的锁，保存在结构体proc中），长度为2的链。比如说在上一章的<strong>consoleintr</strong>中，当接收到一行输入之后，这个函数会先获取<strong>cons.lock</strong>，然后再获取进程的锁，从而叫醒睡眠的进程：<strong>cons.lock</strong>必须先于获取进程的锁。xv6中最长的链存在于文件系统中。</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/tQkEvBP.png" alt="" style="width:100%; background: rgba(255, 255, 255, .5)">
+<figcaption><b>Fig.2 xv6中自带的锁</b></figcaption>
+</div>
+</figure>
+<p>    设计一个很好的chain是很复杂的，有以下3个难点：</p>
+<blockquote>
+<ol>
+<li>
+<p>有时候程序运行的逻辑和链的顺序相反，比方说一个获取了一个锁的模组使用了另一个模组且再次获取了一个锁，而根据链，后面这个模组中的锁应当先获取</p>
+</li>
+<li>
+<p>有时候并无法得知下一步获取的锁是什么。比如模组A使用了模组B，前者需要知道后者使用了什么锁，这样才能根据链看是否符合顺序，但由于模组化的抽象封装，这种一个模组获取另一个模组内部内容的行为不可取</p>
+</li>
+<li>
+<p>锁越多对性能的副作用越小，但是会造成设计更加复杂。比如为了优化性能可能要分裂一个数据结构并使用更多锁从而实现更好的并行。但是最优的分裂很难达成，而分裂后也需要重构之前使用的锁和这个数据结构的代码，工作量大。</p>
+</li>
+</ol>
+</blockquote>
+<p>通常设计锁的使用的过程：1.设计一个<strong>粗糙（Coarse-grained）</strong> 的锁的使用。2.测量性能，性能差说明有锁竞争。3.重新设计</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="65-锁和中断处理器-locks-and-interrupt-handlers">6.5 锁和中断处理器 Locks and interrupt handlers</h2>
+<p>    有时候锁会被用于保护会被线程和设备中断处理代码使用的一些数据。比如<strong>clockintr()<strong>会去更新</strong>tick</strong>，而<strong>sys_sleep</strong>可能在同一时刻去读取<strong>ticks</strong>。假设<strong>sleep</strong>先去读取了这个<strong>ticks</strong>，并且在读取前获取了一个锁阻止其他进程访问这个数据。在它释放这个锁之前，一个时钟中断发生了，<strong>clockintr</strong>想要去更新<strong>ticks</strong>，那么后者会把<strong>sleep</strong>打断并开始运行。可由于<strong>ticks</strong>上了锁，该中断也需要等待锁被释放次才能更新<strong>ticks</strong>。这时死锁就出现了：中断等着<strong>sleep</strong>释放自己的锁，<strong>sleep</strong>等待中断运行结束并返回。（死锁并不是只有两个锁才能出现）。换句话说，中断可能去获取它所中断的代码已经获取的锁。</p>
+<p>    为了避免这种情况的发生，xv6在一个进程获取了锁之后会禁止中断在该CPU上发生。换句话说，当一个CPU在处理关键部分的内容时，此时发生的中断应当交给其他CPU去处理，这样虽然会中断其他CPU，但是并不会导致当前CPU死锁（如果发生了上面的情况，此时中断可以在另一个CPU上自旋）。</p>
+<p>    实现方式：在<strong>acquire</strong>和<strong>release</strong>中修改同一个计数器，这个计数器是当前CPU（核心）的一个属性（保存在这个CPU核心的结构体内），当这个计数器不为0的时候，证明当前CPU正在处理关键内容且此时中断禁止。比如在<code>acquire</code>中，在修改locked的值之前，第一个调用的函数就是<code>push_off</code>。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span>
+</span></span><span class="line"><span class="cl"><span class="nf">push_off</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">old</span> <span class="o">=</span> <span class="n">intr_get</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">//禁止中断
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">intr_off</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">//查看计数器
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">(</span><span class="n">mycpu</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">noff</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">mycpu</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">intena</span> <span class="o">=</span> <span class="n">old</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="n">mycpu</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">noff</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>这个函数会首先禁止中断发生，增加<code>mycpu-&gt;noff</code>的值。禁止中断通过调用函数<code>intr_off</code>实现，底层是一个RISC-V的指令。<code>noff</code>就是上述的“计数器”。在修改<code>locked</code>之前修改<code>noff</code>很重要：假如顺序相反，那么可能在修改了<code>locked</code>还没有修改<code>noff</code>（禁止中断）之前有中断发生。正确的顺序防止窗口期存在。</p>
+<p>    <code>release</code>也是相似的，只不过完全相反，它会在<code>locked</code>修改之后调用<code>pop_off</code>并在检查<code>noff==0</code>后开启中断。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span>
+</span></span><span class="line"><span class="cl"><span class="nf">pop_off</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">cpu</span> <span class="o">*</span><span class="n">c</span> <span class="o">=</span> <span class="n">mycpu</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">intr_get</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;pop_off - interruptible&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">c</span><span class="o">-&gt;</span><span class="n">noff</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;pop_off&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">//减少noff
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">c</span><span class="o">-&gt;</span><span class="n">noff</span> <span class="o">-=</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">c</span><span class="o">-&gt;</span><span class="n">noff</span> <span class="o">==</span> <span class="mi">0</span> <span class="o">&amp;&amp;</span> <span class="n">c</span><span class="o">-&gt;</span><span class="n">intena</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">//开启中断
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">intr_on</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>由于一段代码可能会使用多个锁，<strong>noff</strong>这个计数器会在锁增加的过程中同样增加，保证即使有的锁被复原之后，计数器仍能保持一个安全的值（如果在中间的一个<strong>pop_off</strong>中发现<strong>noff!=0</strong>，那么中断仍然不会开启）。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="66-指令和内存顺序-instruction-and-memory-ordering">6.6 指令和内存顺序 Instruction and memory ordering</h2>
+<p>    在一段连续的指令中，编译器可能为了优化把代码顺序打乱，CPU也可能不会按顺序依次执行代码，而优先执行某些指令。当然这些指令是相互独立的，也就是说这种不按顺序执行的结果一定是正确的。可是如果考虑锁存在的场景，这种重新排序可能让锁失效。比如：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="mi">1</span> <span class="n">l</span> <span class="o">=</span> <span class="n">malloc</span><span class="p">(</span><span class="k">sizeof</span> <span class="o">*</span><span class="n">l</span><span class="p">);</span> 
+</span></span><span class="line"><span class="cl"><span class="mi">2</span> <span class="n">l</span><span class="o">-&gt;</span><span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="p">;</span> 
+</span></span><span class="line"><span class="cl"><span class="mi">3</span> <span class="nf">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">listlock</span><span class="p">);</span> 
+</span></span><span class="line"><span class="cl"><span class="mi">4</span> <span class="n">l</span><span class="o">-&gt;</span><span class="n">next</span> <span class="o">=</span> <span class="n">list</span><span class="p">;</span> 
+</span></span><span class="line"><span class="cl"><span class="mi">5</span> <span class="n">list</span> <span class="o">=</span> <span class="n">l</span><span class="p">;</span> 
+</span></span><span class="line"><span class="cl"><span class="mi">6</span> <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">listlock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="mi">7</span> <span class="c1">//假如第4行在这里
+</span></span></span></code></pre></div><p>假如第4行在第6行之后执行，那么就是说当执行第4行之前，实际上已经没有锁来保护<code>list</code>了。此时可能有别的进程获取到了这个锁，然后它会发现这个<code>list</code>指向<code>null</code>（因为此时第5行也运行完了）。在xv6中，使用函数<code>__sync_synchronize()</code>去让在锁释放之前，形成一个<strong>内存屏障（memory barrier）</strong>，告诉CPU和编译器，所有在这调用这个代码行之前的代码，都只能在这个屏障之前排序，也就是说屏障之前的任何指令都不可能和之后的指令有任何重新排序。由于<code>acquire</code>和<code>release</code>都有调用它，这保证了这两个函数之间的所有代码不会超出两者之间的屏障。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="67-睡眠锁-sleep-locks">6.7 睡眠锁 Sleep-locks</h2>
+<p>    当一个进程得到了自旋锁，这个CPU将无法<code>yield</code>：</p>
+<blockquote>
+<ol>
+<li>
+<p>假如<code>yield</code>，那么可能会导致另一个线程也尝试需获取同一个锁，进入自旋，自旋发生后可能会阻碍第一个线程继续运行，造成死锁。</p>
+</li>
+<li>
+<p>同时，在lock的过程中出现<code>yield</code>本身也破坏了CPU持有锁的期间不能出现中断的规则。</p>
+</li>
+</ol>
+</blockquote>
+<p>sleep-locks的出现解决了睡眠的缺点。其获取和释放函数分别是<code>acquiresleep, releasesleep</code>。前者会调用<code>sleep</code>，<code>sleep</code>会让线程进入等待并且自动<code>yield</code>该CPU，给其他线程运行机会。由于Sleep-locks允许中断，它不能用在处理中断的代码中（这些代码禁止中断），也不能运行在被自旋锁保护的代码中。Sleep-lock适合保护长代码，自旋锁适合短代码。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="67-uart中的锁-case-study">6.7 UART中的锁 Case study</h2>
+<p>    uart这个设备有一个自己的锁<code>uart_tx_lock</code>。这个锁保护着uart的buffer指针的不变量，比如“<code>uart_tx_r</code>在<code>uart_tx_w</code>后面”，“前者与后者之间是准备输出的数据”，“后者与前者（注：这个buffer使用了循环数组）之间是可用的缓存空间”等等。</p>
+<p>    以<code>uartputc</code>为例。这个锁从最开始就被获取，相当于锁住了整个UART设备的输出。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span>
+</span></span><span class="line"><span class="cl"><span class="nf">uartputc</span><span class="p">(</span><span class="kt">int</span> <span class="n">c</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">//获取这个锁
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">uart_tx_lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">panicked</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span><span class="p">(;;)</span>
+</span></span><span class="line"><span class="cl">      <span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">while</span><span class="p">(</span><span class="mi">1</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">uart_tx_w</span> <span class="o">==</span> <span class="n">uart_tx_r</span> <span class="o">+</span> <span class="n">UART_TX_BUF_SIZE</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">//输入一个chan和lock 第七章内容
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="n">sleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">uart_tx_r</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">uart_tx_lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">      <span class="n">uart_tx_buf</span><span class="p">[</span><span class="n">uart_tx_w</span> <span class="o">%</span> <span class="n">UART_TX_BUF_SIZE</span><span class="p">]</span> <span class="o">=</span> <span class="n">c</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">      <span class="n">uart_tx_w</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">      <span class="n">uartstart</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">      <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">uart_tx_lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="k">return</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>由于一直到返回之前锁都存在，这个锁将会贯穿对于<code>uartstart</code>的调用。在<code>uartstart</code>的执行过程中，会对UART的寄存器进行读写且修改<code>uart_tx_r</code>。由于锁的贯穿，这些寄存器和指针也被保护：同时一时间，一个寄存器只能有一个写入线程/读出进程。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="68-练习-exercises">6.8 练习 Exercises</h2>
+<blockquote>
+<ol>
+<li>
+<p>Comment out the calls to acquire and release in kalloc (kernel/kalloc.c:69). This seems
+like it should cause problems for kernel code that calls kalloc; what symptoms do you
+expect to see? When you run xv6, do you see these symptoms? How about when running
+usertests? If you don’t see a problem, why not? See if you can provoke a problem by
+inserting dummy loops into the critical section of kalloc.</p>
+</li>
+<li>
+<p>Suppose that you instead commented out the locking in kfree (after restoring locking
+in kalloc). What might now go wrong? Is lack of locks in kfree less harmful than in
+kalloc?</p>
+</li>
+<li>
+<p>If two CPUs call kalloc at the same time, one will have to wait for the other, which is bad
+for performance. Modify kalloc.c to have more parallelism, so that simultaneous calls to
+kalloc from different CPUs can proceed without waiting for each other.</p>
+</li>
+<li>
+<p>Write a parallel program using POSIX threads, which is supported on most operating sys-
+tems. For example, implement a parallel hash table and measure if the number of puts/gets
+scales with increasing number of cores.</p>
+</li>
+<li>
+<p>Implement a subset of Pthreads in xv6. That is, implement a user-level thread library so that
+a user process can have more than 1 thread and arrange that these threads can run in parallel
+on different CPUs. Come up with a design that correctly handles a thread making a blocking
+system call and changing its shared address space.</p>
+</li>
+</ol>
+</blockquote>
+]]></content>
+		</item>
 		
 		<item>
 			<title>Labs</title>
@@ -93,11 +472,11 @@ int main(int argc, char *argv[]) { int i; char *nargv[MAXARG]; if(argc &amp;lt; 
 			
 			<guid>https://hoooao.github.io/os/chap5/</guid>
 			<description>目录   导言  5.1 控制台输出 Code:Console putput  5.2 控制台输入 Code: Console intput  5.3 驱动并发 Concurrency in drivers  5.4 时钟中断 Timer interrupts  5.5 练习 Exercise  5.6 补充   导言：  驱动（Device Driver） 本质上是管理某个设备的代码。它告诉该设备去执行什么操作，处理中断，与进程进行I/O交互等。由于并发性（Concurrency），与设备的接口通常很繁琐，导致驱动的设计复杂。
- 一个设备假如需要被CPU“注意”，它一定有能力发出中断。在发出中断后，中断会被当作Trap处理。不同的设备有自己的中断处理代码。在xv6中，devintr()通过判断是哪个设备发出中断，并调用该设备对应的代码，这里指的主要是外部设备中断而非时钟中断和软件中断（软件中断指的是一个CPU给另一个CPU发送中断）。
+ 一个设备假如需要被CPU“注意”，它一定有能力发出中断。在发出中断后，中断会被当作Trap处理。与系统调用和报错不同：
+  外部设备中断是 异步（Asynchronous） 的，也就是说硬件所产生的中断可能和房钱正在运行的进程完全没有关系。 设备中断拥有更多的并发性：多设备同时运行，比如UART+网卡+CPU同时运行 可编程的设备：每种设备都有自己的寄存器，使用说明，功能等相关的编程手册   不同的设备有自己的中断处理代码。在xv6中，devintr()通过判断是哪个设备发出中断，并调用该设备对应的代码，这里指的主要是外部设备中断而非时钟中断和软件中断（软件中断指的是一个CPU给另一个CPU发送中断）。
  通常，一个驱动可以分为 上下两部分（Top/bottom half）。上部代码运行于进程的内核线程，表现为这个进程使用系统调用：比如对控制台的输入输出。下部代码指的是中断期间的代码，即上述的中断处理代码。上部代码在发送了执行某一个操作的请求后进入等待，此时设备开始运行。在设备运行完毕后，它会发出一个设备中断。此时对应的处理代码（下部代码）会知道什么操作完成了，并且在需要的情况下叫醒等待中的进程（上部代码），然后让硬件去执行下一个操作。本章通过控制台介绍这一过程。
- 5.1 控制台输出 Code:Console output  控制台的输入输出是通过硬件UART实现的，控制台驱动管理UART。在qemu中，UART是通过代码模拟的。在现实中，UART将会连接RS232接口：
- Fig.1 RS-232[1]   在xv6中，UART连接着键盘和显示器。回忆第三章中的内存空间，UART是作为一段物理内存地址暴露给软件的。软件可以通过内存地址访问UART的 内存映射的控制寄存器（Memory-mapped control registers）：UART开始于UART0，即0x10000000；每个寄存器占1byte，通过偏移量访问。这些寄存器功能不一，比如：
-  LSR：指示是否传入的char在等待软件接收 RHR：保存传入的char，软件从这里读取数据；每读取一个，UART就会删除被读取的；当没有待读取的数据时，LSR被清空 THR：当THR接受到1Byte，UART通过Data Trandmission Line输出数据。[2]    Fig.</description>
+ 5.1 控制台输出 Code: Console output  控制台的输入输出是通过硬件UART实现的，控制台驱动管理UART。在qemu中，UART是通过代码模拟的。在现实中，UART将会连接RS232接口：
+ Fig.1 RS-232[1]   在xv6中，UART连接着键盘和显示器。回忆第三章中的内存空间，UART是作为一段物理内存地址暴露给软件的。软件可以通过内存地址访问UART的 内存映射的控制寄存器（Memory-mapped control registers）：UART开始于UART0，即0x10000000；每个寄存器占1byte，通过偏移量访问。这些寄存器功能不一，比如：</description>
 			<content type="html"><![CDATA[<h2 id="目录">目录</h2>
 <ul>
 <li> <a href="#%E5%AF%BC%E8%A8%80">导言</a></li>
@@ -113,7 +492,15 @@ int main(int argc, char *argv[]) { int i; char *nargv[MAXARG]; if(argc &amp;lt; 
 <br>
 <h2 id="导言">导言：</h2>
 <p>    <strong>驱动（Device Driver）</strong> 本质上是管理某个设备的代码。它告诉该设备去执行什么操作，处理中断，与进程进行I/O交互等。由于<strong>并发性（Concurrency）</strong>，与设备的接口通常很繁琐，导致驱动的设计复杂。</p>
-<p>    一个设备假如需要被CPU“注意”，它一定有能力发出中断。在发出中断后，中断会被当作Trap处理。不同的设备有自己的中断处理代码。在xv6中，<code>devintr()</code>通过判断是哪个设备发出中断，并调用该设备对应的代码，这里指的主要是外部设备中断而非时钟中断和软件中断（软件中断指的是一个CPU给另一个CPU发送中断）。</p>
+<p>    一个设备假如需要被CPU“注意”，它一定有能力发出中断。在发出中断后，中断会被当作Trap处理。与系统调用和报错不同：</p>
+<blockquote>
+<ol>
+<li>外部设备中断是 <strong>异步（Asynchronous）</strong> 的，也就是说硬件所产生的中断可能和房钱正在运行的进程完全没有关系。</li>
+<li>设备中断拥有更多的并发性：多设备同时运行，比如UART+网卡+CPU同时运行</li>
+<li>可编程的设备：每种设备都有自己的寄存器，使用说明，功能等相关的编程手册</li>
+</ol>
+</blockquote>
+<p>不同的设备有自己的中断处理代码。在xv6中，<code>devintr()</code>通过判断是哪个设备发出中断，并调用该设备对应的代码，这里指的主要是外部设备中断而非时钟中断和软件中断（软件中断指的是一个CPU给另一个CPU发送中断）。</p>
 <p>    通常，一个驱动可以分为 <strong>上下两部分（Top/bottom half）</strong>。上部代码运行于进程的内核线程，表现为这个进程使用系统调用：比如对控制台的输入输出。下部代码指的是中断期间的代码，即上述的中断处理代码。上部代码在发送了执行某一个操作的请求后进入等待，此时设备开始运行。在设备运行完毕后，它会发出一个设备中断。此时对应的处理代码（下部代码）会知道什么操作完成了，并且在需要的情况下叫醒等待中的进程（上部代码），然后让硬件去执行下一个操作。本章通过控制台介绍这一过程。</p>
 <br>
 <br>
@@ -122,7 +509,7 @@ int main(int argc, char *argv[]) { int i; char *nargv[MAXARG]; if(argc &amp;lt; 
 <br>
 <br>
 <br>
-<h2 id="51-控制台输出-codeconsole-output">5.1 控制台输出 Code:Console output</h2>
+<h2 id="51-控制台输出-code-console-output">5.1 控制台输出 Code: Console output</h2>
 <p>    控制台的输入输出是通过硬件UART实现的，控制台驱动管理UART。在qemu中，UART是通过代码模拟的。在现实中，UART将会连接RS232接口：</p>
 <figure>
 <div style="text-align:center">

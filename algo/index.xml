@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Algoes on Hao的个人博客</title>
+    <link>https://hoooao.github.io/algo/</link>
+    <description>Recent content in Algoes on Hao的个人博客</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh-hans</language>
+    <copyright>This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.</copyright>
+    <lastBuildDate>Fri, 22 Jul 2022 16:06:12 -0400</lastBuildDate><atom:link href="https://hoooao.github.io/algo/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Chap2DS</title>
+      <link>https://hoooao.github.io/algo/chap2ds/</link>
+      <pubDate>Fri, 22 Jul 2022 16:06:12 -0400</pubDate>
+      
+      <guid>https://hoooao.github.io/algo/chap2ds/</guid>
+      <description>目录  导言：  本节主要介绍一些常用的数据结构的是实现，包括单链表，双链表，栈，队列，单调栈，单调队列，KMP，Trie，并查集，堆，哈希表等内容。
+ 2.1 链表  链表的实现有两种，第一种是通过结构体保存当前节点的数据和指向下一个/上一节点的指针，第二种是通过数组模拟链表，即用多个数组分别代表第 idx 个节点的数据，上下节点（静态链表）。
+2.1.1 单链表  单链表只保存下一个节点的“指针”。模拟方式：通过一个数组记录节点的值（e），一个数组记录下一个节点的指针(ne)。
+ Fig.1 DP   如上图所示，它代表着一个由数组模拟的链表。Head可以理解为一个角标，它的值是第一个节点的idx，形式上是“指向”头节点。头节点的值为10，idx为0，它的下一个节点的idx为1。第二个节点则指向idx为5的元素，后者是尾节点。连续的节点的idx不一定连续，因为可能存在删除的操作。在数组模拟中，删除的节点实际上是直接被其上一个节点的ne跳过了，但实际上仍然存在于这个数组之中。虽然会造成空间的浪费，但是当节点数据特别多的时候，数组模拟创建速度比创建struct快得多，且后者能做的事情前者全能做。
+需求：
+  在头部添加元素：给e[idx]赋值，让ne[idx]指向head所指向的节点（原头节点）并且让head等于idx，让它成为头节点。 在k节点的后面添加节点。这里的k是节点idx的值。类似添加头节点，只不过把head换成了某个节点 删除节点k后面的节点：实际上就是让k的ne[k]跳过下一个节点，即等于下一个节点的ne。   #include &amp;lt;iostream&amp;gt;using namespace std; #define N 100010 int m,head,idx; int e[N],ne[N]; //初始化链表，用-1代表null，即尾部 void init(){ head=-1; //idx从0开始分配，代表着共有几个节点被创建  idx=0; } void remove (int k){ //跳过下一个点  ne[k]=ne[ne[k]]; } void addH(int x){ //这里可以合并成一行写，是用逗号分隔  e[idx]=x, ne[idx]=head, head=idx++; } void add(int k, int x){ e[idx]=x, ne[idx]=ne[k], ne[k]=idx++; } int main() { char a; int b,c; init(); //a是输入的指令  cin&amp;gt;&amp;gt;a; if(a==&amp;#39;H&amp;#39;){ cin&amp;gt;&amp;gt;b; addH(b); } if(a==&amp;#39;D&amp;#39;){ cin&amp;gt;&amp;gt;b; if(!</description>
+    </item>
+    
+    <item>
+      <title>第五部分：动态规划 Dynamic Programming</title>
+      <link>https://hoooao.github.io/algo/dp/</link>
+      <pubDate>Sun, 17 Jul 2022 11:20:21 -0400</pubDate>
+      
+      <guid>https://hoooao.github.io/algo/dp/</guid>
+      <description>MathJax.Hub.Config({ tex2jax: { skipTags: [&#39;script&#39;, &#39;noscript&#39;, &#39;style&#39;, &#39;textarea&#39;, &#39;pre&#39;], inlineMath: [[&#39;$&#39;,&#39;$&#39;]] } });   目录  导言：  本章介绍动态规划中的背包问题，区间DP，线性DP，计数DP，数位统计DP，状态压缩DP，树形DP，和记忆化搜索。 动态规划的思考方式：通过集合的思想
+ Fig.1 DP    Fig.2 DP   以背包问题为例，集合 $f(i,j)$ 可以被看作 “物品个数$\leq i$，背包容积$\geq j$ ” 的情况下的集合，而它的值（属性）为最大值，也就是 “物品个数$= i$，背包容积$= j$ ”时背包中价值最大值。通过Fig.2 可得 最大值 $= max(f(i-1,j), f(i-1,j-v[i])+w[i])$，其中 $v,w$ 分别为代表物品体积和价值的数组。
+ 5.1 背包问题  背包问题中，给定一个容积为 $V$ 的背包与 $n$ 件价值 $w$ 不同，体积 $v$不同的物品。 背包问题分成几大类：
+  0/1背包：每个物品只能最多装入一次 完全背包：假设每个物品有无限个复制，可以无限添加1个物品 多重背包：同一个物品个数有限，在个数上限之中可随意添加 分组背包：所有物品被分配到 $a$ 个分组中，只能添加每个分组中的某一个物品   5.</description>
+    </item>
+    
+  </channel>
+</rss>
