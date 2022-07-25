@@ -115,7 +115,7 @@ Exception：当一条指令做了非法的事情，进程会被杀死
 <p>scause：记录着Trap发生的原因</p>
 <p>sstatus：其中的SIE-bit指示是否能处理interrupts，其中的SPP-bit指示Trap是从什么模式出现的，并控制在调用指令<code>sret</code>后，跳转至目标模式（<code>sret</code>会把<code>sepc</code>寄存器的内容写到<code>pc</code>寄存器，实现跳转模式），例如0是UM。</p>
 <p>sscratch：保存一些重要的进程与内核相关的数据并且用来保存进程的寄存器。</p>
-<p>sepc：用来保存Trap发生时的PC，用来之后继续进程</p>
+<p>sepc：用来保存Trap发生时的<code>pc</code>（它之后会被重写），用来之后继续该进程。</p>
 </blockquote>
 <p>    简化的流程：</p>
 <blockquote>

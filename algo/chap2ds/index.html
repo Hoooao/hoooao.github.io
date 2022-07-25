@@ -8,16 +8,16 @@
 	<meta name="theme-color" content="#494f5c">
 	<meta name="msapplication-TileColor" content="#494f5c">
 <meta itemprop="name" content="Chap2DS">
-<meta itemprop="description" content="目录  导言：  本节主要介绍一些常用的数据结构的是实现，包括单链表，双链表，栈，队列，单调栈，单调队列，KMP，Trie，并查集，堆，哈希表等内容。
+<meta itemprop="description" content="目录  导言：  本节主要介绍一些常用的数据结构的是实现，包括单链表，双链表，栈，队列，单调栈，单调队列，KMP，Trie，并查集，堆，哈希表等内容。注：数组模拟的数据结构比STL快
  2.1 链表  链表的实现有两种，第一种是通过结构体保存当前节点的数据和指向下一个/上一节点的指针，第二种是通过数组模拟链表，即用多个数组分别代表第 idx 个节点的数据，上下节点（静态链表）。
 2.1.1 单链表  单链表只保存下一个节点的“指针”。模拟方式：通过一个数组记录节点的值（e），一个数组记录下一个节点的指针(ne)。
  Fig.1 DP   如上图所示，它代表着一个由数组模拟的链表。Head可以理解为一个角标，它的值是第一个节点的idx，形式上是“指向”头节点。头节点的值为10，idx为0，它的下一个节点的idx为1。第二个节点则指向idx为5的元素，后者是尾节点。连续的节点的idx不一定连续，因为可能存在删除的操作。在数组模拟中，删除的节点实际上是直接被其上一个节点的ne跳过了，但实际上仍然存在于这个数组之中。虽然会造成空间的浪费，但是当节点数据特别多的时候，数组模拟创建速度比创建struct快得多，且后者能做的事情前者全能做。
 需求：
   在头部添加元素：给e[idx]赋值，让ne[idx]指向head所指向的节点（原头节点）并且让head等于idx，让它成为头节点。 在k节点的后面添加节点。这里的k是节点idx的值。类似添加头节点，只不过把head换成了某个节点 删除节点k后面的节点：实际上就是让k的ne[k]跳过下一个节点，即等于下一个节点的ne。   #include &lt;iostream&gt;using namespace std; #define N 100010 int m,head,idx; int e[N],ne[N]; //初始化链表，用-1代表null，即尾部 void init(){ head=-1; //idx从0开始分配，代表着共有几个节点被创建  idx=0; } void remove (int k){ //跳过下一个点  ne[k]=ne[ne[k]]; } void addH(int x){ //这里可以合并成一行写，是用逗号分隔  e[idx]=x, ne[idx]=head, head=idx&#43;&#43;; } void add(int k, int x){ e[idx]=x, ne[idx]=ne[k], ne[k]=idx&#43;&#43;; } int main() { char a; int b,c; init(); //a是输入的指令  cin&gt;&gt;a; if(a==&#39;H&#39;){ cin&gt;&gt;b; addH(b); } if(a==&#39;D&#39;){ cin&gt;&gt;b; if(!"><meta itemprop="datePublished" content="2022-07-22T16:06:12-04:00" />
 <meta itemprop="dateModified" content="2022-07-22T16:06:12-04:00" />
-<meta itemprop="wordCount" content="430">
+<meta itemprop="wordCount" content="433">
 <meta itemprop="keywords" content="" /><meta property="og:title" content="Chap2DS" />
-<meta property="og:description" content="目录  导言：  本节主要介绍一些常用的数据结构的是实现，包括单链表，双链表，栈，队列，单调栈，单调队列，KMP，Trie，并查集，堆，哈希表等内容。
+<meta property="og:description" content="目录  导言：  本节主要介绍一些常用的数据结构的是实现，包括单链表，双链表，栈，队列，单调栈，单调队列，KMP，Trie，并查集，堆，哈希表等内容。注：数组模拟的数据结构比STL快
  2.1 链表  链表的实现有两种，第一种是通过结构体保存当前节点的数据和指向下一个/上一节点的指针，第二种是通过数组模拟链表，即用多个数组分别代表第 idx 个节点的数据，上下节点（静态链表）。
 2.1.1 单链表  单链表只保存下一个节点的“指针”。模拟方式：通过一个数组记录节点的值（e），一个数组记录下一个节点的指针(ne)。
  Fig.1 DP   如上图所示，它代表着一个由数组模拟的链表。Head可以理解为一个角标，它的值是第一个节点的idx，形式上是“指向”头节点。头节点的值为10，idx为0，它的下一个节点的idx为1。第二个节点则指向idx为5的元素，后者是尾节点。连续的节点的idx不一定连续，因为可能存在删除的操作。在数组模拟中，删除的节点实际上是直接被其上一个节点的ne跳过了，但实际上仍然存在于这个数组之中。虽然会造成空间的浪费，但是当节点数据特别多的时候，数组模拟创建速度比创建struct快得多，且后者能做的事情前者全能做。
@@ -30,7 +30,7 @@
 
 <meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="Chap2DS"/>
-<meta name="twitter:description" content="目录  导言：  本节主要介绍一些常用的数据结构的是实现，包括单链表，双链表，栈，队列，单调栈，单调队列，KMP，Trie，并查集，堆，哈希表等内容。
+<meta name="twitter:description" content="目录  导言：  本节主要介绍一些常用的数据结构的是实现，包括单链表，双链表，栈，队列，单调栈，单调队列，KMP，Trie，并查集，堆，哈希表等内容。注：数组模拟的数据结构比STL快
  2.1 链表  链表的实现有两种，第一种是通过结构体保存当前节点的数据和指向下一个/上一节点的指针，第二种是通过数组模拟链表，即用多个数组分别代表第 idx 个节点的数据，上下节点（静态链表）。
 2.1.1 单链表  单链表只保存下一个节点的“指针”。模拟方式：通过一个数组记录节点的值（e），一个数组记录下一个节点的指针(ne)。
  Fig.1 DP   如上图所示，它代表着一个由数组模拟的链表。Head可以理解为一个角标，它的值是第一个节点的idx，形式上是“指向”头节点。头节点的值为10，idx为0，它的下一个节点的idx为1。第二个节点则指向idx为5的元素，后者是尾节点。连续的节点的idx不一定连续，因为可能存在删除的操作。在数组模拟中，删除的节点实际上是直接被其上一个节点的ne跳过了，但实际上仍然存在于这个数组之中。虽然会造成空间的浪费，但是当节点数据特别多的时候，数组模拟创建速度比创建struct快得多，且后者能做的事情前者全能做。
@@ -64,7 +64,7 @@
 <hr>
 <br>
 <h2 id="导言">导言：<a href="#导言" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
-<p>    本节主要介绍一些常用的数据结构的是实现，包括单链表，双链表，栈，队列，单调栈，单调队列，KMP，Trie，并查集，堆，哈希表等内容。</p>
+<p>    本节主要介绍一些常用的数据结构的是实现，包括单链表，双链表，栈，队列，单调栈，单调队列，KMP，Trie，并查集，堆，哈希表等内容。注：数组模拟的数据结构比STL快</p>
 <br>
 <br>
 <br>
@@ -325,7 +325,8 @@
 </span></span><span class="line"><span class="cl">        <span class="n">skt</span><span class="p">[</span><span class="o">++</span><span class="n">tt</span><span class="p">]</span><span class="o">=</span><span class="n">x</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">    <span class="p">}</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span></code></pre></div>
+</span></span></code></pre></div><p>虽然有两层循环，但实际上由于每个元素最多只会入栈一次出栈一次，所以仍然是 $\Theta(n)$ .</p>
+
 			</div>
 			<hr class="post-end">
 			<footer class="post-info">

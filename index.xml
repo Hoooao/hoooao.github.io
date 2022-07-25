@@ -7,14 +7,25 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>zh-hans</language>
     <copyright>This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.</copyright>
-    <lastBuildDate>Fri, 22 Jul 2022 16:06:12 -0400</lastBuildDate><atom:link href="https://hoooao.github.io/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Sat, 23 Jul 2022 16:09:15 -0400</lastBuildDate><atom:link href="https://hoooao.github.io/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Chap 7：调度 Scheduling</title>
+      <link>https://hoooao.github.io/os/chap7/</link>
+      <pubDate>Sat, 23 Jul 2022 16:09:15 -0400</pubDate>
+      
+      <guid>https://hoooao.github.io/os/chap7/</guid>
+      <description>目录   导言  7.1 上下文切换 Code: Context switch  7.2 调度 Scheduling  7.3 函数 myproc(), mycpu()  7.4 睡眠和唤醒 Sleep and wakeup  7.5 代码：睡眠和唤醒 Code： Sleep and wakeup  7.6 代码：管道 Code: Pipe  7.7 代码：等待，退出，杀死 Code: Wait, exit, and kill  7.8 进程锁 Process Lock  7.9 补充 More  7.10 练习 Exercise   导言：  OS希望在同时运行多个进程，除了使用多核处理器，CPU需要实现分时。在理想状态下，分时对于进程来说应当是透明的，也就是说进程不应当知道分时的进行，或者说，进程会认为自己独享一个CPU。这被叫做将进程多路复用（Multiplexing） 在CPU上。
+ xv6通过让CPU在不同的进程之间切换实现多路复用。这种进程切换主要体现在两种情形之下:
+   一个进程调用了sleep让另一个进程开始运行，或者一个进程调用了wakeup让另一个睡眠的进程继续运行（7.5）。</description>
+    </item>
+    
     <item>
       <title>Chap2DS</title>
       <link>https://hoooao.github.io/algo/chap2ds/</link>
       <pubDate>Fri, 22 Jul 2022 16:06:12 -0400</pubDate>
       
       <guid>https://hoooao.github.io/algo/chap2ds/</guid>
-      <description>目录  导言：  本节主要介绍一些常用的数据结构的是实现，包括单链表，双链表，栈，队列，单调栈，单调队列，KMP，Trie，并查集，堆，哈希表等内容。
+      <description>目录  导言：  本节主要介绍一些常用的数据结构的是实现，包括单链表，双链表，栈，队列，单调栈，单调队列，KMP，Trie，并查集，堆，哈希表等内容。注：数组模拟的数据结构比STL快
  2.1 链表  链表的实现有两种，第一种是通过结构体保存当前节点的数据和指向下一个/上一节点的指针，第二种是通过数组模拟链表，即用多个数组分别代表第 idx 个节点的数据，上下节点（静态链表）。
 2.1.1 单链表  单链表只保存下一个节点的“指针”。模拟方式：通过一个数组记录节点的值（e），一个数组记录下一个节点的指针(ne)。
  Fig.1 DP   如上图所示，它代表着一个由数组模拟的链表。Head可以理解为一个角标，它的值是第一个节点的idx，形式上是“指向”头节点。头节点的值为10，idx为0，它的下一个节点的idx为1。第二个节点则指向idx为5的元素，后者是尾节点。连续的节点的idx不一定连续，因为可能存在删除的操作。在数组模拟中，删除的节点实际上是直接被其上一个节点的ne跳过了，但实际上仍然存在于这个数组之中。虽然会造成空间的浪费，但是当节点数据特别多的时候，数组模拟创建速度比创建struct快得多，且后者能做的事情前者全能做。
@@ -53,18 +64,6 @@
       
       <guid>https://hoooao.github.io/db/part2/</guid>
       <description>目录  导言： </description>
-    </item>
-    
-    <item>
-      <title>Labs</title>
-      <link>https://hoooao.github.io/os/labs/</link>
-      <pubDate>Mon, 04 Jul 2022 19:47:54 -0400</pubDate>
-      
-      <guid>https://hoooao.github.io/os/labs/</guid>
-      <description>目录  导言： 6.S081 Lab详解。  Lab 2 System Calls System call tracing  目标：实现一个对系统调用的追踪的系统调用trace。追踪的信息包括当前PID，系统调用名称，系统调用返回值。trace接受一个int作为参数，这个数字用来作为一个“mask“。22个系统调用（包括trace）的值（从1到22）会和这个mask进行&amp;amp;的操作，来判定该系统调用是否被trace。
- 考察：对fork(),exec(),proc的理解。
- 提供了user/trace.c：这个文件有基本的对参数的检查以及对trace系统调用的使用和exec()执行。这个文件不需要改动。
-int main(int argc, char *argv[]) { int i; char *nargv[MAXARG]; if(argc &amp;lt; 3 || (argv[1][0] &amp;lt; &amp;#39;0&amp;#39; || argv[1][0] &amp;gt; &amp;#39;9&amp;#39;)){ fprintf(2, &amp;#34;Usage: %s mask command\n&amp;#34;, argv[0]); exit(1); } //在这里调用了trace  if (trace(atoi(argv[1])) &amp;lt; 0) { fprintf(2, &amp;#34;%s: trace failed\n&amp;#34;, argv[0]); exit(1); } //把传入的参数传入数组，用来在exec中传参  for(i = 2; i &amp;lt; argc &amp;amp;&amp;amp; i &amp;lt; MAXARG; i++){ nargv[i-2] = argv[i]; } //运行目标程序  exec(nargv[0], nargv); exit(0); }  添加一个名为trace的系统调用。根据提示，为了让trace被编译，需要把它一特定的格式在syscall.</description>
     </item>
     
     <item>
