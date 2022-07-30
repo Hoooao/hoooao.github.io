@@ -7,14 +7,14 @@
 	<meta http-equiv="X-UA-Compatible" content="ie=edge">
 	<meta name="theme-color" content="#494f5c">
 	<meta name="msapplication-TileColor" content="#494f5c">
-<meta itemprop="name" content="Chap 7：调度 Scheduling">
-<meta itemprop="description" content="目录   导言  7.1 上下文切换 Code: Context switch  7.2 调度 Scheduling  7.3 函数 myproc(), mycpu()  7.4 睡眠和唤醒 Sleep and wakeup  7.5 代码：睡眠和唤醒 Code： Sleep and wakeup  7.6 代码：管道 Code: Pipe  7.7 代码：等待，退出，杀死 Code: Wait, exit, and kill  7.8 进程锁 Process Lock  7.9 补充 More  7.10 练习 Exercise   导言：  OS希望在同时运行多个进程，除了使用多核处理器，CPU需要实现分时。在理想状态下，分时对于进程来说应当是透明的，也就是说进程不应当知道分时的进行，或者说，进程会认为自己独享一个CPU。这被叫做将进程多路复用（Multiplexing） 在CPU上。
+<meta itemprop="name" content="Chap 7: 调度 Scheduling">
+<meta itemprop="description" content="目录   导言  7.1 上下文切换 Code: Context switch  7.2 调度 Scheduling  7.3 函数 myproc(), mycpu()  7.4 睡眠和唤醒 Sleep and wakeup  7.5 代码：睡眠和唤醒 Code： Sleep and wakeup  7.6 代码：管道 Code: Pipe  7.7 代码：等待，退出，杀死 Code: Wait, exit, and kill  7.8 进程锁 Process Lock  7.9 补充 More  7.10 练习 Exercise   导言  OS希望在同时运行多个进程，除了使用多核处理器，CPU需要实现分时。在理想状态下，分时对于进程来说应当是透明的，也就是说进程不应当知道分时的进行，或者说，进程会认为自己独享一个CPU。这被叫做将进程多路复用（Multiplexing） 在CPU上。
  xv6通过让CPU在不同的进程之间切换实现多路复用。这种进程切换主要体现在两种情形之下:
    一个进程调用了sleep让另一个进程开始运行，或者一个进程调用了wakeup让另一个睡眠的进程继续运行（7.5）。"><meta itemprop="datePublished" content="2022-07-23T16:09:15-04:00" />
 <meta itemprop="dateModified" content="2022-07-23T16:09:15-04:00" />
-<meta itemprop="wordCount" content="1584">
-<meta itemprop="keywords" content="" /><meta property="og:title" content="Chap 7：调度 Scheduling" />
-<meta property="og:description" content="目录   导言  7.1 上下文切换 Code: Context switch  7.2 调度 Scheduling  7.3 函数 myproc(), mycpu()  7.4 睡眠和唤醒 Sleep and wakeup  7.5 代码：睡眠和唤醒 Code： Sleep and wakeup  7.6 代码：管道 Code: Pipe  7.7 代码：等待，退出，杀死 Code: Wait, exit, and kill  7.8 进程锁 Process Lock  7.9 补充 More  7.10 练习 Exercise   导言：  OS希望在同时运行多个进程，除了使用多核处理器，CPU需要实现分时。在理想状态下，分时对于进程来说应当是透明的，也就是说进程不应当知道分时的进行，或者说，进程会认为自己独享一个CPU。这被叫做将进程多路复用（Multiplexing） 在CPU上。
+<meta itemprop="wordCount" content="1625">
+<meta itemprop="keywords" content="" /><meta property="og:title" content="Chap 7: 调度 Scheduling" />
+<meta property="og:description" content="目录   导言  7.1 上下文切换 Code: Context switch  7.2 调度 Scheduling  7.3 函数 myproc(), mycpu()  7.4 睡眠和唤醒 Sleep and wakeup  7.5 代码：睡眠和唤醒 Code： Sleep and wakeup  7.6 代码：管道 Code: Pipe  7.7 代码：等待，退出，杀死 Code: Wait, exit, and kill  7.8 进程锁 Process Lock  7.9 补充 More  7.10 练习 Exercise   导言  OS希望在同时运行多个进程，除了使用多核处理器，CPU需要实现分时。在理想状态下，分时对于进程来说应当是透明的，也就是说进程不应当知道分时的进行，或者说，进程会认为自己独享一个CPU。这被叫做将进程多路复用（Multiplexing） 在CPU上。
  xv6通过让CPU在不同的进程之间切换实现多路复用。这种进程切换主要体现在两种情形之下:
    一个进程调用了sleep让另一个进程开始运行，或者一个进程调用了wakeup让另一个睡眠的进程继续运行（7.5）。" />
 <meta property="og:type" content="article" />
@@ -23,8 +23,8 @@
 <meta property="article:modified_time" content="2022-07-23T16:09:15-04:00" />
 
 <meta name="twitter:card" content="summary"/>
-<meta name="twitter:title" content="Chap 7：调度 Scheduling"/>
-<meta name="twitter:description" content="目录   导言  7.1 上下文切换 Code: Context switch  7.2 调度 Scheduling  7.3 函数 myproc(), mycpu()  7.4 睡眠和唤醒 Sleep and wakeup  7.5 代码：睡眠和唤醒 Code： Sleep and wakeup  7.6 代码：管道 Code: Pipe  7.7 代码：等待，退出，杀死 Code: Wait, exit, and kill  7.8 进程锁 Process Lock  7.9 补充 More  7.10 练习 Exercise   导言：  OS希望在同时运行多个进程，除了使用多核处理器，CPU需要实现分时。在理想状态下，分时对于进程来说应当是透明的，也就是说进程不应当知道分时的进行，或者说，进程会认为自己独享一个CPU。这被叫做将进程多路复用（Multiplexing） 在CPU上。
+<meta name="twitter:title" content="Chap 7: 调度 Scheduling"/>
+<meta name="twitter:description" content="目录   导言  7.1 上下文切换 Code: Context switch  7.2 调度 Scheduling  7.3 函数 myproc(), mycpu()  7.4 睡眠和唤醒 Sleep and wakeup  7.5 代码：睡眠和唤醒 Code： Sleep and wakeup  7.6 代码：管道 Code: Pipe  7.7 代码：等待，退出，杀死 Code: Wait, exit, and kill  7.8 进程锁 Process Lock  7.9 补充 More  7.10 练习 Exercise   导言  OS希望在同时运行多个进程，除了使用多核处理器，CPU需要实现分时。在理想状态下，分时对于进程来说应当是透明的，也就是说进程不应当知道分时的进行，或者说，进程会认为自己独享一个CPU。这被叫做将进程多路复用（Multiplexing） 在CPU上。
  xv6通过让CPU在不同的进程之间切换实现多路复用。这种进程切换主要体现在两种情形之下:
    一个进程调用了sleep让另一个进程开始运行，或者一个进程调用了wakeup让另一个睡眠的进程继续运行（7.5）。"/>
 
@@ -35,22 +35,48 @@
 	<link rel="mask-icon" href="/safari-pinned-tab.svg" color="">
 	<link rel="shortcut icon" href="/favicon.ico">
 
-	<title>Chap 7：调度 Scheduling</title>
+	<title>Chap 7: 调度 Scheduling</title>
 	<link rel="stylesheet" href="https://hoooao.github.io/css/style.min.6b1219507aa24bcc2a46f4f7071edbc5dc448ba85934d68c4af0ca0a7ad89dcd.css" integrity="sha256-axIZUHqiS8wqRvT3Bx7bxdxEi6hZNNaMSvDKCnrYnc0=" crossorigin="anonymous">
 	<style>.bg-img {background-image: url('https://images.unsplash.com/photo-1531265726475-52ad60219627?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=2691&q=80');}</style>
 </head>
 
 <body id="page">
 	
+	<header id="site-header" class="animated slideInUp">
+		<div class="hdr-wrapper section-inner">
+			<div class="hdr-left">
+				<div class="site-branding">
+					<a href="https://hoooao.github.io/">Hao的个人博客</a>
+				</div>
+				<nav class="site-nav hide-in-mobile">
+					
+				<a href="https://hoooao.github.io/db/">Database</a>
+				<a href="https://hoooao.github.io/os/">Operating System</a>
+				<a href="https://hoooao.github.io/about-hugo/">About</a>
+
+				</nav>
+			</div>
+			<div class="hdr-right hdr-icons">
+				<button id="toc-btn" class="hdr-btn desktop-only-ib" title='目录'><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-list"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3" y2="6"></line><line x1="3" y1="12" x2="3" y2="12"></line><line x1="3" y1="18" x2="3" y2="18"></line></svg></button><span class="hdr-social hide-in-mobile"><a href="https://i.imgur.com/gzAPv6g.jpeg" target="_blank" rel="noopener me" title="Wechat"><svg xmlns="http://www.w3.org/2000/svg" class="feather" width="24" height="24" viewBox="0 0 1000 1000" fill="#c8cdd3" stroke="currentColor" stroke-width="30" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M487.4,340.2c25.2,0,42-16.9,42-42c0-25.4-16.8-41.9-42-41.9c-25.2,0-50.6,16.4-50.6,41.9C436.9,323.4,462.2,340.2,487.4,340.2z M252.2,256.4c-25.2,0-50.7,16.4-50.7,41.9c0,25.1,25.5,42,50.7,42c25.1,0,41.9-16.9,41.9-42C294.1,272.8,277.3,256.4,252.2,256.4z M990,609.2c0-132.9-123.3-246.1-274.6-257.9c0.2-1.7,0.3-3.4-0.1-5.1C684.9,204.7,532.8,98,361.4,98C167.6,98,10,233.1,10,399.1c0,89.1,45.5,169.3,131.7,232.6l-30,90.3c-1.9,5.9-0.2,12.3,4.5,16.4c2.8,2.4,6.4,3.7,10,3.7c2.3,0,4.7-0.6,6.9-1.6l112.8-56.4l13.9,2.8c34.7,7.1,64.7,13.3,101.6,13.3c10.9,0,21.9-0.5,32.7-1.4c4.4-0.4,8.1-2.6,10.6-5.8c40.7,101.8,152.8,175.2,284.7,175.2c33.8,0,68-8.1,98.7-15.8l86.9,47.5c2.3,1.3,4.8,1.9,7.3,1.9c3.4,0,6.9-1.2,9.6-3.4c4.8-3.9,6.8-10.4,5-16.3l-22.2-73.8C949.2,749.6,990,679.2,990,609.2z M391.5,668.4c-10,0.9-20.1,1.3-30.1,1.3c-33.8,0-62.4-5.8-95.5-12.7l-19.2-3.9c-3.3-0.7-6.8-0.2-9.8,1.3l-84.5,42.3l22-66c2.1-6.5-0.2-13.5-5.8-17.4C83.7,554.2,40.6,482.1,40.6,399.1c0-149.1,143.9-270.5,320.7-270.5c156.3,0,294.8,95.1,323.3,221.6c-163.9,2.1-296.6,117.4-296.6,258.9c0,20.6,3.1,40.5,8.4,59.7C394.9,668.5,393.2,668.2,391.5,668.4z M847.8,790.5c-5.1,3.9-7.3,10.5-5.5,16.6l14.5,48.2l-59.4-32.5c-2.3-1.3-4.8-1.9-7.4-1.9c-1.3,0-2.5,0.2-3.7,0.5c-31.9,8.1-64.9,16.4-97,16.4c-149.2,0-270.6-102.5-270.6-228.5c0-126,121.4-228.5,270.6-228.5c146.4,0,270,104.6,270,228.5C959.4,672,919.8,736.4,847.8,790.5z M596.7,500c-16.8,0-33.6,16.9-33.6,33.7c0,16.9,16.8,33.6,33.6,33.6c25.3,0,42-16.7,42-33.6C638.6,516.9,621.9,500,596.7,500z M781.4,500c-16.6,0-33.4,16.9-33.4,33.7c0,16.9,16.8,33.6,33.4,33.6c25.2,0,42.2-16.7,42.2-33.6C823.6,516.9,806.6,500,781.4,500z"></path>
+    </svg></a><a href="https://github.com/Hoooao" target="_blank" rel="noopener me" title="Github"><svg xmlns="http://www.w3.org/2000/svg" class="feather" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg></a></span><button id="menu-btn" class="hdr-btn" title="菜单"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-menu"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button>
+			</div>
+		</div>
+	</header>
+	<div id="mobile-menu" class="animated fast">
+		<ul>
+			<li><a href="https://hoooao.github.io/db/">Database</a></li>
+			<li><a href="https://hoooao.github.io/os/">Operating System</a></li>
+			<li><a href="https://hoooao.github.io/about-hugo/">About</a></li>
+		</ul>
+	</div>
+
+
 	<div class="bg-img"></div>
-	<main class="site-main section-inner animated fadeIn faster">
-		<article class="thin">
-			<header class="post-header">
-				<div class="post-meta"><span>Jul 23, 2022</span></div>
-				<h1>Chap 7：调度 Scheduling</h1>
-			</header>
-			<div class="content">
-				<h2 id="目录">目录<a href="#目录" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+	<main class="site-main section-inner thin animated fadeIn faster">
+		<h1>Chap 7: 调度 Scheduling</h1>
+		<div class="content">
+			<h2 id="目录">目录<a href="#目录" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
 <ul>
 <li> <a href="#%E5%AF%BC%E8%A8%80">导言</a></li>
 <li> <a href="#71-%E4%B8%8A%E4%B8%8B%E6%96%87%E5%88%87%E6%8D%A2-code-context-switch">7.1 上下文切换 Code: Context switch</a></li>
@@ -67,7 +93,7 @@
 <br>
 <hr>
 <br>
-<h2 id="导言">导言：<a href="#导言" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<h2 id="导言">导言<a href="#导言" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
 <p>    OS希望在同时运行多个进程，除了使用多核处理器，CPU需要实现分时。在理想状态下，分时对于进程来说应当是透明的，也就是说进程不应当知道分时的进行，或者说，进程会认为自己独享一个CPU。这被叫做将进程<strong>多路复用（Multiplexing）</strong> 在CPU上。</p>
 <p>    xv6通过让CPU在不同的进程之间切换实现多路复用。这种进程切换主要体现在两种情形之下:</p>
 <blockquote>
@@ -166,8 +192,27 @@
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">sched</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">  <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span></code></pre></div><p><code>yield</code>继续调用<code>sched</code>，后者会多这个进程做一些检查，然后调用<code>swtch(&amp;p-&gt;context, &amp;mycpu()-&gt;context);</code>。第一个参数是当前进程的上下文，后者是<code>scheduler</code>的上下文。</p>
-<p>    <strong>思考</strong>：为什么<code>trapframe</code>和<code>context</code>看起来很像，前者甚至更早保存了更多的寄存器，还要用<code>context</code>？</p>
+</span></span></code></pre></div><p><code>yield</code>继续调用<code>sched</code>，后者会多这个进程做一些检查，然后调用<code>swtch(&amp;p-&gt;context, &amp;mycpu()-&gt;context);</code>:第一个参数是当前进程的上下文，后者是<code>scheduler</code>的上下文。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span>
+</span></span><span class="line"><span class="cl"><span class="nf">sched</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">intena</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">proc</span> <span class="o">*</span><span class="n">p</span> <span class="o">=</span> <span class="n">myproc</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="o">!</span><span class="n">holding</span><span class="p">(</span><span class="o">&amp;</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;sched p-&gt;lock&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">mycpu</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">noff</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;sched locks&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">state</span> <span class="o">==</span> <span class="n">RUNNING</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;sched running&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">intr_get</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;sched interruptible&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="n">intena</span> <span class="o">=</span> <span class="n">mycpu</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">intena</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="n">swtch</span><span class="p">(</span><span class="o">&amp;</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">context</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">mycpu</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">context</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="n">mycpu</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">intena</span> <span class="o">=</span> <span class="n">intena</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>    <strong>思考</strong>：为什么<code>trapframe</code>和<code>context</code>看起来很像，前者甚至更早保存了更多的寄存器，还要用<code>context</code>？</p>
 <p>        因为两者保存的内容完全不一样：trapframe保存着进程用户空间在进入trap之前的状态，而后者是对进程内核空间状态的记录。两者必须协同才能实现进程切换。</p>
 <br>
 <br>
@@ -339,7 +384,7 @@ s线程实际上就是对<code>scheduler</code>函数的调用。那为什么说
 </span></span><span class="line"><span class="cl"><span class="mi">119</span>       <span class="n">s</span><span class="o">-&gt;</span><span class="n">count</span> <span class="o">-=</span> <span class="mi">1</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl"><span class="mi">120</span>       <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="mi">121</span>   <span class="p">}</span>
-</span></span></code></pre></div><p><code>semaphore</code>结构体中保存着一个锁和一个计数器<code>count</code>，下面有两个方法：<code>V</code>增加计数器，当计数器不是0的时候，<code>P</code>减少计数器。循环可以帮助<code>P</code>实现这一“等待”。但是缺点很明显：这假设<code>V</code>很少运行，那么<code>P</code>会一直自旋，这一自旋行为是对性能的浪费，被叫做<strong>busy wait</strong>。每当<code>V</code>运行之后<code>P</code>再开始运行效果会更好。参考下面的代码:</p>
+</span></span></code></pre></div><p><code>semaphore</code>结构体中保存着一个锁和一个计数器<code>count</code>，下面有两个方法：<code>V</code>增加计数器，当计数器不是0的时候，<code>P</code>减少计数器。循环可以帮助<code>P</code>实现这一“等待”。但是缺点很明显：假设<code>V</code>很少运行，那么<code>P</code>会一直自旋，这一自旋行为是对性能的浪费，被叫做<strong>busy wait</strong> （不过有的设备驱动中存在这种自旋，因为设计者知道这一等待并不会等太久）。每当<code>V</code>运行之后<code>P</code>再开始运行效果会更好。参考下面的代码:</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="mi">1</span>  <span class="kt">void</span>
 </span></span><span class="line"><span class="cl"><span class="mi">2</span>  <span class="nf">V</span><span class="p">(</span><span class="k">struct</span> <span class="n">semaphore</span> <span class="o">*</span><span class="n">s</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl"><span class="mi">3</span>  <span class="p">{</span>
@@ -352,12 +397,12 @@ s线程实际上就是对<code>scheduler</code>函数的调用。那为什么说
 </span></span><span class="line"><span class="cl"><span class="mi">10</span> <span class="nf">P</span><span class="p">(</span><span class="k">struct</span> <span class="n">semaphore</span> <span class="o">*</span><span class="n">s</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl"><span class="mi">11</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl"><span class="mi">12</span>   <span class="k">while</span><span class="p">(</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">count</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl"><span class="mi">13</span>   <span class="n">sleep</span><span class="p">(</span><span class="n">s</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="mi">13</span>    <span class="n">sleep</span><span class="p">(</span><span class="n">s</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="mi">14</span>   <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="mi">15</span>   <span class="n">s</span><span class="o">-&gt;</span><span class="n">count</span> <span class="o">-=</span> <span class="mi">1</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl"><span class="mi">16</span>   <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="mi">17</span> <span class="p">}</span>
-</span></span></code></pre></div><p>这里使用了<code>sleep</code>和<code>wakeup</code>函数: 当<code>P</code>发现计时器为0时就进入睡眠，直到<code>V</code>增加计数器并且通过某种方式唤醒<code>P</code>，<code>P</code>再开始运行。逻辑上似乎没什么问题，但是仍然需要考虑并发带来的问题：假如<code>P</code>刚运行完了12行，检查<code>count</code>为0，可是在进入睡眠之前，<code>V</code>在另一个CPU上增加了计数器切调用了<code>wakeup</code>。由于<code>P</code>已经检查完了<code>count</code>，纵使<code>V</code>在<code>P</code>踏进睡眠之前增加了计数器且调用了唤醒，<code>P</code>仍会进入睡眠，这被叫做<strong>唤醒丢失（Lost wake-up）</strong>。如果<code>V</code>之后又运行了一次就问题不大：<code>P</code>会被叫醒并且归零计数器。但假如<code>V</code>再也不运行了，<code>P</code>会永远睡眠且不会终止运行。注：<code>sleep</code>和w<code>akeup</code>的参数是一个<strong>等待频道（Wait channel）</strong>，<code>sleep(s)</code>解释为该进程睡在<code>s</code>上，<code>wakeup(s)</code>将会唤醒所有睡在<code>s</code>上的进程，如果没有睡在<code>s</code>上的进程，就继续运行。</p>
+</span></span></code></pre></div><p>这里使用了<code>sleep</code>和<code>wakeup</code>函数: 当<code>P</code>发现计时器为0时就进入睡眠，直到<code>V</code>增加计数器并且通过某种方式唤醒<code>P</code>，<code>P</code>再开始运行。逻辑上似乎没什么问题，但是仍然需要考虑并发带来的问题：假如<code>P</code>刚运行完了12行，检查<code>count</code>为0，可是在进入睡眠之前，<code>V</code>在另一个CPU上增加了计数且调用了<code>wakeup</code>。由于<code>P</code>已经检查完了<code>count</code>，纵使<code>V</code>在<code>P</code>踏进睡眠之前增加了计数器且调用了唤醒，<code>P</code>仍会进入睡眠，这被叫做<strong>唤醒丢失（Lost wake-up）</strong>。如果<code>V</code>之后又运行了一次就问题不大：<code>P</code>会被叫醒并且归零计数器。但假如<code>V</code>再也不运行了，<code>P</code>会永远睡眠且不会终止运行。注：<code>sleep</code>和w<code>akeup</code>的参数是一个<strong>等待频道（Wait channel）</strong>，<code>sleep(s)</code>解释为该进程睡在<code>s</code>上，<code>wakeup(s)</code>将会唤醒所有睡在<code>s</code>上的进程，如果没有睡在<code>s</code>上的进程，就继续运行。</p>
 <p>    本质的问题实际上是不变量被破坏：即<code>P</code>永远只在<code>count==0</code>的时候睡眠。根据之前节的说明，目前直觉的解决方案似乎是使用一个锁来保护这个不变量。参考代码：</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="mi">300</span> <span class="kt">void</span>
 </span></span><span class="line"><span class="cl"><span class="mi">301</span> <span class="nf">V</span><span class="p">(</span><span class="k">struct</span> <span class="n">semaphore</span> <span class="o">*</span><span class="n">s</span><span class="p">)</span>
@@ -406,7 +451,7 @@ s线程实际上就是对<code>scheduler</code>函数的调用。那为什么说
 <br>
 <br>
 <h2 id="75-代码睡眠和唤醒-code-sleep-and-wakeup">7.5 代码：睡眠和唤醒 Code： Sleep and wakeup<a href="#75-代码睡眠和唤醒-code-sleep-and-wakeup" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
-<p>    <code>sleep</code>重要的行是把当前进程标记状态为<code>SLEEPING</code>并调用<code>sched</code>开启调度。<code>wakeup</code>会把在同一频道上的所有<code>SLEEPING</code>的进程标记为<code>RUNNABLE</code>并开始调度。通常频道<code>chan</code>使用的数字是一个两个进程都能访问到的数据，xv6中常用的是与等待本身相关的数据结构。比如<code>uartputc</code>里使用<code>&amp;uart_tx_r</code>作为等待输出时的<code>sleep</code>的频道。调用<code>sleep</code>的进程会在调用它之前获取一个条件锁（为了避免丢失唤醒）<code>lk</code>，并且<code>sleep</code>内部还会调用这个进程的进程锁 <code>p-&gt;lock</code> 用来保护进程的不变量（为调度服务），这个进程锁会在scheduler中释放。所以<code>sleep</code>实际上有一段时间会持有两个锁。<code>lk</code>保障了在它被释放之前，没有其他进程可以使用<code>wakeup</code>唤醒这个进程导致唤醒丢失，因为在调用<code>wakeup</code>的进程中也必须要持有这个条件锁，比如<code>V</code>。</p>
+<p>    <code>sleep</code>重要的行为是把当前进程标记状态为<code>SLEEPING</code>并调用<code>sched</code>开启调度。<code>wakeup</code>会把在同一频道上的所有<code>SLEEPING</code>的进程标记为<code>RUNNABLE</code>并开始调度。通常频道<code>chan</code>使用的数字是一个两个进程都能访问到的数据，xv6中常用的是与等待本身相关的数据结构。比如<code>uartputc</code>里使用<code>&amp;uart_tx_r</code>作为等待输出时的<code>sleep</code>的频道。调用<code>sleep</code>的进程会在调用它之前获取一个条件锁（为了避免丢失唤醒）<code>lk</code>，并且<code>sleep</code>内部还会调用这个进程的进程锁 <code>p-&gt;lock</code> 用来保护进程的不变量（为调度服务），这个进程锁会在scheduler中释放。所以<code>sleep</code>实际上有一段时间会持有两个锁。<code>lk</code>保障了在它被释放之前，没有其他进程可以使用<code>wakeup</code>唤醒这个进程导致唤醒丢失，因为在调用<code>wakeup</code>的进程中也必须要持有这个条件锁，比如<code>V</code>。</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span>
 </span></span><span class="line"><span class="cl"><span class="nf">sleep</span><span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="n">chan</span><span class="p">,</span> <span class="k">struct</span> <span class="n">spinlock</span> <span class="o">*</span><span class="n">lk</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
@@ -425,7 +470,8 @@ s线程实际上就是对<code>scheduler</code>函数的调用。那为什么说
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">p</span><span class="o">-&gt;</span><span class="n">chan</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="c1">//释放
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl">  <span class="n">acquire</span><span class="p">(</span><span class="n">lk</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">//再次获取条件锁
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">acquire</span><span class="p">(</span><span class="n">lk</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p>一旦<code>lk</code>被释放，其他进程就可以去唤醒这个进程了，但是由于<code>p-&gt;lock</code>没有被释放，使用<code>wakeup</code>的进程会在某一时刻进入自旋，直到前者释放进程锁。<code>sleep</code>的过程：记录频道，改变进程的状态为<code>SLEEPING</code>，调用<code>sched</code>开始调度。</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span>
@@ -478,6 +524,7 @@ s线程实际上就是对<code>scheduler</code>函数的调用。那为什么说
 </span></span><span class="line"><span class="cl">    <span class="c1">//省略：检查管道和进程信息
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    
 </span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">pi</span><span class="o">-&gt;</span><span class="n">nwrite</span> <span class="o">==</span> <span class="n">pi</span><span class="o">-&gt;</span><span class="n">nread</span> <span class="o">+</span> <span class="n">PIPESIZE</span><span class="p">){</span> <span class="c1">//DOC: pipewrite-full
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="c1">//这里分别用nread/nwrite作为chan
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="n">wakeup</span><span class="p">(</span><span class="o">&amp;</span><span class="n">pi</span><span class="o">-&gt;</span><span class="n">nread</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">      <span class="n">sleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">pi</span><span class="o">-&gt;</span><span class="n">nwrite</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">pi</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
@@ -522,7 +569,7 @@ s线程实际上就是对<code>scheduler</code>函数的调用。那为什么说
 </span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="n">i</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p>由于<code>piperead</code>进入自旋，<code>pipewrite</code>的释放使得它可以继续运行。同样地，<code>piperead</code>会获取管道的锁且检查一些属性，查看<code>data</code>是否为空。假如为空，那么会进入睡眠，等待下一次写入发生后被唤醒。如果不为空就开始读取数据，在读取完毕后释放锁并结束运行。</p>
-<p>    多个进程读取同一个管道的情况可能发生。它们会<code>sleep</code>在同一个频道上。每当写入函数调用<code>wakeup</code>，这些进程都会被唤醒。但是只有其中一个进程可以首先获取到<code>lock</code>并且开始读取。在它读取完毕之后，其他后来的进程可能发现<code>data</code>已经是空的了。假如认为“只有管道不为空的情况下<code>piperead</code>才会被唤醒”是一个不变量的话，可以把这一唤醒叫做<strong>虚假唤醒（Spurious wakeup）</strong> 。这种假的唤醒不会导致问题，因为<code>piperead</code>会检查条件是否为真，如果不为真，则还可以继续睡眠（循环）。多数对于<code>sleep</code>和<code>wakeup</code>的使用都有这样的机制存在。</p>
+<p>    多个进程读取同一个管道的情况可能发生。它们会<code>sleep</code>在同一个频道上。每当写入函数调用<code>wakeup</code>，这些进程都会被唤醒。但是只有其中一个进程可以首先获取到<code>lock</code>并且开始读取。在它读取完毕之后，其他后来的进程可能发现<code>data</code>已经是空的了。假如认为“只有管道不为空的情况下<code>piperead</code>才会被唤醒”是一个不变量的话，可以把这一唤醒叫做<strong>虚假唤醒（Spurious wakeup）</strong> 。这种假的唤醒不会导致问题，因为<code>piperead</code>会检查条件是否为真，如果不为真，则还可以继续睡眠（循环）。也是由于虚假唤醒的存在，<code>sleep</code>必须在返回之前重新获取条件锁，用来防止唤醒丢失。多数对于<code>sleep</code>和<code>wakeup</code>的使用都有这样的机制存在。</p>
 <br>
 <br>
 <br>
@@ -606,11 +653,11 @@ s线程实际上就是对<code>scheduler</code>函数的调用。那为什么说
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">sched</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">  <span class="n">panic</span><span class="p">(</span><span class="s">&#34;zombie exit&#34;</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span></code></pre></div><p>    <code>exit</code>会冻结一些资源，并且调用<code>reparent</code>函数，把每一个子进程的父进程重新定向为<code>init</code>，唤醒可能存在的正在<code>sleep</code>的父进程，把当前进程的状态修改为<code>ZOMBIE</code>，调用<code>sched</code>。之后这个进程便不会参与调度了。<code>exit</code>一定会获取<code>p-&gt;lock</code>，这样可以保证在状态修改成<code>ZOMBIE</code>后不会在通过<code>swtch</code>切换进程之前直接被父进程清理（进程锁也是在<code>scheduler</code>被释放）。<code>exit</code>使用<code>wait</code>同样的锁顺序来保证无死锁。虽然<code>exit</code>在唤醒父进程之后才修改其状态，但是由于它有自己的进程锁并且父进程去要获取这个进程锁来释放其资源，父进程会进入自旋。</p>
+</span></span></code></pre></div><p>    <code>exit</code>会冻结一些资源，并且调用<code>reparent</code>函数，把每一个子进程的父进程重新定向为<code>init</code>，唤醒可能存在的正在<code>sleep</code>的父进程，把当前进程的状态修改为<code>ZOMBIE</code>，调用<code>sched</code>。之后这个进程便不会参与调度了。<code>exit</code>一定会获取<code>p-&gt;lock</code>，这样可以保证在状态修改成<code>ZOMBIE</code>后不会在通过<code>swtch</code>切换进程之前直接被父进程清理（进程锁也是在<code>scheduler</code>被释放）。<code>exit</code>使用<code>wait</code>同样的锁顺序来保证无死锁。虽然<code>exit</code>在唤醒父进程之后才获取锁修改其状态，但是由于它有自己的进程锁并且父进程去要获取这个进程锁来释放其资源，父进程会进入自旋。即使在子进程获取锁之前父进程就被唤醒并且执行其循环体，由于子进程的状态不是<code>ZOMBIE</code>，父进程也不会对它进行操作。</p>
 <p>    <code>exit</code>可以终止自己的运行，<code>kill</code>可以让一个进程终止另一个进程。假如<code>kill</code>可以直接终止一个进程，那么可能导致一些错误，比如：</p>
 <blockquote>
-<p>目标进程可能运行于一个不同的CPU。那么两个CPU将操作与同一个进程
-目标进程可能正在运行一些对内核敏感的代码。</p>
+<p>目标进程可能运行于一个不同的CPU。那么两个CPU将操作于同一个进程</p>
+<p>目标进程可能正在运行一些对内核敏感的代码。</p>
 </blockquote>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">int</span>
 </span></span><span class="line"><span class="cl"><span class="nf">kill</span><span class="p">(</span><span class="kt">int</span> <span class="n">pid</span><span class="p">)</span>
@@ -620,7 +667,7 @@ s线程实际上就是对<code>scheduler</code>函数的调用。那为什么说
 </span></span><span class="line"><span class="cl">  <span class="k">for</span><span class="p">(</span><span class="n">p</span> <span class="o">=</span> <span class="n">proc</span><span class="p">;</span> <span class="n">p</span> <span class="o">&lt;</span> <span class="o">&amp;</span><span class="n">proc</span><span class="p">[</span><span class="n">NPROC</span><span class="p">];</span> <span class="n">p</span><span class="o">++</span><span class="p">){</span>
 </span></span><span class="line"><span class="cl">    <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">pid</span> <span class="o">==</span> <span class="n">pid</span><span class="p">){</span>
-</span></span><span class="line"><span class="cl">        <span class="c1">//修改状态并且让该进程参与调度
+</span></span><span class="line"><span class="cl">        <span class="c1">//修改killed属性并通过修改状态让该进程参与调度
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="n">p</span><span class="o">-&gt;</span><span class="n">killed</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">      <span class="k">if</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">state</span> <span class="o">==</span> <span class="n">SLEEPING</span><span class="p">){</span>
 </span></span><span class="line"><span class="cl">        <span class="c1">// Wake process from sleep().
@@ -633,7 +680,7 @@ s线程实际上就是对<code>scheduler</code>函数的调用。那为什么说
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
 </span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span></code></pre></div><p>所以<code>kill</code>只会把目标进程的状态改成<code>killed</code>。可以预期目标进程很快会因为进入/离开trap/收到时钟中断等因素导致<code>killed</code>属性被检查。在这些清净的代码里，假如<code>killed</code>被设置，进程会调用<code>exit</code>去真正终止这个进程：说到底仍然是这个进程自己调用<code>exit</code>把自己终止了。<code>kill</code>会唤醒目标进程（通过修改状态<code>RUNNABLE</code>直接唤醒）。所以假如想要杀死的目标进程正在睡眠，可能造成上述的虚假唤醒。不过由于通常xv6中对于<code>sleep</code>的使用会同时使用<code>while</code>来检查条件，如果不为真就可以继续睡眠。同时，有些这样的循环也会检查<code>killed</code>属性，这样就能直接终止这个进程了，比如管道中就是这样的。不过也有一些<code>sleep</code>的使用不伴随着对于虚假唤醒的检查，这类代码通常实现了原子化，也是安全的。</p>
+</span></span></code></pre></div><p>所以<code>kill</code>只会把目标进程的状态改成<code>killed</code>。可以预期目标进程很快会因为进入/离开trap/收到时钟中断等因素导致<code>killed</code>属性被检查。在这些情景的代码里，假如<code>killed</code>被设置，进程会调用<code>exit</code>去真正终止这个进程：说到底仍然是这个进程自己调用<code>exit</code>把自己终止了。<code>kill</code>会唤醒目标进程（通过修改状态<code>RUNNABLE</code>直接唤醒）。所以假如想要杀死的目标进程正在睡眠，可能造成上述的虚假唤醒。不过由于通常xv6中对于<code>sleep</code>的使用会同时使用<code>while</code>来检查条件，如果不为真就可以继续睡眠。同时，有些这样的循环也会检查<code>killed</code>属性，这样就能直接终止这个进程了，比如管道中就是这样的。不过也有一些<code>sleep</code>的使用不伴随着对于<code>killed</code>的检查，这类代码通常把<code>sleep</code>看作其过程中的一步且希望整个过程完成后再关闭目标进程，也是安全的。</p>
 <br>
 <br>
 <br>
@@ -672,6 +719,8 @@ s线程实际上就是对<code>scheduler</code>函数的调用。那为什么说
 <p>    不同的线程系统的区别是它们是否给线程共享内存。在xv6中，各个进程的内核线程是共享内存的，即互相可以“看”到对方地址内容的修改，但是用户空间线程的内存是不共享的：xv6的进程全部是单线程，所以线程即进程，必然不会共享内存。更高级的操作系统中一个进程可以有多个线程，比如Linux：Linux中多线程的实现实际上是让多个“进程”共享一个内存空间，从而把它们在形式上归为“一个进程的多个线程”。本章介绍的线程分时实际上效率不高，但是相对于其他分时方式更容易实现。</p>
 <p>    时钟中断导致的调度叫做<strong>抢占式调度（Pre-emptive schedule）</strong>，对立于 <strong>自愿调度（Voluntary schedule）</strong> 。在xv6的实现中，时钟中断导致进程的抢占式调度，而内核负责处理这一trap又是自愿调度：所以上xv6中的时钟中断是两种调度的结合。</p>
 <p>    一个进程的内核线程栈保存的是进程当前的<em>内核线程的寄存器</em>，线程切换也是内核线程之间的切换，而不是直接切换用户进程本身；</p>
+<p>    <code>swtch</code>期间是禁止进程使用除了进程锁以外的任何锁的。假设在一个单核处理器中一个进程使用了某个锁并进入了调度，另一个进程开始运行并且调用了同一个锁，造成死锁。<code>swtch</code>也会检查这个进程是否携带了除了进程锁之外的锁。</p>
+<p>    任何<code>main</code>函数在调用<code>return </code>之后，C语言保证了有<code>exit</code>会被调用，让这个进程真的释放资源。</p>
 <br>
 <br>
 <br>
@@ -711,20 +760,26 @@ locks). Replace the uses of sleep and wakeup in xv6 with semaphores. Judge the r
 </ol>
 </blockquote>
 
-			</div>
-			<hr class="post-end">
-			<footer class="post-info">
-				<p><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-file-text"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>7417 字</p>
-				<p><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-calendar"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>2022-07-23 16:09 -0400</p>
-			</footer>
-		</article>
-		<div class="post-nav thin">
-			<a class="prev-post" href="https://hoooao.github.io/os/chap6/">
-				<span class="post-nav-label">下一篇&nbsp;<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-arrow-right"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></span><br><span>Chap 6: 锁 Locking</span>
-			</a>
 		</div>
-		<div id="comments" class="thin">
-</div>
+		<aside id="toc">
+			<div class="toc-title">目录</div>
+			<nav id="TableOfContents">
+  <ul>
+    <li><a href="#目录">目录</a></li>
+    <li><a href="#导言">导言</a></li>
+    <li><a href="#71-上下文切换-code-context-switch">7.1 上下文切换 Code: Context switch</a></li>
+    <li><a href="#72-调度-scheduling">7.2 调度 Scheduling</a></li>
+    <li><a href="#73-函数-myproc-mycpu">7.3 函数 myproc(), mycpu()</a></li>
+    <li><a href="#74-睡眠和唤醒--sleep-and-wakeup">7.4 睡眠和唤醒  Sleep and wakeup</a></li>
+    <li><a href="#75-代码睡眠和唤醒-code-sleep-and-wakeup">7.5 代码：睡眠和唤醒 Code： Sleep and wakeup</a></li>
+    <li><a href="#76-代码管道-code-pipe">7.6 代码：管道 Code: Pipe</a></li>
+    <li><a href="#77-代码等待退出杀死-code-wait-exit-and-kill">7.7 代码：等待，退出，杀死 Code: Wait, exit, and kill</a></li>
+    <li><a href="#78-进程锁-process-lock">7.8 进程锁 Process Lock</a></li>
+    <li><a href="#79-补充-more">7.9 补充 More</a></li>
+    <li><a href="#710-练习-exercise">7.10 练习 Exercise</a></li>
+  </ul>
+</nav>
+		</aside>
 	</main>
 
 	<footer id="site-footer" class="section-inner thin animated fadeIn faster">

@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-hans">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta http-equiv="X-UA-Compatible" content="ie=edge">
+	<meta name="theme-color" content="#494f5c">
+	<meta name="msapplication-TileColor" content="#494f5c">
+<meta itemprop="name" content="Chap6: 贪心算法">
+<meta itemprop="description" content="目录  导言：  本章着重于贪心算法/思想的介绍和正确性证明。贪心算法不同于DP，没有具体的套路，这导致贪使用贪心思想解决问题可能导致大部分“贪心“都是没有正确性的，而有正确性的贪心又很难证明。
+ 6.1 区间问题  区间问题是贪心算法的一大类。虽然贪心没什么套路，但是可以尝试全照左右端点排序来实验。
+6.1.1 区间选点  需求：
+给定 $N$ 个闭区间 $[a_i,b_i]$，请你在数轴上选择尽量少的点，使得每个区间内至少包含一个选出的点。输出选择的点的最小数量。位于区间端点上的点也算作区间内。
+输入格式:
+第一行包含整数 $N$，表示区间数。
+接下来 $N$ 行，每行包含两个整数 $a_i,b_i$，表示一个区间的两个端点。
+输出格式： 输出一个整数，表示所需的点的最小数量。
+#define N 100010  //使用一个结构体储存一个区间，保存左右两个端点 struct Range{ int l,r; //重载运算符，供sort使用  bool operator&lt;(const Range &amp;w) const{ return r&lt;w.r; } //结构体数组 }range[N]; int main() { int n,m; scanf(&#34;%d&#34;,&amp;n); int l,r; //赋值  for (int i = 0; i &lt; n; i &#43;&#43; ){ scanf(&#34;%d%d&#34;, &amp;l, &amp;r); range[i]={l,r}; } //以右端点排序  sort(range,range&#43;n); //ed代表区间的右端点，初始化为最小值  int res=0,ed=-2e9; for (int i = 0; i &lt; n; i &#43;&#43; ){ //如果发现有某个区间的左端点比当前使用的右端点大  //说明这个右端点没有办法覆盖这个区间  if(range[i]."><meta itemprop="datePublished" content="2022-07-27T14:18:50-04:00" />
+<meta itemprop="dateModified" content="2022-07-27T14:18:50-04:00" />
+<meta itemprop="wordCount" content="273">
+<meta itemprop="keywords" content="" /><meta property="og:title" content="Chap6: 贪心算法" />
+<meta property="og:description" content="目录  导言：  本章着重于贪心算法/思想的介绍和正确性证明。贪心算法不同于DP，没有具体的套路，这导致贪使用贪心思想解决问题可能导致大部分“贪心“都是没有正确性的，而有正确性的贪心又很难证明。
+ 6.1 区间问题  区间问题是贪心算法的一大类。虽然贪心没什么套路，但是可以尝试全照左右端点排序来实验。
+6.1.1 区间选点  需求：
+给定 $N$ 个闭区间 $[a_i,b_i]$，请你在数轴上选择尽量少的点，使得每个区间内至少包含一个选出的点。输出选择的点的最小数量。位于区间端点上的点也算作区间内。
+输入格式:
+第一行包含整数 $N$，表示区间数。
+接下来 $N$ 行，每行包含两个整数 $a_i,b_i$，表示一个区间的两个端点。
+输出格式： 输出一个整数，表示所需的点的最小数量。
+#define N 100010  //使用一个结构体储存一个区间，保存左右两个端点 struct Range{ int l,r; //重载运算符，供sort使用  bool operator&lt;(const Range &amp;w) const{ return r&lt;w.r; } //结构体数组 }range[N]; int main() { int n,m; scanf(&#34;%d&#34;,&amp;n); int l,r; //赋值  for (int i = 0; i &lt; n; i &#43;&#43; ){ scanf(&#34;%d%d&#34;, &amp;l, &amp;r); range[i]={l,r}; } //以右端点排序  sort(range,range&#43;n); //ed代表区间的右端点，初始化为最小值  int res=0,ed=-2e9; for (int i = 0; i &lt; n; i &#43;&#43; ){ //如果发现有某个区间的左端点比当前使用的右端点大  //说明这个右端点没有办法覆盖这个区间  if(range[i]." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://hoooao.github.io/algo/chap6/" /><meta property="article:section" content="algo" />
+<meta property="article:published_time" content="2022-07-27T14:18:50-04:00" />
+<meta property="article:modified_time" content="2022-07-27T14:18:50-04:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Chap6: 贪心算法"/>
+<meta name="twitter:description" content="目录  导言：  本章着重于贪心算法/思想的介绍和正确性证明。贪心算法不同于DP，没有具体的套路，这导致贪使用贪心思想解决问题可能导致大部分“贪心“都是没有正确性的，而有正确性的贪心又很难证明。
+ 6.1 区间问题  区间问题是贪心算法的一大类。虽然贪心没什么套路，但是可以尝试全照左右端点排序来实验。
+6.1.1 区间选点  需求：
+给定 $N$ 个闭区间 $[a_i,b_i]$，请你在数轴上选择尽量少的点，使得每个区间内至少包含一个选出的点。输出选择的点的最小数量。位于区间端点上的点也算作区间内。
+输入格式:
+第一行包含整数 $N$，表示区间数。
+接下来 $N$ 行，每行包含两个整数 $a_i,b_i$，表示一个区间的两个端点。
+输出格式： 输出一个整数，表示所需的点的最小数量。
+#define N 100010  //使用一个结构体储存一个区间，保存左右两个端点 struct Range{ int l,r; //重载运算符，供sort使用  bool operator&lt;(const Range &amp;w) const{ return r&lt;w.r; } //结构体数组 }range[N]; int main() { int n,m; scanf(&#34;%d&#34;,&amp;n); int l,r; //赋值  for (int i = 0; i &lt; n; i &#43;&#43; ){ scanf(&#34;%d%d&#34;, &amp;l, &amp;r); range[i]={l,r}; } //以右端点排序  sort(range,range&#43;n); //ed代表区间的右端点，初始化为最小值  int res=0,ed=-2e9; for (int i = 0; i &lt; n; i &#43;&#43; ){ //如果发现有某个区间的左端点比当前使用的右端点大  //说明这个右端点没有办法覆盖这个区间  if(range[i]."/>
+
+	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+	<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+	<link rel="manifest" href="/site.webmanifest">
+	<link rel="mask-icon" href="/safari-pinned-tab.svg" color="">
+	<link rel="shortcut icon" href="/favicon.ico">
+
+	<title>Chap6: 贪心算法</title>
+	<link rel="stylesheet" href="https://hoooao.github.io/css/style.min.6b1219507aa24bcc2a46f4f7071edbc5dc448ba85934d68c4af0ca0a7ad89dcd.css" integrity="sha256-axIZUHqiS8wqRvT3Bx7bxdxEi6hZNNaMSvDKCnrYnc0=" crossorigin="anonymous">
+	<style>.bg-img {background-image: url('https://images.unsplash.com/photo-1531265726475-52ad60219627?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=2691&q=80');}</style>
+</head>
+
+<body id="page">
+	
+	<header id="site-header" class="animated slideInUp">
+		<div class="hdr-wrapper section-inner">
+			<div class="hdr-left">
+				<div class="site-branding">
+					<a href="https://hoooao.github.io/">Hao的个人博客</a>
+				</div>
+				<nav class="site-nav hide-in-mobile">
+					
+				<a href="https://hoooao.github.io/db/">Database</a>
+				<a href="https://hoooao.github.io/os/">Operating System</a>
+				<a href="https://hoooao.github.io/about-hugo/">About</a>
+
+				</nav>
+			</div>
+			<div class="hdr-right hdr-icons">
+				<span class="hdr-social hide-in-mobile"><a href="https://i.imgur.com/gzAPv6g.jpeg" target="_blank" rel="noopener me" title="Wechat"><svg xmlns="http://www.w3.org/2000/svg" class="feather" width="24" height="24" viewBox="0 0 1000 1000" fill="#c8cdd3" stroke="currentColor" stroke-width="30" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M487.4,340.2c25.2,0,42-16.9,42-42c0-25.4-16.8-41.9-42-41.9c-25.2,0-50.6,16.4-50.6,41.9C436.9,323.4,462.2,340.2,487.4,340.2z M252.2,256.4c-25.2,0-50.7,16.4-50.7,41.9c0,25.1,25.5,42,50.7,42c25.1,0,41.9-16.9,41.9-42C294.1,272.8,277.3,256.4,252.2,256.4z M990,609.2c0-132.9-123.3-246.1-274.6-257.9c0.2-1.7,0.3-3.4-0.1-5.1C684.9,204.7,532.8,98,361.4,98C167.6,98,10,233.1,10,399.1c0,89.1,45.5,169.3,131.7,232.6l-30,90.3c-1.9,5.9-0.2,12.3,4.5,16.4c2.8,2.4,6.4,3.7,10,3.7c2.3,0,4.7-0.6,6.9-1.6l112.8-56.4l13.9,2.8c34.7,7.1,64.7,13.3,101.6,13.3c10.9,0,21.9-0.5,32.7-1.4c4.4-0.4,8.1-2.6,10.6-5.8c40.7,101.8,152.8,175.2,284.7,175.2c33.8,0,68-8.1,98.7-15.8l86.9,47.5c2.3,1.3,4.8,1.9,7.3,1.9c3.4,0,6.9-1.2,9.6-3.4c4.8-3.9,6.8-10.4,5-16.3l-22.2-73.8C949.2,749.6,990,679.2,990,609.2z M391.5,668.4c-10,0.9-20.1,1.3-30.1,1.3c-33.8,0-62.4-5.8-95.5-12.7l-19.2-3.9c-3.3-0.7-6.8-0.2-9.8,1.3l-84.5,42.3l22-66c2.1-6.5-0.2-13.5-5.8-17.4C83.7,554.2,40.6,482.1,40.6,399.1c0-149.1,143.9-270.5,320.7-270.5c156.3,0,294.8,95.1,323.3,221.6c-163.9,2.1-296.6,117.4-296.6,258.9c0,20.6,3.1,40.5,8.4,59.7C394.9,668.5,393.2,668.2,391.5,668.4z M847.8,790.5c-5.1,3.9-7.3,10.5-5.5,16.6l14.5,48.2l-59.4-32.5c-2.3-1.3-4.8-1.9-7.4-1.9c-1.3,0-2.5,0.2-3.7,0.5c-31.9,8.1-64.9,16.4-97,16.4c-149.2,0-270.6-102.5-270.6-228.5c0-126,121.4-228.5,270.6-228.5c146.4,0,270,104.6,270,228.5C959.4,672,919.8,736.4,847.8,790.5z M596.7,500c-16.8,0-33.6,16.9-33.6,33.7c0,16.9,16.8,33.6,33.6,33.6c25.3,0,42-16.7,42-33.6C638.6,516.9,621.9,500,596.7,500z M781.4,500c-16.6,0-33.4,16.9-33.4,33.7c0,16.9,16.8,33.6,33.4,33.6c25.2,0,42.2-16.7,42.2-33.6C823.6,516.9,806.6,500,781.4,500z"></path>
+    </svg></a><a href="https://github.com/Hoooao" target="_blank" rel="noopener me" title="Github"><svg xmlns="http://www.w3.org/2000/svg" class="feather" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg></a></span><button id="menu-btn" class="hdr-btn" title="菜单"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-menu"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button>
+			</div>
+		</div>
+	</header>
+	<div id="mobile-menu" class="animated fast">
+		<ul>
+			<li><a href="https://hoooao.github.io/db/">Database</a></li>
+			<li><a href="https://hoooao.github.io/os/">Operating System</a></li>
+			<li><a href="https://hoooao.github.io/about-hugo/">About</a></li>
+		</ul>
+	</div>
+
+
+	<div class="bg-img"></div>
+	<main class="site-main section-inner thin animated fadeIn faster">
+		<h1>Chap6: 贪心算法</h1>
+		<div class="content">
+			<h2 id="目录">目录<a href="#目录" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<br>
+<hr>
+<br>
+<h2 id="导言">导言：<a href="#导言" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    本章着重于贪心算法/思想的介绍和正确性证明。贪心算法不同于DP，没有具体的套路，这导致贪使用贪心思想解决问题可能导致大部分“贪心“都是没有正确性的，而有正确性的贪心又很难证明。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="61-区间问题">6.1 区间问题<a href="#61-区间问题" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    区间问题是贪心算法的一大类。虽然贪心没什么套路，但是可以尝试全照左右端点排序来实验。</p>
+<br>
+<br>
+<h3 id="611-区间选点">6.1.1 区间选点<a href="#611-区间选点" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h3>
+<p>  需求：</p>
+<p>给定 $N$ 个闭区间 $[a_i,b_i]$，请你在数轴上选择尽量少的点，使得每个区间内至少包含一个选出的点。输出选择的点的最小数量。位于区间端点上的点也算作区间内。</p>
+<p>输入格式:</p>
+<p>第一行包含整数 $N$，表示区间数。</p>
+<p>接下来 $N$ 行，每行包含两个整数 $a_i,b_i$，表示一个区间的两个端点。</p>
+<p>输出格式：
+输出一个整数，表示所需的点的最小数量。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C++" data-lang="C++"><span class="line"><span class="cl"><span class="cp">#define N 100010
+</span></span></span><span class="line"><span class="cl"><span class="cp"></span>
+</span></span><span class="line"><span class="cl"><span class="c1">//使用一个结构体储存一个区间，保存左右两个端点
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">struct</span> <span class="nc">Range</span><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">l</span><span class="p">,</span><span class="n">r</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">//重载运算符，供sort使用
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="kt">bool</span> <span class="k">operator</span><span class="o">&lt;</span><span class="p">(</span><span class="k">const</span> <span class="n">Range</span> <span class="o">&amp;</span><span class="n">w</span><span class="p">)</span> <span class="k">const</span><span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="n">r</span><span class="o">&lt;</span><span class="n">w</span><span class="p">.</span><span class="n">r</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">//结构体数组
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span><span class="n">range</span><span class="p">[</span><span class="n">N</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kt">int</span> <span class="nf">main</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">n</span><span class="p">,</span><span class="n">m</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">scanf</span><span class="p">(</span><span class="s">&#34;%d&#34;</span><span class="p">,</span><span class="o">&amp;</span><span class="n">n</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">l</span><span class="p">,</span><span class="n">r</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">//赋值
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">;</span> <span class="n">i</span> <span class="o">++</span> <span class="p">){</span>
+</span></span><span class="line"><span class="cl">        <span class="n">scanf</span><span class="p">(</span><span class="s">&#34;%d%d&#34;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">l</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">r</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="n">range</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">=</span><span class="p">{</span><span class="n">l</span><span class="p">,</span><span class="n">r</span><span class="p">};</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">//以右端点排序
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">sort</span><span class="p">(</span><span class="n">range</span><span class="p">,</span><span class="n">range</span><span class="o">+</span><span class="n">n</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">//ed代表区间的右端点，初始化为最小值
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="kt">int</span> <span class="n">res</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span><span class="n">ed</span><span class="o">=-</span><span class="mf">2e9</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">;</span> <span class="n">i</span> <span class="o">++</span> <span class="p">){</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">//如果发现有某个区间的左端点比当前使用的右端点大
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="c1">//说明这个右端点没有办法覆盖这个区间
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="k">if</span><span class="p">(</span><span class="n">range</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">l</span><span class="o">&gt;</span><span class="n">ed</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">            <span class="n">res</span><span class="o">++</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">            <span class="c1">//更新右端点
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>            <span class="n">ed</span><span class="o">=</span><span class="n">range</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">r</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="n">printf</span><span class="p">(</span><span class="s">&#34;%d</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span><span class="n">res</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>    区间选点的主要思想就是：选择某一区间的<strong>右端点</strong>，比较这个右端点的值和其他区间的<strong>左端点</strong>。假如前者比后者大，说明后者所在的区间被前者所在的区间覆盖，反之则不覆盖。</p>
+<p>  正确性证明：
+    设正确答案为$Ans$，设贪心得到的结果为$cnt$。我们想求得$Ans=cnt$，可以通过$Ans\leq cnt$和$Ans \geq cnt$ 证得。</p>
+<p>    $Ans\leq cnt$: 由于这个算法在最糟的情况下也会为每个区间分配一个点，即无论如何该算法得到的结果一定可以把每个区间覆盖，即使点的数量不是最小。所以我们可以得到：$Ans\leq cnt$。</p>
+<p>    $Ans \geq cnt$：已知该算法看到当某个区间被另一个区间的右端点的时候，不会增加<code>res</code>，而只有在两个区间完全不重合的时候才会增加。假设被覆盖的区间从图中删除，那么最后我们可以得到这样一个图像：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/newCvtg.png alt="" style="width:100%; background: rgba(255, 255, 255, .5)">
+<figcaption><b>Fig.1 独立区间</b></figcaption>
+</div>
+</figure>
+<p>区间之间彼此不重合，为了让所有区间都被点覆盖，那么需要这些区间个数个点来覆盖它们（只能自己覆盖自己了）。该算法会取到这些区间的右端点来覆盖所有区间，而任何其他可以覆盖到所有区间的结果都会大于等于该算法得到的结果，所以$Ans \geq cnt$。</p>
+<br>
+<br>
+<h3 id="612-最大不相交区间数量">6.1.2 最大不相交区间数量<a href="#612-最大不相交区间数量" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h3>
+<p>  需求：</p>
+<p>  给定 N 个闭区间 $[a_i,b_i]$，请你在数轴上选择若干区间，使得选中的区间之间互不相交（包括端点）。输出可选取区间的最大数量。</p>
+<p>输入格式：</p>
+<p>  第一行包含整数 N，表示区间数。接下来 N 行，每行包含两个整数 $a_i,b_i$ ，表示一个区间的两个端点。</p>
+<p>输出格式：</p>
+<p>  输出一个整数，表示可选取区间的最大数量。</p>
+<p>    本体提议可以理解为一天的活动安排：在有限的时间中经可能多的规划活动。这道题的代码和上一道题完全一样。</p>
+<p>  正确性证明：</p>
+<p>    设正确答案为$Ans$ 为最大值，设贪心得到的结果为$cnt$。我们想求得$Ans=cnt$，可以通过$Ans\leq cnt$和$Ans \geq cnt$ 证得。</p>
+<p>    $Ans \geq cnt$：$cnt$ 得到的结果一定是一个合法的结论因为如上题中，每个点最终实际上依附在了 $cnt$个不相交的区间上，所以是一个可行的方案。而$Ans$是其中最大的可行方案，所以$Ans \geq cnt$。</p>
+<p>    $Ans\leq cnt$: 用反证法，假设$Ans &gt; cnt$，也就是说上题图中某两个区间内存在一个小区间被$Ans$ 考虑但是没有被 $cnt$ 考虑。此时发现矛盾：假如这个小区间存在，它会被独立地考虑为一个区间并导致<code>res++</code>。</p>
+<br>
+<br>
+<h3 id="613-区间分组">6.1.3 区间分组<a href="#613-区间分组" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h3>
+<p>  需求：</p>
+<p>给定 N 个闭区间 $[a_i,b_i]$，请你将这些区间分成若干组，使得每组内部的区间两两之间（包括端点）没有交集，并使得组数尽可能小。输出最小组数。</p>
+<p>输入格式：</p>
+<p>  第一行包含整数 N，表示区间数。接下来 N 行，每行包含两个整数 $a_i,b_i$，表示一个区间的两个端点。</p>
+<p>输出格式：</p>
+<p>  输出一个整数，表示最小组数。</p>
+<p>    思路：</p>
+<blockquote>
+<ol>
+<li>把所有区间按<strong>左端点</strong>排序；</li>
+<li>从前往后处理每个区间:
+判读是否能把它放到现存的某个区间的集合中，即 这个区间的左端点大于这个集合所有区间中最靠右的右端点（最后一个区间的右端点一定是最大的右端点因为一个集合内的所有区间不重合）
+1.如果不存在这样的集合，就开另一个新的集合并放入
+2.如果存在就放入并且更新最大右端点</li>
+</ol>
+</blockquote>
+<p>    正确性证明：仍然通过$Ans\leq cnt$和$Ans \geq cnt$ 证明。</p>
+<p>    $Ans\leq cnt$：这一思路的结果必然大于等于正确结果因为它保证了它得到的结果是合法的：每一个组内的区间都没有交集。</p>
+<p>    $Ans\geq cnt$：根据反正发假设$Ans &lt; cnt$。那么可知通过该算法得到的所有区间构成的这些集合中，有至少一个集合可以被分配到其他的集合中。这里观察到冲突：假如陈述为真，那么意味着该算法忽略了某种情况，把没有交集的区间分到了不同的集合，但这种情况不存在（即不存在超出上述两个情况的第三种）。</p>
+<p>补充代码：需要queue！！！！！</p>
+<br>
+<br>
+<h3 id="613-区间覆盖">6.1.3 区间覆盖<a href="#613-区间覆盖" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h3>
+<p>     假设一个人在时间区间$[S,F)$ 看电视，已知$n$ 个电视剧，每个占用时间区间$[s_i,f_i)$，完全覆盖了这一时间区间，求在完全占满时间区间$[S,F)$的同时，切换最少频道的数量。</p>
+<p>输入格式：
+     第一行包含两个整数 $s$ 和 $t$，表示给定线段区间的两个端点。第二行包含整数 $N$，表示给定区间数。接下来 $N$ 行，每行包含两个整数 $a_i,b_i$，表示一个区间的两个端点。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C++" data-lang="C++"><span class="line"><span class="cl"><span class="cp">#define N 1000010
+</span></span></span><span class="line"><span class="cl"><span class="cp"></span>
+</span></span><span class="line"><span class="cl"><span class="c1">//range[N]结构体数组不变
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl"><span class="kt">int</span> <span class="nf">main</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">s</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span><span class="n">t</span><span class="p">,</span><span class="n">n</span><span class="p">,</span><span class="n">res</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">bool</span> <span class="n">success</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">cin</span><span class="o">&gt;&gt;</span><span class="n">s</span><span class="o">&gt;&gt;</span><span class="n">t</span><span class="o">&gt;&gt;</span><span class="n">n</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">;</span> <span class="n">i</span> <span class="o">++</span> <span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="n">scanf</span><span class="p">(</span><span class="s">&#34;%d%d&#34;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">range</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">l</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">range</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">r</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="n">sort</span><span class="p">(</span><span class="n">range</span><span class="p">,</span><span class="n">range</span><span class="o">+</span><span class="n">n</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">;</span> <span class="n">i</span> <span class="o">++</span> <span class="p">){</span>
+</span></span><span class="line"><span class="cl">        <span class="kt">int</span> <span class="n">j</span><span class="o">=</span><span class="n">i</span><span class="p">,</span><span class="n">r</span><span class="o">=-</span><span class="mf">2e9</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">//当遇到第一个与当前区间不重合的区间则跳出while循环
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="k">while</span><span class="p">(</span><span class="n">j</span><span class="o">&lt;</span><span class="n">n</span><span class="o">&amp;&amp;</span><span class="n">range</span><span class="p">[</span><span class="n">j</span><span class="p">].</span><span class="n">l</span><span class="o">&lt;=</span><span class="n">s</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">            <span class="c1">//找到当前range[i]所覆盖到的区间中右端点最靠右的
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>            <span class="n">r</span><span class="o">=</span><span class="n">max</span><span class="p">(</span><span class="n">r</span><span class="p">,</span><span class="n">range</span><span class="p">[</span><span class="n">j</span><span class="p">].</span><span class="n">r</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">            <span class="n">j</span><span class="o">++</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">//这里说明第一个区间没有从0开始，则无法满足要求
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="k">if</span><span class="p">(</span><span class="n">r</span><span class="o">&lt;</span><span class="n">s</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">            <span class="n">res</span><span class="o">=-</span><span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">            <span class="k">break</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="n">res</span><span class="o">++</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">//超出限制证明整个区间已经被覆盖
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="k">if</span><span class="p">(</span><span class="n">r</span><span class="o">&gt;=</span><span class="n">t</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">            <span class="n">success</span><span class="o">=</span><span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">            <span class="k">break</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">//把选出的最靠右的端点当作下一轮的左端点
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="n">s</span><span class="o">=</span><span class="n">r</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">//上面导致while循环跳出的区间还会被再考虑一次
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="n">i</span><span class="o">=</span><span class="n">j</span><span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="o">!</span><span class="n">success</span><span class="p">)</span> <span class="n">res</span><span class="o">=-</span><span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="n">res</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>实质上每个区间最终只被考虑了一次，所以时间复杂度为$\mathcal{O}(n)$。</p>
+
+		</div>
+	</main>
+
+	<footer id="site-footer" class="section-inner thin animated fadeIn faster">
+		<p>&copy; 2022 <a href="https://hoooao.github.io/">Xiyu Hao</a> &#183; <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" rel="noopener">CC BY-NC 4.0</a></p>
+		<p>
+			Made with <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> &#183; Theme <a href="https://github.com/Track3/hermit" target="_blank" rel="noopener">Hermit</a> &#183; <a href="https://hoooao.github.io/posts/index.xml" target="_blank" title="rss"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-rss"><path d="M4 11a9 9 0 0 1 9 9"></path><path d="M4 4a16 16 0 0 1 16 16"></path><circle cx="5" cy="19" r="1"></circle></svg></a>
+		</p>
+	</footer>
+
+
+
+	<script src="https://hoooao.github.io/js/bundle.min.5a42c67b729ee2fa1059251688235399704707e04edb4e28c42c6f6dfa49d1d9.js" integrity="sha256-WkLGe3Ke4voQWSUWiCNTmXBHB+BO204oxCxvbfpJ0dk=" crossorigin="anonymous"></script>
+	
+
+</body>
+
+</html>

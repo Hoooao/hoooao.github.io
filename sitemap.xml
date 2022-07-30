@@ -2,19 +2,22 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
-    <loc>https://hoooao.github.io/os/chap7/</loc>
-    <lastmod>2022-07-23T16:09:15-04:00</lastmod>
+    <loc>https://hoooao.github.io/algo/</loc>
+    <lastmod>2022-07-27T14:18:50-04:00</lastmod>
+  </url><url>
+    <loc>https://hoooao.github.io/algo/chap6/</loc>
+    <lastmod>2022-07-27T14:18:50-04:00</lastmod>
   </url><url>
     <loc>https://hoooao.github.io/</loc>
+    <lastmod>2022-07-27T14:18:50-04:00</lastmod>
+  </url><url>
+    <loc>https://hoooao.github.io/os/chap7/</loc>
     <lastmod>2022-07-23T16:09:15-04:00</lastmod>
   </url><url>
     <loc>https://hoooao.github.io/os/</loc>
     <lastmod>2022-07-23T16:09:15-04:00</lastmod>
   </url><url>
-    <loc>https://hoooao.github.io/algo/</loc>
-    <lastmod>2022-07-22T16:06:12-04:00</lastmod>
-  </url><url>
-    <loc>https://hoooao.github.io/algo/chap2ds/</loc>
+    <loc>https://hoooao.github.io/algo/chap2/</loc>
     <lastmod>2022-07-22T16:06:12-04:00</lastmod>
   </url><url>
     <loc>https://hoooao.github.io/os/chap6/</loc>

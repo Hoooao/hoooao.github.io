@@ -7,14 +7,31 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>zh-hans</language>
     <copyright>This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.</copyright>
-    <lastBuildDate>Fri, 22 Jul 2022 16:06:12 -0400</lastBuildDate><atom:link href="https://hoooao.github.io/algo/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Wed, 27 Jul 2022 14:18:50 -0400</lastBuildDate><atom:link href="https://hoooao.github.io/algo/index.xml" rel="self" type="application/rss+xml" />
     <item>
-      <title>Chap2DS</title>
-      <link>https://hoooao.github.io/algo/chap2ds/</link>
+      <title>Chap6: 贪心算法</title>
+      <link>https://hoooao.github.io/algo/chap6/</link>
+      <pubDate>Wed, 27 Jul 2022 14:18:50 -0400</pubDate>
+      
+      <guid>https://hoooao.github.io/algo/chap6/</guid>
+      <description>目录  导言：  本章着重于贪心算法/思想的介绍和正确性证明。贪心算法不同于DP，没有具体的套路，这导致贪使用贪心思想解决问题可能导致大部分“贪心“都是没有正确性的，而有正确性的贪心又很难证明。
+ 6.1 区间问题  区间问题是贪心算法的一大类。虽然贪心没什么套路，但是可以尝试全照左右端点排序来实验。
+6.1.1 区间选点  需求：
+给定 $N$ 个闭区间 $[a_i,b_i]$，请你在数轴上选择尽量少的点，使得每个区间内至少包含一个选出的点。输出选择的点的最小数量。位于区间端点上的点也算作区间内。
+输入格式:
+第一行包含整数 $N$，表示区间数。
+接下来 $N$ 行，每行包含两个整数 $a_i,b_i$，表示一个区间的两个端点。
+输出格式： 输出一个整数，表示所需的点的最小数量。
+#define N 100010  //使用一个结构体储存一个区间，保存左右两个端点 struct Range{ int l,r; //重载运算符，供sort使用  bool operator&amp;lt;(const Range &amp;amp;w) const{ return r&amp;lt;w.r; } //结构体数组 }range[N]; int main() { int n,m; scanf(&amp;#34;%d&amp;#34;,&amp;amp;n); int l,r; //赋值  for (int i = 0; i &amp;lt; n; i ++ ){ scanf(&amp;#34;%d%d&amp;#34;, &amp;amp;l, &amp;amp;r); range[i]={l,r}; } //以右端点排序  sort(range,range+n); //ed代表区间的右端点，初始化为最小值  int res=0,ed=-2e9; for (int i = 0; i &amp;lt; n; i ++ ){ //如果发现有某个区间的左端点比当前使用的右端点大  //说明这个右端点没有办法覆盖这个区间  if(range[i].</description>
+    </item>
+    
+    <item>
+      <title>Chap2: 数据结构</title>
+      <link>https://hoooao.github.io/algo/chap2/</link>
       <pubDate>Fri, 22 Jul 2022 16:06:12 -0400</pubDate>
       
-      <guid>https://hoooao.github.io/algo/chap2ds/</guid>
-      <description>目录  导言：  本节主要介绍一些常用的数据结构的是实现，包括单链表，双链表，栈，队列，单调栈，单调队列，KMP，Trie，并查集，堆，哈希表等内容。注：数组模拟的数据结构比STL快
+      <guid>https://hoooao.github.io/algo/chap2/</guid>
+      <description>目录  导言：  本章主要介绍一些常用的数据结构的实现，包括单链表，双链表，栈，队列，单调栈，单调队列，KMP，Trie，并查集，堆，哈希表等内容。注：本章着重于数据结构模拟，即用数组模拟上述数据结构：数组模拟的数据结构比STL快。
  2.1 链表  链表的实现有两种，第一种是通过结构体保存当前节点的数据和指向下一个/上一节点的指针，第二种是通过数组模拟链表，即用多个数组分别代表第 idx 个节点的数据，上下节点（静态链表）。
 2.1.1 单链表  单链表只保存下一个节点的“指针”。模拟方式：通过一个数组记录节点的值（e），一个数组记录下一个节点的指针(ne)。
  Fig.1 DP   如上图所示，它代表着一个由数组模拟的链表。Head可以理解为一个角标，它的值是第一个节点的idx，形式上是“指向”头节点。头节点的值为10，idx为0，它的下一个节点的idx为1。第二个节点则指向idx为5的元素，后者是尾节点。连续的节点的idx不一定连续，因为可能存在删除的操作。在数组模拟中，删除的节点实际上是直接被其上一个节点的ne跳过了，但实际上仍然存在于这个数组之中。虽然会造成空间的浪费，但是当节点数据特别多的时候，数组模拟创建速度比创建struct快得多，且后者能做的事情前者全能做。

@@ -7,25 +7,42 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>zh-hans</language>
     <copyright>This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.</copyright>
-    <lastBuildDate>Sat, 23 Jul 2022 16:09:15 -0400</lastBuildDate><atom:link href="https://hoooao.github.io/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Wed, 27 Jul 2022 14:18:50 -0400</lastBuildDate><atom:link href="https://hoooao.github.io/index.xml" rel="self" type="application/rss+xml" />
     <item>
-      <title>Chap 7：调度 Scheduling</title>
+      <title>Chap6: 贪心算法</title>
+      <link>https://hoooao.github.io/algo/chap6/</link>
+      <pubDate>Wed, 27 Jul 2022 14:18:50 -0400</pubDate>
+      
+      <guid>https://hoooao.github.io/algo/chap6/</guid>
+      <description>目录  导言：  本章着重于贪心算法/思想的介绍和正确性证明。贪心算法不同于DP，没有具体的套路，这导致贪使用贪心思想解决问题可能导致大部分“贪心“都是没有正确性的，而有正确性的贪心又很难证明。
+ 6.1 区间问题  区间问题是贪心算法的一大类。虽然贪心没什么套路，但是可以尝试全照左右端点排序来实验。
+6.1.1 区间选点  需求：
+给定 $N$ 个闭区间 $[a_i,b_i]$，请你在数轴上选择尽量少的点，使得每个区间内至少包含一个选出的点。输出选择的点的最小数量。位于区间端点上的点也算作区间内。
+输入格式:
+第一行包含整数 $N$，表示区间数。
+接下来 $N$ 行，每行包含两个整数 $a_i,b_i$，表示一个区间的两个端点。
+输出格式： 输出一个整数，表示所需的点的最小数量。
+#define N 100010  //使用一个结构体储存一个区间，保存左右两个端点 struct Range{ int l,r; //重载运算符，供sort使用  bool operator&amp;lt;(const Range &amp;amp;w) const{ return r&amp;lt;w.r; } //结构体数组 }range[N]; int main() { int n,m; scanf(&amp;#34;%d&amp;#34;,&amp;amp;n); int l,r; //赋值  for (int i = 0; i &amp;lt; n; i ++ ){ scanf(&amp;#34;%d%d&amp;#34;, &amp;amp;l, &amp;amp;r); range[i]={l,r}; } //以右端点排序  sort(range,range+n); //ed代表区间的右端点，初始化为最小值  int res=0,ed=-2e9; for (int i = 0; i &amp;lt; n; i ++ ){ //如果发现有某个区间的左端点比当前使用的右端点大  //说明这个右端点没有办法覆盖这个区间  if(range[i].</description>
+    </item>
+    
+    <item>
+      <title>Chap 7: 调度 Scheduling</title>
       <link>https://hoooao.github.io/os/chap7/</link>
       <pubDate>Sat, 23 Jul 2022 16:09:15 -0400</pubDate>
       
       <guid>https://hoooao.github.io/os/chap7/</guid>
-      <description>目录   导言  7.1 上下文切换 Code: Context switch  7.2 调度 Scheduling  7.3 函数 myproc(), mycpu()  7.4 睡眠和唤醒 Sleep and wakeup  7.5 代码：睡眠和唤醒 Code： Sleep and wakeup  7.6 代码：管道 Code: Pipe  7.7 代码：等待，退出，杀死 Code: Wait, exit, and kill  7.8 进程锁 Process Lock  7.9 补充 More  7.10 练习 Exercise   导言：  OS希望在同时运行多个进程，除了使用多核处理器，CPU需要实现分时。在理想状态下，分时对于进程来说应当是透明的，也就是说进程不应当知道分时的进行，或者说，进程会认为自己独享一个CPU。这被叫做将进程多路复用（Multiplexing） 在CPU上。
+      <description>目录   导言  7.1 上下文切换 Code: Context switch  7.2 调度 Scheduling  7.3 函数 myproc(), mycpu()  7.4 睡眠和唤醒 Sleep and wakeup  7.5 代码：睡眠和唤醒 Code： Sleep and wakeup  7.6 代码：管道 Code: Pipe  7.7 代码：等待，退出，杀死 Code: Wait, exit, and kill  7.8 进程锁 Process Lock  7.9 补充 More  7.10 练习 Exercise   导言  OS希望在同时运行多个进程，除了使用多核处理器，CPU需要实现分时。在理想状态下，分时对于进程来说应当是透明的，也就是说进程不应当知道分时的进行，或者说，进程会认为自己独享一个CPU。这被叫做将进程多路复用（Multiplexing） 在CPU上。
  xv6通过让CPU在不同的进程之间切换实现多路复用。这种进程切换主要体现在两种情形之下:
    一个进程调用了sleep让另一个进程开始运行，或者一个进程调用了wakeup让另一个睡眠的进程继续运行（7.5）。</description>
     </item>
     
     <item>
-      <title>Chap2DS</title>
-      <link>https://hoooao.github.io/algo/chap2ds/</link>
+      <title>Chap2: 数据结构</title>
+      <link>https://hoooao.github.io/algo/chap2/</link>
       <pubDate>Fri, 22 Jul 2022 16:06:12 -0400</pubDate>
       
-      <guid>https://hoooao.github.io/algo/chap2ds/</guid>
-      <description>目录  导言：  本节主要介绍一些常用的数据结构的是实现，包括单链表，双链表，栈，队列，单调栈，单调队列，KMP，Trie，并查集，堆，哈希表等内容。注：数组模拟的数据结构比STL快
+      <guid>https://hoooao.github.io/algo/chap2/</guid>
+      <description>目录  导言：  本章主要介绍一些常用的数据结构的实现，包括单链表，双链表，栈，队列，单调栈，单调队列，KMP，Trie，并查集，堆，哈希表等内容。注：本章着重于数据结构模拟，即用数组模拟上述数据结构：数组模拟的数据结构比STL快。
  2.1 链表  链表的实现有两种，第一种是通过结构体保存当前节点的数据和指向下一个/上一节点的指针，第二种是通过数组模拟链表，即用多个数组分别代表第 idx 个节点的数据，上下节点（静态链表）。
 2.1.1 单链表  单链表只保存下一个节点的“指针”。模拟方式：通过一个数组记录节点的值（e），一个数组记录下一个节点的指针(ne)。
  Fig.1 DP   如上图所示，它代表着一个由数组模拟的链表。Head可以理解为一个角标，它的值是第一个节点的idx，形式上是“指向”头节点。头节点的值为10，idx为0，它的下一个节点的idx为1。第二个节点则指向idx为5的元素，后者是尾节点。连续的节点的idx不一定连续，因为可能存在删除的操作。在数组模拟中，删除的节点实际上是直接被其上一个节点的ne跳过了，但实际上仍然存在于这个数组之中。虽然会造成空间的浪费，但是当节点数据特别多的时候，数组模拟创建速度比创建struct快得多，且后者能做的事情前者全能做。
@@ -117,15 +134,6 @@ Exception：当一条指令做了非法的事情，进程会被杀死
  3.1 分页硬件 Paging hardware  在计算机中虚拟内存（VM：Virtual memory） 的实现是由硬件支持的，这个硬件通常被叫做内存管理单元（MMU：Memory management unit）。CPU的指令通常使用VM：当它使用某一个VA的时候，MMU会把这个VA翻译成PA，然后执行这个PA里的指令或者读取/写入这个PA里的内容。
  但是在xv6中，我们使用的是qemu的虚拟机：MMU被抽象成了一个定义在kernel/vm.c中的walk()函数。这个函数的行为与MMU类似。
  Fig.1 CPU，MMU，DRAM[1]    xv6跑在Sv39 RISC-V处理器上（虚拟机），这个处理器指使用64bits VA中的后39位。其中前27位用来作为分页表项（PTE：Page table entries）的索引（Index），所以一个PT最多可以有2^27个PTE。而后12位被用来当做偏移量（剩余的bits用来为未来可能的硬件升级做准备）。每个有效的PTE包含一个44bits的PPN：Physical page number和10bits的各种用来限定这个页的权限bits。</description>
-    </item>
-    
-    <item>
-      <title>About Me</title>
-      <link>https://hoooao.github.io/about-hugo/</link>
-      <pubDate>Fri, 10 Jun 2022 00:00:00 +0000</pubDate>
-      
-      <guid>https://hoooao.github.io/about-hugo/</guid>
-      <description>关于  联系方式：  微信 GitHub 邮箱:xh2187@nyu.edu   Contact Info  WeChat GitHub E-mail:xh2187@nyu.edu  本网站托管于GitHub，是使用Hugo搭建的静态网页。</description>
     </item>
     
   </channel>
