@@ -7,7 +7,31 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>zh-hans</language>
     <copyright>This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.</copyright>
-    <lastBuildDate>Sat, 23 Jul 2022 16:09:15 -0400</lastBuildDate><atom:link href="https://hoooao.github.io/os/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Sat, 30 Jul 2022 21:51:42 -0400</lastBuildDate><atom:link href="https://hoooao.github.io/os/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Chap 8: 文件系统 File system</title>
+      <link>https://hoooao.github.io/os/chap8/</link>
+      <pubDate>Sat, 30 Jul 2022 21:51:42 -0400</pubDate>
+      
+      <guid>https://hoooao.github.io/os/chap8/</guid>
+      <description>目录  导言：  一个文件系统的目的是储存和组织数据，把这些数据供给与多个进程和用户，同时也要保证重启后数据的保留。 创建一个文件系统有几个难点：
+   文件系统需要有一个在磁盘上的树类结构去储存文件目录和文件本身。并且也要知道哪些磁盘块（block/sector）是被占用的，哪些是可以使用的。
+  文件系统必须有崩溃修复机制。也就是说在崩溃发生，比如断电，重启后，文件系统必须正常工作。不然可能造成类似并行错误的发生。
+  不同的进程可能会同时去访问一个文件，所以需要保证并发时文件系统也能正常运行。
+  从磁盘中获取数据很慢，所以文件系统必须在内存中有对部分常用的磁盘内容缓存。
+   本章解释xv6是如何解决这些困难的。
+ 8.1 概述 Overview  xv6的文件系统有7层:
+ Fig.1 xv6文件系统分层   从下至上分别是：
+   磁盘层（Disk）：对磁盘直接的读写。xv6中使用的磁盘是Qemu提供的虚拟硬盘（Virtio hard drive）。
+  缓存缓冲层（Buffer cache）：这一层维护着一个数组，数组中的元素是对磁盘中某些操作部分的内容复制。用来保证并发正常和支持缓存减少磁盘访问次数。
+  日志（Logging）：对一系列磁盘的操作的记录。把多个操作一次性传递给磁盘，减少了磁盘的访问的同时保证了行为的原子化。最重要的是帮助在系统崩溃后的数据恢复和文件系统正常。
+  Inode（Index node）：实际上就是文件本身。它是一种数据结构，每个inode保存着一个文件相关的信息。文件本身的内容并不存放在inode中。
+  目录（Directory）：是一种特殊的inode，其内容是一系列的目录元素，每个元素包含着一个文件名和inode-number，即i-number，用来识别特定的inode。
+  路径（Pathname）：即文件路径。
+  文件描述符（File descriptor）：是对文件，设备，以及管道等资源的抽象。提供接口来操作这些资源。
+    数据的最小单位时bit，但是对于磁盘的每次读写的最小单位是 512Bytes，也称之为 “一块（Block/sector）”。这里的block和操作系统中的block的大小可能并不总是相等，但是后者通常是前者的整数倍。它们在磁盘上连续排列：sector0, sector1&amp;hellip;。xv6保存着一部分block的复制，这些“复制品”被保存在独立的buf结构体中。这些复制品有的时候可能和磁盘上的本体的数据是不一样，也就是“不同步”。比如可能因为磁盘工作于本体block，而OS还没有读取；更常见的情况是OS对复制品进行了修改，但是还没更新本体来同步。</description>
+    </item>
+    
     <item>
       <title>Chap 7: 调度 Scheduling</title>
       <link>https://hoooao.github.io/os/chap7/</link>

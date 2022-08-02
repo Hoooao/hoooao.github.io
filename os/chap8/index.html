@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+<html lang="zh-hans">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta http-equiv="X-UA-Compatible" content="ie=edge">
+	<meta name="theme-color" content="#494f5c">
+	<meta name="msapplication-TileColor" content="#494f5c">
+<meta itemprop="name" content="Chap 8: 文件系统 File system">
+<meta itemprop="description" content="目录  导言：  一个文件系统的目的是储存和组织数据，把这些数据供给与多个进程和用户，同时也要保证重启后数据的保留。 创建一个文件系统有几个难点：
+   文件系统需要有一个在磁盘上的树类结构去储存文件目录和文件本身。并且也要知道哪些磁盘块（block/sector）是被占用的，哪些是可以使用的。
+  文件系统必须有崩溃修复机制。也就是说在崩溃发生，比如断电，重启后，文件系统必须正常工作。不然可能造成类似并行错误的发生。
+  不同的进程可能会同时去访问一个文件，所以需要保证并发时文件系统也能正常运行。
+  从磁盘中获取数据很慢，所以文件系统必须在内存中有对部分常用的磁盘内容缓存。
+   本章解释xv6是如何解决这些困难的。
+ 8.1 概述 Overview  xv6的文件系统有7层:
+ Fig.1 xv6文件系统分层   从下至上分别是：
+   磁盘层（Disk）：对磁盘直接的读写。xv6中使用的磁盘是Qemu提供的虚拟硬盘（Virtio hard drive）。
+  缓存缓冲层（Buffer cache）：这一层维护着一个数组，数组中的元素是对磁盘中某些操作部分的内容复制。用来保证并发正常和支持缓存减少磁盘访问次数。
+  日志（Logging）：对一系列磁盘的操作的记录。把多个操作一次性传递给磁盘，减少了磁盘的访问的同时保证了行为的原子化。最重要的是帮助在系统崩溃后的数据恢复和文件系统正常。
+  Inode（Index node）：实际上就是文件本身。它是一种数据结构，每个inode保存着一个文件相关的信息。文件本身的内容并不存放在inode中。
+  目录（Directory）：是一种特殊的inode，其内容是一系列的目录元素，每个元素包含着一个文件名和inode-number，即i-number，用来识别特定的inode。
+  路径（Pathname）：即文件路径。
+  文件描述符（File descriptor）：是对文件，设备，以及管道等资源的抽象。提供接口来操作这些资源。
+    数据的最小单位时bit，但是对于磁盘的每次读写的最小单位是 512Bytes，也称之为 “一块（Block/sector）”。这里的block和操作系统中的block的大小可能并不总是相等，但是后者通常是前者的整数倍。它们在磁盘上连续排列：sector0, sector1&hellip;。xv6保存着一部分block的复制，这些“复制品”被保存在独立的buf结构体中。这些复制品有的时候可能和磁盘上的本体的数据是不一样，也就是“不同步”。比如可能因为磁盘工作于本体block，而OS还没有读取；更常见的情况是OS对复制品进行了修改，但是还没更新本体来同步。"><meta itemprop="datePublished" content="2022-07-30T21:51:42-04:00" />
+<meta itemprop="dateModified" content="2022-07-30T21:51:42-04:00" />
+<meta itemprop="wordCount" content="2401">
+<meta itemprop="keywords" content="" /><meta property="og:title" content="Chap 8: 文件系统 File system" />
+<meta property="og:description" content="目录  导言：  一个文件系统的目的是储存和组织数据，把这些数据供给与多个进程和用户，同时也要保证重启后数据的保留。 创建一个文件系统有几个难点：
+   文件系统需要有一个在磁盘上的树类结构去储存文件目录和文件本身。并且也要知道哪些磁盘块（block/sector）是被占用的，哪些是可以使用的。
+  文件系统必须有崩溃修复机制。也就是说在崩溃发生，比如断电，重启后，文件系统必须正常工作。不然可能造成类似并行错误的发生。
+  不同的进程可能会同时去访问一个文件，所以需要保证并发时文件系统也能正常运行。
+  从磁盘中获取数据很慢，所以文件系统必须在内存中有对部分常用的磁盘内容缓存。
+   本章解释xv6是如何解决这些困难的。
+ 8.1 概述 Overview  xv6的文件系统有7层:
+ Fig.1 xv6文件系统分层   从下至上分别是：
+   磁盘层（Disk）：对磁盘直接的读写。xv6中使用的磁盘是Qemu提供的虚拟硬盘（Virtio hard drive）。
+  缓存缓冲层（Buffer cache）：这一层维护着一个数组，数组中的元素是对磁盘中某些操作部分的内容复制。用来保证并发正常和支持缓存减少磁盘访问次数。
+  日志（Logging）：对一系列磁盘的操作的记录。把多个操作一次性传递给磁盘，减少了磁盘的访问的同时保证了行为的原子化。最重要的是帮助在系统崩溃后的数据恢复和文件系统正常。
+  Inode（Index node）：实际上就是文件本身。它是一种数据结构，每个inode保存着一个文件相关的信息。文件本身的内容并不存放在inode中。
+  目录（Directory）：是一种特殊的inode，其内容是一系列的目录元素，每个元素包含着一个文件名和inode-number，即i-number，用来识别特定的inode。
+  路径（Pathname）：即文件路径。
+  文件描述符（File descriptor）：是对文件，设备，以及管道等资源的抽象。提供接口来操作这些资源。
+    数据的最小单位时bit，但是对于磁盘的每次读写的最小单位是 512Bytes，也称之为 “一块（Block/sector）”。这里的block和操作系统中的block的大小可能并不总是相等，但是后者通常是前者的整数倍。它们在磁盘上连续排列：sector0, sector1&hellip;。xv6保存着一部分block的复制，这些“复制品”被保存在独立的buf结构体中。这些复制品有的时候可能和磁盘上的本体的数据是不一样，也就是“不同步”。比如可能因为磁盘工作于本体block，而OS还没有读取；更常见的情况是OS对复制品进行了修改，但是还没更新本体来同步。" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://hoooao.github.io/os/chap8/" /><meta property="article:section" content="os" />
+<meta property="article:published_time" content="2022-07-30T21:51:42-04:00" />
+<meta property="article:modified_time" content="2022-07-30T21:51:42-04:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Chap 8: 文件系统 File system"/>
+<meta name="twitter:description" content="目录  导言：  一个文件系统的目的是储存和组织数据，把这些数据供给与多个进程和用户，同时也要保证重启后数据的保留。 创建一个文件系统有几个难点：
+   文件系统需要有一个在磁盘上的树类结构去储存文件目录和文件本身。并且也要知道哪些磁盘块（block/sector）是被占用的，哪些是可以使用的。
+  文件系统必须有崩溃修复机制。也就是说在崩溃发生，比如断电，重启后，文件系统必须正常工作。不然可能造成类似并行错误的发生。
+  不同的进程可能会同时去访问一个文件，所以需要保证并发时文件系统也能正常运行。
+  从磁盘中获取数据很慢，所以文件系统必须在内存中有对部分常用的磁盘内容缓存。
+   本章解释xv6是如何解决这些困难的。
+ 8.1 概述 Overview  xv6的文件系统有7层:
+ Fig.1 xv6文件系统分层   从下至上分别是：
+   磁盘层（Disk）：对磁盘直接的读写。xv6中使用的磁盘是Qemu提供的虚拟硬盘（Virtio hard drive）。
+  缓存缓冲层（Buffer cache）：这一层维护着一个数组，数组中的元素是对磁盘中某些操作部分的内容复制。用来保证并发正常和支持缓存减少磁盘访问次数。
+  日志（Logging）：对一系列磁盘的操作的记录。把多个操作一次性传递给磁盘，减少了磁盘的访问的同时保证了行为的原子化。最重要的是帮助在系统崩溃后的数据恢复和文件系统正常。
+  Inode（Index node）：实际上就是文件本身。它是一种数据结构，每个inode保存着一个文件相关的信息。文件本身的内容并不存放在inode中。
+  目录（Directory）：是一种特殊的inode，其内容是一系列的目录元素，每个元素包含着一个文件名和inode-number，即i-number，用来识别特定的inode。
+  路径（Pathname）：即文件路径。
+  文件描述符（File descriptor）：是对文件，设备，以及管道等资源的抽象。提供接口来操作这些资源。
+    数据的最小单位时bit，但是对于磁盘的每次读写的最小单位是 512Bytes，也称之为 “一块（Block/sector）”。这里的block和操作系统中的block的大小可能并不总是相等，但是后者通常是前者的整数倍。它们在磁盘上连续排列：sector0, sector1&hellip;。xv6保存着一部分block的复制，这些“复制品”被保存在独立的buf结构体中。这些复制品有的时候可能和磁盘上的本体的数据是不一样，也就是“不同步”。比如可能因为磁盘工作于本体block，而OS还没有读取；更常见的情况是OS对复制品进行了修改，但是还没更新本体来同步。"/>
+
+	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+	<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+	<link rel="manifest" href="/site.webmanifest">
+	<link rel="mask-icon" href="/safari-pinned-tab.svg" color="">
+	<link rel="shortcut icon" href="/favicon.ico">
+
+	<title>Chap 8: 文件系统 File system</title>
+	<link rel="stylesheet" href="https://hoooao.github.io/css/style.min.6b1219507aa24bcc2a46f4f7071edbc5dc448ba85934d68c4af0ca0a7ad89dcd.css" integrity="sha256-axIZUHqiS8wqRvT3Bx7bxdxEi6hZNNaMSvDKCnrYnc0=" crossorigin="anonymous">
+	<style>.bg-img {background-image: url('https://images.unsplash.com/photo-1531265726475-52ad60219627?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=2691&q=80');}</style>
+</head>
+
+<body id="page">
+	
+	<header id="site-header" class="animated slideInUp">
+		<script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML" type="text/javascript"></script>
+		<script type="text/x-mathjax-config">
+			MathJax.Hub.Config({
+				tex2jax: {
+				skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+				inlineMath: [['$','$']]
+				}
+			});
+		</script>
+		<div class="hdr-wrapper section-inner">
+			<div class="hdr-left">
+				<div class="site-branding">
+					<a href="https://hoooao.github.io/">Hao的个人博客</a>
+				</div>
+				<nav class="site-nav hide-in-mobile">
+					
+				<a href="https://hoooao.github.io/db/">Database</a>
+				<a href="https://hoooao.github.io/os/">Operating System</a>
+				<a href="https://hoooao.github.io/about-hugo/">About</a>
+
+				</nav>
+			</div>
+			<div class="hdr-right hdr-icons">
+				<button id="toc-btn" class="hdr-btn desktop-only-ib" title='目录'><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-list"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3" y2="6"></line><line x1="3" y1="12" x2="3" y2="12"></line><line x1="3" y1="18" x2="3" y2="18"></line></svg></button><span class="hdr-social hide-in-mobile"><a href="https://i.imgur.com/gzAPv6g.jpeg" target="_blank" rel="noopener me" title="Wechat"><svg xmlns="http://www.w3.org/2000/svg" class="feather" width="24" height="24" viewBox="0 0 1000 1000" fill="#c8cdd3" stroke="currentColor" stroke-width="30" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M487.4,340.2c25.2,0,42-16.9,42-42c0-25.4-16.8-41.9-42-41.9c-25.2,0-50.6,16.4-50.6,41.9C436.9,323.4,462.2,340.2,487.4,340.2z M252.2,256.4c-25.2,0-50.7,16.4-50.7,41.9c0,25.1,25.5,42,50.7,42c25.1,0,41.9-16.9,41.9-42C294.1,272.8,277.3,256.4,252.2,256.4z M990,609.2c0-132.9-123.3-246.1-274.6-257.9c0.2-1.7,0.3-3.4-0.1-5.1C684.9,204.7,532.8,98,361.4,98C167.6,98,10,233.1,10,399.1c0,89.1,45.5,169.3,131.7,232.6l-30,90.3c-1.9,5.9-0.2,12.3,4.5,16.4c2.8,2.4,6.4,3.7,10,3.7c2.3,0,4.7-0.6,6.9-1.6l112.8-56.4l13.9,2.8c34.7,7.1,64.7,13.3,101.6,13.3c10.9,0,21.9-0.5,32.7-1.4c4.4-0.4,8.1-2.6,10.6-5.8c40.7,101.8,152.8,175.2,284.7,175.2c33.8,0,68-8.1,98.7-15.8l86.9,47.5c2.3,1.3,4.8,1.9,7.3,1.9c3.4,0,6.9-1.2,9.6-3.4c4.8-3.9,6.8-10.4,5-16.3l-22.2-73.8C949.2,749.6,990,679.2,990,609.2z M391.5,668.4c-10,0.9-20.1,1.3-30.1,1.3c-33.8,0-62.4-5.8-95.5-12.7l-19.2-3.9c-3.3-0.7-6.8-0.2-9.8,1.3l-84.5,42.3l22-66c2.1-6.5-0.2-13.5-5.8-17.4C83.7,554.2,40.6,482.1,40.6,399.1c0-149.1,143.9-270.5,320.7-270.5c156.3,0,294.8,95.1,323.3,221.6c-163.9,2.1-296.6,117.4-296.6,258.9c0,20.6,3.1,40.5,8.4,59.7C394.9,668.5,393.2,668.2,391.5,668.4z M847.8,790.5c-5.1,3.9-7.3,10.5-5.5,16.6l14.5,48.2l-59.4-32.5c-2.3-1.3-4.8-1.9-7.4-1.9c-1.3,0-2.5,0.2-3.7,0.5c-31.9,8.1-64.9,16.4-97,16.4c-149.2,0-270.6-102.5-270.6-228.5c0-126,121.4-228.5,270.6-228.5c146.4,0,270,104.6,270,228.5C959.4,672,919.8,736.4,847.8,790.5z M596.7,500c-16.8,0-33.6,16.9-33.6,33.7c0,16.9,16.8,33.6,33.6,33.6c25.3,0,42-16.7,42-33.6C638.6,516.9,621.9,500,596.7,500z M781.4,500c-16.6,0-33.4,16.9-33.4,33.7c0,16.9,16.8,33.6,33.4,33.6c25.2,0,42.2-16.7,42.2-33.6C823.6,516.9,806.6,500,781.4,500z"></path>
+    </svg></a><a href="https://github.com/Hoooao" target="_blank" rel="noopener me" title="Github"><svg xmlns="http://www.w3.org/2000/svg" class="feather" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg></a></span><button id="menu-btn" class="hdr-btn" title="菜单"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-menu"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button>
+			</div>
+		</div>
+	</header>
+	<div id="mobile-menu" class="animated fast">
+		<ul>
+			<li><a href="https://hoooao.github.io/db/">Database</a></li>
+			<li><a href="https://hoooao.github.io/os/">Operating System</a></li>
+			<li><a href="https://hoooao.github.io/about-hugo/">About</a></li>
+		</ul>
+	</div>
+
+
+	<div class="bg-img"></div>
+	<main class="site-main section-inner thin animated fadeIn faster">
+		<h1>Chap 8: 文件系统 File system</h1>
+		<div class="content">
+			<h2 id="目录">目录<a href="#目录" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<br>
+<hr>
+<br>
+<h2 id="导言">导言：<a href="#导言" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    一个文件系统的目的是储存和组织数据，把这些数据供给与多个进程和用户，同时也要保证重启后数据的保留。
+    创建一个文件系统有几个难点：</p>
+<blockquote>
+<ol>
+<li>
+<p>文件系统需要有一个在磁盘上的树类结构去储存文件目录和文件本身。并且也要知道哪些磁盘块（block/sector）是被占用的，哪些是可以使用的。</p>
+</li>
+<li>
+<p>文件系统必须有崩溃修复机制。也就是说在崩溃发生，比如断电，重启后，文件系统必须正常工作。不然可能造成类似并行错误的发生。</p>
+</li>
+<li>
+<p>不同的进程可能会同时去访问一个文件，所以需要保证并发时文件系统也能正常运行。</p>
+</li>
+<li>
+<p>从磁盘中获取数据很慢，所以文件系统必须在内存中有对部分常用的磁盘内容缓存。</p>
+</li>
+</ol>
+</blockquote>
+<p>本章解释xv6是如何解决这些困难的。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="81-概述-overview">8.1 概述 Overview<a href="#81-概述-overview" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    xv6的文件系统有7层:</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/pFqpCf9.png" alt="" style="width:100%; background: rgba(255, 255, 255, .5)">
+<figcaption><b>Fig.1 xv6文件系统分层</b></figcaption>
+</div>
+</figure>
+<p>从下至上分别是：</p>
+<blockquote>
+<ol>
+<li>
+<p><strong>磁盘层（Disk）</strong>：对磁盘直接的读写。xv6中使用的磁盘是Qemu提供的<strong>虚拟硬盘（Virtio hard drive）</strong>。</p>
+</li>
+<li>
+<p><strong>缓存缓冲层（Buffer cache）</strong>：这一层维护着一个数组，数组中的元素是对磁盘中某些操作部分的内容复制。用来保证并发正常和支持缓存减少磁盘访问次数。</p>
+</li>
+<li>
+<p><strong>日志（Logging）</strong>：对一系列磁盘的操作的记录。把多个操作一次性传递给磁盘，减少了磁盘的访问的同时保证了行为的原子化。最重要的是帮助在系统崩溃后的数据恢复和文件系统正常。</p>
+</li>
+<li>
+<p><strong>Inode（Index node）</strong>：实际上就是文件本身。它是一种数据结构，每个inode保存着一个文件相关的信息。文件本身的内容并不存放在inode中。</p>
+</li>
+<li>
+<p><strong>目录（Directory）</strong>：是一种特殊的inode，其内容是一系列的目录元素，每个元素包含着一个文件名和inode-number，即i-number，用来识别特定的inode。</p>
+</li>
+<li>
+<p><strong>路径（Pathname）</strong>：即文件路径。</p>
+</li>
+<li>
+<p><strong>文件描述符（File descriptor）</strong>：是对文件，设备，以及管道等资源的抽象。提供接口来操作这些资源。</p>
+</li>
+</ol>
+</blockquote>
+<p>    数据的最小单位时bit，但是对于磁盘的每次读写的最小单位是 <code>512Bytes</code>，也称之为 “一<strong>块（Block/sector）</strong>”。这里的block和操作系统中的block的大小可能并不总是相等，但是后者通常是前者的整数倍。它们在磁盘上连续排列：sector0, sector1&hellip;。xv6保存着一部分block的复制，这些“复制品”被保存在独立的<code>buf</code>结构体中。这些复制品有的时候可能和磁盘上的本体的数据是不一样，也就是“不同步”。比如可能因为磁盘工作于本体block，而OS还没有读取；更常见的情况是OS对复制品进行了修改，但是还没更新本体来同步。</p>
+<p>    文件系统必须良好的组织不同的东西，比如如何储存inode和inode/文件的内容本身。xv6中，磁盘被分成了多个部分</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/2PiH0tb.png" alt="" style="width:100%; background: rgba(255, 255, 255, .5)">
+<figcaption><b>Fig.2 磁盘结构</b></figcaption>
+</div>
+</figure>
+<p>section0是<strong>boot</strong>，储存着开机所需的内容比如一些代码，这部分文件系统不会使用。section1储存着<strong>Superblock</strong>，它是关于这个文件系统的元数据，比如文件系统大小，block的数量，文件的数量，和log中所储存的block的数量。section2和后面的一些储存<strong>log</strong>。之后是inode，也就是文件（的元数据）。之后是<strong>bitmap</strong>(xv6中只占1个block)，它追踪每个block正在被使用或者可以被使用。后面的便是真正的数据<strong>block</strong>了。接下来每一节介绍一层文件系统。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="82-缓存缓冲层-buffer-cache-layer">8.2 缓存缓冲层 Buffer cache layer<a href="#82-缓存缓冲层-buffer-cache-layer" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    这一层的代码放在<code>bio.c</code>中。它主要有两个作用：1.确保一个时刻只能有一个进程访问某个block，保证并发正确 2.缓存常用的block，减少磁盘访问。它维护着一个结构体<code>bcache</code>，这个结构体中有一个数组<code>buf</code>，储存着<code>buf</code>类型的结构体。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="k">struct</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">spinlock</span> <span class="n">lock</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">buf</span> <span class="n">buf</span><span class="p">[</span><span class="n">NBUF</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="c1">// Linked list of all buffers, through prev/next.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="c1">// Sorted by how recently the buffer was used.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="c1">// head.next is most recent, head.prev is least.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">struct</span> <span class="n">buf</span> <span class="n">head</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span> <span class="n">bcache</span><span class="p">;</span>
+</span></span></code></pre></div><p>每个buf结构体都代表着一个从磁盘中读取的block。最重要的函数时<code>bread</code>和<code>bwrite</code>。前者会从磁盘中读取一个block放入结构体，然后返回这个结构体（上持有睡眠锁）。后者把buf结构体写回磁盘。同时还有函数<code>brelse</code>，每当一个进程使用完了一个buf之后，都需要调用它来释放这个buf的睡眠锁。在缓冲缓存层，每个buf都有一个属于自己的睡眠锁，这使得每次只能有一个进程使用这个buf。由于<code>bcache</code>的长度是有限的，每当使用完全部的槽位之后而又有新的block需要被复制进来，那么就需要重新利用某些槽位。原则是，舍弃<strong>最近最少使用（LRU：Least recently used）</strong> 的buf的草味，因为通常假设LRU位置上的是最不可能再次被使用的block。</p>
+<h2 id="83-代码缓存缓冲-buffer-cache">8.3 代码：缓存缓冲 Buffer cache<a href="#83-代码缓存缓冲-buffer-cache" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    每个buf可以被看作bcache中维护的那个数组的节点：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="k">struct</span> <span class="n">buf</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">valid</span><span class="p">;</span>   <span class="c1">// has data been read from disk?
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="kt">int</span> <span class="n">disk</span><span class="p">;</span>    <span class="c1">// does disk &#34;own&#34; buf?
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">uint</span> <span class="n">dev</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="n">uint</span> <span class="n">blockno</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">sleeplock</span> <span class="n">lock</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="n">uint</span> <span class="n">refcnt</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">buf</span> <span class="o">*</span><span class="n">prev</span><span class="p">;</span> <span class="c1">// LRU cache list
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">struct</span> <span class="n">buf</span> <span class="o">*</span><span class="n">next</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="n">uchar</span> <span class="n">data</span><span class="p">[</span><span class="n">BSIZE</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl"><span class="p">};</span>
+</span></span></code></pre></div><p>其内部保存着前节点和后节点，所以bcache的数组（下文bcache指其内部的数组）是一个双向环形链表，长度为<code>NBUF</code>。通过<code>bcache.head</code>来访问该数组，而非直接访问<code>bcache.buf</code>。
+    每个buf（block在内存中的复制品）有两个属性：<code>valid，disk</code>。前者表达这个buf是否保存着一个block的复制品，后者表达这个buf上的复制品是否被同步到了磁盘上（如果还没同步，就不能装别的复制品）。当然还有重要的属性<code>data</code>，即数据本身。</p>
+<p>    <code>bread</code>实际上调用了<code>bget</code>来申请一个bacache的槽位（注意，bget是申请一个可用的buf槽位，而不是从磁盘中读取任何东西），也就是buf。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="k">static</span> <span class="k">struct</span> <span class="n">buf</span><span class="o">*</span>
+</span></span><span class="line"><span class="cl"><span class="nf">bget</span><span class="p">(</span><span class="n">uint</span> <span class="n">dev</span><span class="p">,</span> <span class="n">uint</span> <span class="n">blockno</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">buf</span> <span class="o">*</span><span class="n">b</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">bcache</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="c1">// Is the block already cached?
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">for</span><span class="p">(</span><span class="n">b</span> <span class="o">=</span> <span class="n">bcache</span><span class="p">.</span><span class="n">head</span><span class="p">.</span><span class="n">next</span><span class="p">;</span> <span class="n">b</span> <span class="o">!=</span> <span class="o">&amp;</span><span class="n">bcache</span><span class="p">.</span><span class="n">head</span><span class="p">;</span> <span class="n">b</span> <span class="o">=</span> <span class="n">b</span><span class="o">-&gt;</span><span class="n">next</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">b</span><span class="o">-&gt;</span><span class="n">dev</span> <span class="o">==</span> <span class="n">dev</span> <span class="o">&amp;&amp;</span> <span class="n">b</span><span class="o">-&gt;</span><span class="n">blockno</span> <span class="o">==</span> <span class="n">blockno</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">      <span class="n">b</span><span class="o">-&gt;</span><span class="n">refcnt</span><span class="o">++</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">      <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">bcache</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="n">acquiresleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">b</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="k">return</span> <span class="n">b</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="c1">// Not cached.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="c1">// Recycle the least recently used (LRU) unused buffer.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">for</span><span class="p">(</span><span class="n">b</span> <span class="o">=</span> <span class="n">bcache</span><span class="p">.</span><span class="n">head</span><span class="p">.</span><span class="n">prev</span><span class="p">;</span> <span class="n">b</span> <span class="o">!=</span> <span class="o">&amp;</span><span class="n">bcache</span><span class="p">.</span><span class="n">head</span><span class="p">;</span> <span class="n">b</span> <span class="o">=</span> <span class="n">b</span><span class="o">-&gt;</span><span class="n">prev</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">b</span><span class="o">-&gt;</span><span class="n">refcnt</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">      <span class="n">b</span><span class="o">-&gt;</span><span class="n">dev</span> <span class="o">=</span> <span class="n">dev</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">      <span class="n">b</span><span class="o">-&gt;</span><span class="n">blockno</span> <span class="o">=</span> <span class="n">blockno</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">      <span class="n">b</span><span class="o">-&gt;</span><span class="n">valid</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">      <span class="n">b</span><span class="o">-&gt;</span><span class="n">refcnt</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">      <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">bcache</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="n">acquiresleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">b</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="k">return</span> <span class="n">b</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">  <span class="n">panic</span><span class="p">(</span><span class="s">&#34;bget: no buffers&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p><code>bget</code>会先去<code>bcache</code>中找传入的blockno是否存在，如果存在则直接返回，注意这个循环是从头部开始正序遍历，因为假设bread可能是来访问一个已经被载入缓存的block的。但是假如目标复制品不存在，就需要放弃一个保存的复制品了。注意这里的循环是从尾部（由于是一个环形链表，尾部在头部之前）开始遍历到头部来找<code>refcnt</code>，也就是对于有多少个指针指向这个buf的计数，为0的buf，如果有就把这个buf替换成新的buf的信息（<code>device，sector number</code>等），如果没有，就崩溃。在返回这个buf之前，<code>bget</code>会为它开启<code>sleeplock</code>，这样就保证了只有使用<code>bread</code>的进程可以使用这个buf。
+在<code>bread</code>得到一个buf之后，假如<code>valid</code>没有被设置，也就是说得到的是一个全新的buf，<code>bread</code>会通过调用函数 <code>virtio_disk_rw</code>从磁盘中把目标block的内容读取进来。</p>
+<p>    每一个block只能在<code>bcache</code>中有一份复制，不然未来同步的时候可能起冲突。<code>bget</code>保证了这一不变量：在遍历<code>bcache</code>寻找目标buf前，bget会获取<code>bcache</code>的自旋锁。这样别的进程就无法同时操作这个数组了。假如两个进程想要获取同一个block，当前一个进程得到锁并且把目标block加载入buf中后，另一个进程间会在循环中看到其目标block已经在buf中了。这保证了对于目标buf是否存在以及对不存在的block的载入的原子化。在代码中，bget先释放了bcache才给目标buf上锁，这是安全的因为此时<code>refcnt</code>已经不是0，别的进程无法把这个buf分配给另一个block了。注意，这个过程中<code>bcache.lock</code>保证了<code>bcache</code>的不变量（只有一份复制），而<code>b.sleeplock</code>保证了buf的内容的安全（只有一个进程可以使用它）。</p>
+<p>    使用了<code>bread</code>的进程将会得到一个buf的使用权，假如这个进程对其内容做出了修改，那么必须要调用<code>bwrite</code></p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span>
+</span></span><span class="line"><span class="cl"><span class="nf">bwrite</span><span class="p">(</span><span class="k">struct</span> <span class="n">buf</span> <span class="o">*</span><span class="n">b</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="o">!</span><span class="n">holdingsleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">b</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;bwrite&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="n">virtio_disk_rw</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>把做出的修改写回到磁盘中去。同样地，它也使用了<code>virtio_disk_rw</code>。注意，调用<code>bwrite</code>之前，b的<code>sleeplock</code>一定是在被获取的状态，不然的话将会无法成功写入：因为程序无法保证这一写入是否被并发破坏。虽然在<code>bwrite</code>中没有释放这个锁，有专门的<code>bresle</code>函数用来释放这个锁。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span>
+</span></span><span class="line"><span class="cl"><span class="nf">brelse</span><span class="p">(</span><span class="k">struct</span> <span class="n">buf</span> <span class="o">*</span><span class="n">b</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="o">!</span><span class="n">holdingsleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">b</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;brelse&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="n">releasesleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">b</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">bcache</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="n">b</span><span class="o">-&gt;</span><span class="n">refcnt</span><span class="o">--</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span> <span class="p">(</span><span class="n">b</span><span class="o">-&gt;</span><span class="n">refcnt</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// no one is waiting for it.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">b</span><span class="o">-&gt;</span><span class="n">next</span><span class="o">-&gt;</span><span class="n">prev</span> <span class="o">=</span> <span class="n">b</span><span class="o">-&gt;</span><span class="n">prev</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">b</span><span class="o">-&gt;</span><span class="n">prev</span><span class="o">-&gt;</span><span class="n">next</span> <span class="o">=</span> <span class="n">b</span><span class="o">-&gt;</span><span class="n">next</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">b</span><span class="o">-&gt;</span><span class="n">next</span> <span class="o">=</span> <span class="n">bcache</span><span class="p">.</span><span class="n">head</span><span class="p">.</span><span class="n">next</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">b</span><span class="o">-&gt;</span><span class="n">prev</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">bcache</span><span class="p">.</span><span class="n">head</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">bcache</span><span class="p">.</span><span class="n">head</span><span class="p">.</span><span class="n">next</span><span class="o">-&gt;</span><span class="n">prev</span> <span class="o">=</span> <span class="n">b</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">bcache</span><span class="p">.</span><span class="n">head</span><span class="p">.</span><span class="n">next</span> <span class="o">=</span> <span class="n">b</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">  
+</span></span><span class="line"><span class="cl">  <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">bcache</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>除了会把这个锁释放掉，该函数也会把这个buf移动到<code>bcache</code>的最前面，这样规范了最久没用的buf一定在末尾，使得<code>bget</code>的性能得到优化。注：当<code>refcnt</code>不为0，证明有别的进程也在使用这个指针，不会切换buf的位置；所以先释放睡眠锁再<code>b-&gt;refcnt--</code>也是安全的：别的进程肯定不会运行切换buf位置的代码</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="84-日志层-logging-layer">8.4 日志层 Logging Layer<a href="#84-日志层-logging-layer" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    文件系统的设计的一个重要的方面就是<strong>崩溃恢复机制（Crash recovery）</strong>。假如不存在这样的机制，可能造成磁盘上的文件系统的不连贯状态。比如一个崩溃发生在了一个文件删除操作的过程当中，考虑在崩溃前做了哪些操作，可能导致两种情况：</p>
+<blockquote>
+<ol>
+<li>一个inode会指向一个被标记为free的block;</li>
+<li>一个被分配的block没有任何inode指向它。</li>
+</ol>
+</blockquote>
+<p>后一种情况不会造成很大问题，但是前者可能导致在重启后另一个进程也使用了一个已经被一个inode指向的block，导致错误。假如一台电脑有多个用户，那么可能会导致多个用户都能访问到同一个block，造成安全问题。</p>
+<p>    xv6解决这种问题的方式是通过一个简易的日志系统。xv6中的系统调用并不会直接操作于磁盘上的数据，而是先把它所希望做出的操作记录在磁盘上的日志中(初春的实际上是修改后的block复制品)。当这个系统调用记录完了它的所有操作之后，会再发出入一个<strong>提交（Commit）</strong>，表达这里结束了一套完整的操作。然后系统调用才会真正地把做出的修改同步到磁盘上的文件。最终系统调用会清空之前的日志。</p>
+<p>    在这种模式下，假如类似的崩溃发生，重启后文件系统会首先运行一些恢复机制相关的代码来检查日志中是否存在还没有执行的完整操作日志（即被提交的日志），如果有就同步，如果没有或者操作日志并不完整（无提交），就会忽略。最终这些代码会清空日志。这样对一系列修改的打包可以让它们原子化。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="85-日志设计-log-design">8.5 日志设计 Log Design<a href="#85-日志设计-log-design" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    日志存放在磁盘上的固定位置，这个位置写在<code>superblock</code>中(磁盘上的一块区域，储存文件系统元数据)。一个日志系统由两部分组成：<code>header block</code>和跟在其后的<code>logged blocks</code>；前者存放着一个sector/block number的数组，指明后面的logged block所属的sector/block，同时也保存着logged block的个数。当count=0说明没有任何完整的操作存在（无commit）。如果不是0，说明有完整的操作存在。在调用commit后，磁盘上的日志的header才会被修改；在把logged block复制回真实的位置上后，count归零。所以假如在commit之前系统崩溃，重启后将会观察到commit=0，而忽视保存的操作，非0则相反。</p>
+<p>    每个系统调用都必须把自己对block的操作的开头和结尾指明。同时为了实现文件系统的并发，xv6也允许不同的进程的操作集合在一次commit中。也就是说，每次commit所包含的一系列操作可能是来自不同进程的无关的操作的结果。<strong>注</strong>：对一个进程来说，它的所有操作必须打包在一个commit中，这是为了原子化；让进程标记自己的磁盘指令的开始和结尾帮助这一实现。</p>
+<p>    把多套完整的<strong>交易（Transaction）<strong>一次commit叫做</strong>group commit</strong>。这一实现再次减少了磁盘的访问次数，同时也让磁盘在一个时刻进行更多的并发操作（比如磁盘转一圈能写入的东西可能会更多）。xv6的虚拟硬盘不支持这一行为，但是xv6的文件系统支持。</p>
+<p>    xv6中日志可以使用的空间是固定的，也就是说一次提交的block数量是有上限的（logged blocks）。每当一个进程希望把自己的操作打包到一次提交中，文件系统必须要知道日志系统中剩余的block数量够不够用。由于一个进程的操作不能分在多次提交中，当数量不够的时候不应当进行。<strong>注</strong>：这里考虑的是被操作的block的数量，而不是操作的空间大小。大多数系统调用不存在这个问题（也就是对大量的block进行），但是<code>write</code>和<code>unlink</code>除外。write可能常会写入大量数据到一个文件中，这导致它会使用很多数据的block，bitmap block，和inode block（不是只有对于文件内容block的修改才会被考虑）。<code>unlink</code>可能导致使用很多bitmap block和 inode block。xv6中会通过把一个<code>write</code>分割成多次传输，并且xv6的文件系统中只有一个bitmap，所以<code>unlink</code>也不会有问题。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="86-代码日志-codelogging">8.6 代码：日志 Code：logging<a href="#86-代码日志-codelogging" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    一个通常的写入磁盘的步骤大致是这样的：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl">  <span class="n">begin_op</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="p">...</span>
+</span></span><span class="line"><span class="cl">  <span class="n">bp</span> <span class="o">=</span> <span class="n">bread</span><span class="p">(...);</span>
+</span></span><span class="line"><span class="cl">  <span class="n">bp</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">[...]</span> <span class="o">=</span> <span class="p">...;</span>
+</span></span><span class="line"><span class="cl">  <span class="n">log_write</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="p">...</span>
+</span></span><span class="line"><span class="cl">  <span class="n">end_op</span><span class="p">();</span>
+</span></span></code></pre></div><p><strong>注</strong>：这里涉及的&quot;日志&quot;实际上有两个：内存中log结构体，和磁盘上真正的log区域。由于后者本质上也是磁盘内容，前者可以理解为后者的“复制品”，用来同步修改。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="k">struct</span> <span class="n">log</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">spinlock</span> <span class="n">lock</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">start</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">size</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">outstanding</span><span class="p">;</span> <span class="c1">// how many FS sys calls are executing.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="kt">int</span> <span class="n">committing</span><span class="p">;</span>  <span class="c1">// in commit(), please wait.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="kt">int</span> <span class="n">dev</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">logheader</span> <span class="n">lh</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">};</span>
+</span></span><span class="line"><span class="cl"><span class="c1">//log的header block的复制品
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">struct</span> <span class="n">logheader</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">n</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">block</span><span class="p">[</span><span class="n">LOGSIZE</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl"><span class="p">};</span>
+</span></span></code></pre></div><p>    <code>begin_op()</code>先去获取log的锁，假如有别的进程正在使用<code>begin_op</code>或者<code>end_op</code>就进入自旋。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span>
+</span></span><span class="line"><span class="cl"><span class="nf">begin_op</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">log</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="k">while</span><span class="p">(</span><span class="mi">1</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">//committing只是一个bit
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span><span class="p">(</span><span class="n">log</span><span class="p">.</span><span class="n">committing</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">      <span class="c1">//等待提交完毕后的唤醒
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="n">sleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">log</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">log</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">      <span class="c1">//LOGSIZE=30，MAXOPBLOCKS=10
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="p">}</span> <span class="k">else</span> <span class="k">if</span><span class="p">(</span><span class="n">log</span><span class="p">.</span><span class="n">lh</span><span class="p">.</span><span class="n">n</span> <span class="o">+</span> <span class="p">(</span><span class="n">log</span><span class="p">.</span><span class="n">outstanding</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="n">MAXOPBLOCKS</span> <span class="o">&gt;</span> <span class="n">LOGSIZE</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">      <span class="c1">// this op might exhaust log space; wait for commit.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="c1">//如果剩余空间不够，就睡眠
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="n">sleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">log</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">log</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">      <span class="n">log</span><span class="p">.</span><span class="n">outstanding</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">      <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">log</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="k">break</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>顺利进入循环后会检查当前是否log系统正在提交操作，为真的话进入睡眠。若不为真，会给当前系统调用预留log中的logged block位置：通过把header中统计的logged block数量增加（这个是内存中的log结构体，而不是磁盘上真正地log），每次增加的数量是<code>MAXOPBLOCKS</code>，也就是10；换句话说，xv6的log系统保守的认为进程会最多使用10个log block。<code>outstanding</code>属性统计请求预留空间的系统调用的个数。增加这个属性既保证了空间预留，也保证了不让<code>committing</code>发生（只有<code>outstanding==0</code>才会commit）</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span>
+</span></span><span class="line"><span class="cl"><span class="nf">log_write</span><span class="p">(</span><span class="k">struct</span> <span class="n">buf</span> <span class="o">*</span><span class="n">b</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">i</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">log</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span> <span class="p">(</span><span class="n">log</span><span class="p">.</span><span class="n">lh</span><span class="p">.</span><span class="n">n</span> <span class="o">&gt;=</span> <span class="n">LOGSIZE</span> <span class="o">||</span> <span class="n">log</span><span class="p">.</span><span class="n">lh</span><span class="p">.</span><span class="n">n</span> <span class="o">&gt;=</span> <span class="n">log</span><span class="p">.</span><span class="n">size</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;too big a transaction&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span> <span class="p">(</span><span class="n">log</span><span class="p">.</span><span class="n">outstanding</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;log_write outside of trans&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">for</span> <span class="p">(</span><span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">log</span><span class="p">.</span><span class="n">lh</span><span class="p">.</span><span class="n">n</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">log</span><span class="p">.</span><span class="n">lh</span><span class="p">.</span><span class="n">block</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="n">b</span><span class="o">-&gt;</span><span class="n">blockno</span><span class="p">)</span>   <span class="c1">// log absorption
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="k">break</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">  <span class="n">log</span><span class="p">.</span><span class="n">lh</span><span class="p">.</span><span class="n">block</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">b</span><span class="o">-&gt;</span><span class="n">blockno</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span> <span class="p">(</span><span class="n">i</span> <span class="o">==</span> <span class="n">log</span><span class="p">.</span><span class="n">lh</span><span class="p">.</span><span class="n">n</span><span class="p">)</span> <span class="p">{</span>  <span class="c1">// Add new block to log?
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">bpin</span><span class="p">(</span><span class="n">b</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">log</span><span class="p">.</span><span class="n">lh</span><span class="p">.</span><span class="n">n</span><span class="o">++</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">  <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">log</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>    <code>log_write()</code>会把一个block的编号写入header的block数组中。假如这个编号已经存在了，那么不会把这个编号再次记录在数组末尾，这一机制叫做<strong>Absorption</strong>：它节省了空间的同时也会提高效率因为只会有一个block的复制品会被读写。如果不存在的话就添加到末尾。最终对于新添加的block，<code>log_write</code>会把它通过<code>bpin</code>“钉”在bcache中，后者实际上就是给这个block/buf添加了一个refcnt。这样保证了该buf在被提交之前不可能会被重新利用掉。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span>
+</span></span><span class="line"><span class="cl"><span class="nf">bpin</span><span class="p">(</span><span class="k">struct</span> <span class="n">buf</span> <span class="o">*</span><span class="n">b</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">bcache</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="n">b</span><span class="o">-&gt;</span><span class="n">refcnt</span><span class="o">++</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">bcache</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p><code>end_op()</code>减少<code>outstanding-=1</code>。假如<code>outstanding==0</code>，就可以commit了。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span>
+</span></span><span class="line"><span class="cl"><span class="nf">end_op</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">do_commit</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">log</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="n">log</span><span class="p">.</span><span class="n">outstanding</span> <span class="o">-=</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">log</span><span class="p">.</span><span class="n">committing</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;log.committing&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">log</span><span class="p">.</span><span class="n">outstanding</span> <span class="o">==</span> <span class="mi">0</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="n">do_commit</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">log</span><span class="p">.</span><span class="n">committing</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// begin_op() may be waiting for log space,
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// and decrementing log.outstanding has decreased
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// the amount of reserved space.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">wakeup</span><span class="p">(</span><span class="o">&amp;</span><span class="n">log</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">  <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">log</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">do_commit</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// call commit w/o holding locks, since not allowed
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// to sleep with locks.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">commit</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">    <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">log</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">log</span><span class="p">.</span><span class="n">committing</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">wakeup</span><span class="p">(</span><span class="o">&amp;</span><span class="n">log</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">log</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>调用<code>commit()</code>。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="k">static</span> <span class="kt">void</span>
+</span></span><span class="line"><span class="cl"><span class="nf">commit</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span> <span class="p">(</span><span class="n">log</span><span class="p">.</span><span class="n">lh</span><span class="p">.</span><span class="n">n</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="n">write_log</span><span class="p">();</span>     <span class="c1">// Write modified blocks from cache to log
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">write_head</span><span class="p">();</span>    <span class="c1">// Write header to disk -- the real commit
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">install_trans</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span> <span class="c1">// Now install writes to home locations
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">log</span><span class="p">.</span><span class="n">lh</span><span class="p">.</span><span class="n">n</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">write_head</span><span class="p">();</span>    <span class="c1">// Erase the transaction from the log
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>commit首先会把log结构体中记录的所有block的复制品从<code>bcache</code>拷贝到<strong>磁盘</strong>上的log的对应位置，然后把log结构体的head放入<strong>真</strong>log.head。最后调用<code>install_trans(0)</code>把真log中的数据同步到block们的原始位置。然后把两个log（磁盘上的和结构体）初始化。</p>
+<p>    <code>recover_from_log()</code>在<code>initlog</code>中被调用，<code>initlog</code>在<code>fsinit</code>中被调用，后者在启动阶段被调用。它会读取<code>logheader</code>，然后模仿<code>end_op</code>的行为：作为崩溃恢复机制的重要存在</p>
+<p>    <strong>注</strong>：<code>filewrite</code>中可以看到<code>write</code>是如何被分割成多次写入的：通过一个循环多次提交。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="87-代码block分配器-codeblock-allocator">8.7 代码：Block分配器 Code：Block Allocator<a href="#87-代码block分配器-codeblock-allocator" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    文件和目录内容都储存在磁盘的block中，这些block是从一个free pool中分配的。xv6的文件系统在磁盘上保存着一个free bitmap，每个bit对应着一个block，指示对应的block是否可用：1代表对应的block正在使用；0代表可以被分配。程序<code>mkfs</code>给boot sector,log blocks, inode blocks, bitmap blocks设置这一数字。</p>
+<p>    分配器有两个重要的接口：<code>balloc</code>分配一个新的block，<code>bfree</code>释放一个block。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="k">static</span> <span class="n">uint</span>
+</span></span><span class="line"><span class="cl"><span class="nf">balloc</span><span class="p">(</span><span class="n">uint</span> <span class="n">dev</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">b</span><span class="p">,</span> <span class="n">bi</span><span class="p">,</span> <span class="n">m</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">buf</span> <span class="o">*</span><span class="n">bp</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="n">bp</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">//BPB：Bits per block:1024*8
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">for</span><span class="p">(</span><span class="n">b</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">b</span> <span class="o">&lt;</span> <span class="n">sb</span><span class="p">.</span><span class="n">size</span><span class="p">;</span> <span class="n">b</span> <span class="o">+=</span> <span class="n">BPB</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">//sb: superblock
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">//把一个bitmap block读入内存
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">//BBLOCK是一个宏函数，计算当前的bitmap的block num
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">bp</span> <span class="o">=</span> <span class="n">bread</span><span class="p">(</span><span class="n">dev</span><span class="p">,</span> <span class="n">BBLOCK</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">sb</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span><span class="p">(</span><span class="n">bi</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">bi</span> <span class="o">&lt;</span> <span class="n">BPB</span> <span class="o">&amp;&amp;</span> <span class="n">b</span> <span class="o">+</span> <span class="n">bi</span> <span class="o">&lt;</span> <span class="n">sb</span><span class="p">.</span><span class="n">size</span><span class="p">;</span> <span class="n">bi</span><span class="o">++</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">      <span class="c1">//使用位运算，以bits为单位检索
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="n">m</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="p">(</span><span class="n">bi</span> <span class="o">%</span> <span class="mi">8</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="k">if</span><span class="p">((</span><span class="n">bp</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">[</span><span class="n">bi</span><span class="o">/</span><span class="mi">8</span><span class="p">]</span> <span class="o">&amp;</span> <span class="n">m</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">){</span>  <span class="c1">// Is block free?
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="n">bp</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">[</span><span class="n">bi</span><span class="o">/</span><span class="mi">8</span><span class="p">]</span> <span class="o">|=</span> <span class="n">m</span><span class="p">;</span>  <span class="c1">// Mark block in use.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="n">log_write</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="n">brelse</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">//归零这个block；bi被用作偏移量
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="n">bzero</span><span class="p">(</span><span class="n">dev</span><span class="p">,</span> <span class="n">b</span> <span class="o">+</span> <span class="n">bi</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="n">b</span> <span class="o">+</span> <span class="n">bi</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">      <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="n">brelse</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">  <span class="n">panic</span><span class="p">(</span><span class="s">&#34;balloc: out of blocks&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p><code>balloc</code>通过双重循环遍历bitsmap的所有bits：外部循环遍历所有bitmap block，内部循环遍历当前bitmap block中对应的所有block的<strong>BPB（bits-per-block）</strong> bits。如果找到了可用的block，将会把这个block归零并返回。<strong>注</strong>：这里使用了压位：虽然bitsmap看起来像是一个布尔容器因为它指明一个block“是否”可以使用，但是bool类型占1Bytes；由于布尔类型只是1/0，这里把它们压缩成了1bits。在循环内部也通过位运算间接地一个bit一个bit检查。BPB=BSIZE*8的意义就是以bit为单位遍历。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="c1">// Free a disk block.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">static</span> <span class="kt">void</span>
+</span></span><span class="line"><span class="cl"><span class="nf">bfree</span><span class="p">(</span><span class="kt">int</span> <span class="n">dev</span><span class="p">,</span> <span class="n">uint</span> <span class="n">b</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">buf</span> <span class="o">*</span><span class="n">bp</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">bi</span><span class="p">,</span> <span class="n">m</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="n">bp</span> <span class="o">=</span> <span class="n">bread</span><span class="p">(</span><span class="n">dev</span><span class="p">,</span> <span class="n">BBLOCK</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">sb</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">  <span class="n">bi</span> <span class="o">=</span> <span class="n">b</span> <span class="o">%</span> <span class="n">BPB</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">//同样进行位运算
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">m</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="p">(</span><span class="n">bi</span> <span class="o">%</span> <span class="mi">8</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">((</span><span class="n">bp</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">[</span><span class="n">bi</span><span class="o">/</span><span class="mi">8</span><span class="p">]</span> <span class="o">&amp;</span> <span class="n">m</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;freeing free block&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="n">bp</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">[</span><span class="n">bi</span><span class="o">/</span><span class="mi">8</span><span class="p">]</span> <span class="o">&amp;=</span> <span class="o">~</span><span class="n">m</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="n">log_write</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="n">brelse</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p><code>bfree</code>找到传入的block的对应的bitmap，然后清空目标bit。这两个函数必须在提交的过程中被使用。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="88-inode层-inode-layer">8.8 Inode层 Inode layer<a href="#88-inode层-inode-layer" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    inode也有两种。</p>
+<p>    一种是在磁盘上的真的inode。它们连续排布在inode block中。Inode大小相同（64Bytes ），所以可以很容易通过偏移量找到它们，比如第n个inode在<code>n*64/1024</code>block（xv6中1个block是2个sector大小，即1024Bytes）上，这里的n就是<code>i-number</code>。磁盘中的inode定义为<code>struct dinode</code>：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="c1">// On-disk inode structure
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">struct</span> <span class="n">dinode</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">short</span> <span class="n">type</span><span class="p">;</span>           <span class="c1">// File type
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="kt">short</span> <span class="n">major</span><span class="p">;</span>          <span class="c1">// Major device number (T_DEVICE only)
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="kt">short</span> <span class="n">minor</span><span class="p">;</span>          <span class="c1">// Minor device number (T_DEVICE only)
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="kt">short</span> <span class="n">nlink</span><span class="p">;</span>          <span class="c1">// Number of links to inode in file system
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">uint</span> <span class="n">size</span><span class="p">;</span>            <span class="c1">// Size of file (bytes)
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">uint</span> <span class="n">addrs</span><span class="p">[</span><span class="n">NDIRECT</span><span class="o">+</span><span class="mi">1</span><span class="p">];</span>   <span class="c1">// Data block addresses
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">};</span>
+</span></span></code></pre></div><p>属性：<code>type</code>表达这个inode指向的资源是什么：文件，目录，特殊文件（设备），如果<code>type=0</code>表明这个inode没有被使用；<code>nlink</code>是对于指向这个inode的目录的计数，假如<code>nlink=0</code>，就可以考虑把这个inode以及它的data block释放掉；<code>size</code>记录着这个inode的内容的大小；<code>addr</code>记录着data block的位置，是一个block number（block地址）的数组。</p>
+<p>    内核中也在内存维护着一些inode，定义为<code>struct inode</code>，作为磁盘上的对应的dinode的复制品。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="c1">// in-memory copy of an inode
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">struct</span> <span class="n">inode</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="n">uint</span> <span class="n">dev</span><span class="p">;</span>           <span class="c1">// Device number
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">uint</span> <span class="n">inum</span><span class="p">;</span>          <span class="c1">// Inode number
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="kt">int</span> <span class="n">ref</span><span class="p">;</span>            <span class="c1">// Reference count
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">struct</span> <span class="n">sleeplock</span> <span class="n">lock</span><span class="p">;</span> <span class="c1">// protects everything below here
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="kt">int</span> <span class="n">valid</span><span class="p">;</span>          <span class="c1">// inode has been read from disk?
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl">  <span class="kt">short</span> <span class="n">type</span><span class="p">;</span>         <span class="c1">// copy of disk inode
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="kt">short</span> <span class="n">major</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">short</span> <span class="n">minor</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">short</span> <span class="n">nlink</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="n">uint</span> <span class="n">size</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="n">uint</span> <span class="n">addrs</span><span class="p">[</span><span class="n">NDIRECT</span><span class="o">+</span><span class="mi">1</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl"><span class="p">};</span>
+</span></span></code></pre></div><p>这些inode放在<code>itable</code>中:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="k">struct</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">spinlock</span> <span class="n">lock</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">inode</span> <span class="n">inode</span><span class="p">[</span><span class="n">NINODE</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span> <span class="n">itable</span><span class="p">;</span>
+</span></span></code></pre></div><p>只有在存在C指针指向这个inode，内核才会持续保存它：<code>ref</code>是对于这样的指针的计数，当<code>ref=0</code>，这个inode就会被放弃。注意区分<code>nlink</code>和<code>ref</code>。</p>
+<p>    <code>iget</code>和<code>iput</code>分别获取和释放inode的一个指针，并且修改ref。这样的指针可能被用在fd，正在使用的目录，或者类似exec的代码。</p>
+<p>    xv6中inode相关的代码中存在4中锁和类似锁的机制。</p>
+<blockquote>
+<ol>
+<li>
+<p>itable.lock：保护不变量：一个inode只能在itable中出现最多一个，且ref=指针数量。</p>
+</li>
+<li>
+<p>每个inode都有自己的lock，它是一个睡眠锁，只能有一个进程在一个时刻访问这个inode和它的内容block。</p>
+</li>
+<li>
+<p>不变量：ref不为0，itable就不能舍弃它。</p>
+</li>
+<li>
+<p>每个inode结构体也有nlink，只要它不是0，xv6就不会从磁盘中释放它。</p>
+</li>
+</ol>
+</blockquote>
+<p>    <code>iget</code>返回的inode一定是可以用的，直到对应的iput被调用。在此期间这个inode结构体不会被删除，内容不会被别的inode替换。<code>iget</code>可以多次分配同一个inode结构体给多个指针。很多文件系统的操作依赖于这一特性，比如需要长期持有某个inode作为打开的文件/目录，并且在多进程并发访问一个inode时避免死锁的同时预防了竞争。</p>
+<p>    <code>iget</code>返回的inode实际上没有目标磁盘上的inode的有用信息。这点类似于<code>bget</code>。进程通过调用<code>ilock</code>读取磁盘上的inode的信息，并且赋值给inode结构体。<code>iunlock</code>执行相反的操作。<code>iget</code>和<code>ilock</code>对itable中的inode的分配和赋值做出了模组化，这样防止了某些情况下的死锁。比如目录遍历只需要<code>iget</code>，而不需要<code>ilock</code>（只有<code>ilock</code>获取了inode的lock）。所以虽然多个进程可以调用<code>iget</code>，但是只有一个进程可以使用<code>ilock</code>。</p>
+<p>    <code>itable</code>的主要作用类似<code>bcahce</code>，避免并发问题的同时起到缓存常用inode的作用。<code>iupdate</code>可以把对一个inode做出的修改同步回磁盘上。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="89-代码inode-codeinode">8.9 代码：Inode Code：Inode<a href="#89-代码inode-codeinode" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    当新建一个文件的时候，需要从磁盘的inode区域划出一个新的inode给到这个文件。xv6通过<code>ialloc</code>分配磁盘中的闲置的inode:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="k">struct</span> <span class="n">inode</span><span class="o">*</span>
+</span></span><span class="line"><span class="cl"><span class="nf">ialloc</span><span class="p">(</span><span class="n">uint</span> <span class="n">dev</span><span class="p">,</span> <span class="kt">short</span> <span class="n">type</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">inum</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">buf</span> <span class="o">*</span><span class="n">bp</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">dinode</span> <span class="o">*</span><span class="n">dip</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">for</span><span class="p">(</span><span class="n">inum</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span> <span class="n">inum</span> <span class="o">&lt;</span> <span class="n">sb</span><span class="p">.</span><span class="n">ninodes</span><span class="p">;</span> <span class="n">inum</span><span class="o">++</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="n">bp</span> <span class="o">=</span> <span class="n">bread</span><span class="p">(</span><span class="n">dev</span><span class="p">,</span> <span class="n">IBLOCK</span><span class="p">(</span><span class="n">inum</span><span class="p">,</span> <span class="n">sb</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">    <span class="n">dip</span> <span class="o">=</span> <span class="p">(</span><span class="k">struct</span> <span class="n">dinode</span><span class="o">*</span><span class="p">)</span><span class="n">bp</span><span class="o">-&gt;</span><span class="n">data</span> <span class="o">+</span> <span class="n">inum</span><span class="o">%</span><span class="n">IPB</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">dip</span><span class="o">-&gt;</span><span class="n">type</span> <span class="o">==</span> <span class="mi">0</span><span class="p">){</span>  <span class="c1">// a free inode
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="n">memset</span><span class="p">(</span><span class="n">dip</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="o">*</span><span class="n">dip</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">      <span class="n">dip</span><span class="o">-&gt;</span><span class="n">type</span> <span class="o">=</span> <span class="n">type</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">      <span class="n">log_write</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>   <span class="c1">// mark it allocated on the disk
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="n">brelse</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="k">return</span> <span class="n">iget</span><span class="p">(</span><span class="n">dev</span><span class="p">,</span> <span class="n">inum</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="n">brelse</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">  <span class="n">panic</span><span class="p">(</span><span class="s">&#34;ialloc: no inodes&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>类似<code>balloc</code>，它会遍历inode block中的inode，直到找到一个<code>type==0</code>的inode，（这些被遍历的inode实际上是从磁盘上复制过来的inode，以<code>dinode</code>结构体的形式临时保存在内存）也就是可以被使用的inode。它会把这个inode内容归零0，修改为目标type，记录inum，返回<code>iget</code>返回的值，也就是一个inode结构体。虽然这个函数中没有使用lock，也不用担心会出现类似“多个进程同时分配了一个inode情况”，因为在使用<code>bread</code>把整个inode block加载到内存的行为已经规避了并发问题。</p>
+<p>    <code>iget</code>遍历<code>itable</code>去找目标inode是否已经存在于itable中了</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="k">static</span> <span class="k">struct</span> <span class="n">inode</span><span class="o">*</span>
+</span></span><span class="line"><span class="cl"><span class="nf">iget</span><span class="p">(</span><span class="n">uint</span> <span class="n">dev</span><span class="p">,</span> <span class="n">uint</span> <span class="n">inum</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">inode</span> <span class="o">*</span><span class="n">ip</span><span class="p">,</span> <span class="o">*</span><span class="n">empty</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">itable</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="c1">// Is the inode already in the table?
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">empty</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="k">for</span><span class="p">(</span><span class="n">ip</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">itable</span><span class="p">.</span><span class="n">inode</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span> <span class="n">ip</span> <span class="o">&lt;</span> <span class="o">&amp;</span><span class="n">itable</span><span class="p">.</span><span class="n">inode</span><span class="p">[</span><span class="n">NINODE</span><span class="p">];</span> <span class="n">ip</span><span class="o">++</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">ref</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="o">&amp;&amp;</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">dev</span> <span class="o">==</span> <span class="n">dev</span> <span class="o">&amp;&amp;</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">inum</span> <span class="o">==</span> <span class="n">inum</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">      <span class="n">ip</span><span class="o">-&gt;</span><span class="n">ref</span><span class="o">++</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">      <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">itable</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="k">return</span> <span class="n">ip</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">empty</span> <span class="o">==</span> <span class="mi">0</span> <span class="o">&amp;&amp;</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">ref</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>    <span class="c1">// Remember empty slot.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="n">empty</span> <span class="o">=</span> <span class="n">ip</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="c1">// Recycle an inode entry.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">(</span><span class="n">empty</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;iget: no inodes&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="n">ip</span> <span class="o">=</span> <span class="n">empty</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="n">ip</span><span class="o">-&gt;</span><span class="n">dev</span> <span class="o">=</span> <span class="n">dev</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="n">ip</span><span class="o">-&gt;</span><span class="n">inum</span> <span class="o">=</span> <span class="n">inum</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="n">ip</span><span class="o">-&gt;</span><span class="n">ref</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="n">ip</span><span class="o">-&gt;</span><span class="n">valid</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">itable</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="n">ip</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>假如存在，则直接返回itable中的inode。同时iget也会记录itable中第一个可以被用来分配新inode的位置，假如itable中不存在目标inode，就会使用这个位置分配inode。</p>
+<p>    在进程读写inode之前，必须调用<code>ilock</code>，一为了上锁，二为了读取磁盘中对应的文件信息。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span>
+</span></span><span class="line"><span class="cl"><span class="nf">ilock</span><span class="p">(</span><span class="k">struct</span> <span class="n">inode</span> <span class="o">*</span><span class="n">ip</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">buf</span> <span class="o">*</span><span class="n">bp</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">dinode</span> <span class="o">*</span><span class="n">dip</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">ip</span> <span class="o">==</span> <span class="mi">0</span> <span class="o">||</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">ref</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;ilock&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="n">acquiresleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">valid</span> <span class="o">==</span> <span class="mi">0</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="n">bp</span> <span class="o">=</span> <span class="n">bread</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">dev</span><span class="p">,</span> <span class="n">IBLOCK</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">inum</span><span class="p">,</span> <span class="n">sb</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">    <span class="n">dip</span> <span class="o">=</span> <span class="p">(</span><span class="k">struct</span> <span class="n">dinode</span><span class="o">*</span><span class="p">)</span><span class="n">bp</span><span class="o">-&gt;</span><span class="n">data</span> <span class="o">+</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">inum</span><span class="o">%</span><span class="n">IPB</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ip</span><span class="o">-&gt;</span><span class="n">type</span> <span class="o">=</span> <span class="n">dip</span><span class="o">-&gt;</span><span class="n">type</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ip</span><span class="o">-&gt;</span><span class="n">major</span> <span class="o">=</span> <span class="n">dip</span><span class="o">-&gt;</span><span class="n">major</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ip</span><span class="o">-&gt;</span><span class="n">minor</span> <span class="o">=</span> <span class="n">dip</span><span class="o">-&gt;</span><span class="n">minor</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ip</span><span class="o">-&gt;</span><span class="n">nlink</span> <span class="o">=</span> <span class="n">dip</span><span class="o">-&gt;</span><span class="n">nlink</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ip</span><span class="o">-&gt;</span><span class="n">size</span> <span class="o">=</span> <span class="n">dip</span><span class="o">-&gt;</span><span class="n">size</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">memmove</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">addrs</span><span class="p">,</span> <span class="n">dip</span><span class="o">-&gt;</span><span class="n">addrs</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">addrs</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">    <span class="n">brelse</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ip</span><span class="o">-&gt;</span><span class="n">valid</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">type</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">      <span class="n">panic</span><span class="p">(</span><span class="s">&#34;ilock: no type&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p><code>ilock</code>不释放<code>sleeplock</code>，所以在完成对inode操作后进程必须调用<code>iunlock</code>，释放<code>sleeplock</code>，唤醒其他想使用这个inode的进程。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span>
+</span></span><span class="line"><span class="cl"><span class="nf">iunlock</span><span class="p">(</span><span class="k">struct</span> <span class="n">inode</span> <span class="o">*</span><span class="n">ip</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">ip</span> <span class="o">==</span> <span class="mi">0</span> <span class="o">||</span> <span class="o">!</span><span class="n">holdingsleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">)</span> <span class="o">||</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">ref</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;iunlock&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="n">releasesleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p><code>iput</code>会释放传入的c指针，并且给原来指向的inode的<code>ref--</code>。当<code>ref==0</code>，<code>itable</code>中的该inode结构体就可能被重新利用</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span>
+</span></span><span class="line"><span class="cl"><span class="nf">iput</span><span class="p">(</span><span class="k">struct</span> <span class="n">inode</span> <span class="o">*</span><span class="n">ip</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">itable</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">ref</span> <span class="o">==</span> <span class="mi">1</span> <span class="o">&amp;&amp;</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">valid</span> <span class="o">&amp;&amp;</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">nlink</span> <span class="o">==</span> <span class="mi">0</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// inode has no links and no other references: truncate and free.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// ip-&gt;ref == 1 means no other process can have ip locked,
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// so this acquiresleep() won&#39;t block (or deadlock).
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">acquiresleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">itable</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">itrunc</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ip</span><span class="o">-&gt;</span><span class="n">type</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">iupdate</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ip</span><span class="o">-&gt;</span><span class="n">valid</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">releasesleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">itable</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="n">ip</span><span class="o">-&gt;</span><span class="n">ref</span><span class="o">--</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">itable</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>如果此时这个inode <code>ip-&gt;ref == 1 &amp;&amp; ip-&gt;valid &amp;&amp; ip-&gt;nlink == 0</code>，那么这个inode和它的内容blocks同时还会自磁盘上被释放。<code>itrunc</code>用来把文件内容删除，释放其内容blocks，修改inode type。</p>
+<p>    可以看到<code>iput</code>同时也有清理inode的职责。思考一个情景：线程A调用了<code>iput</code>并且最终释放了inode，而此时有线程B在ilock中等待使用这个被A释放了的inode。这是不可能的，因为<code>input</code>唯一会清理input的前提就是 <code>ip-&gt;ref == 1</code>，而这个<strong>1</strong>必然是调用<code>iput</code>的线程A。假如B也在使用这个inode，那么这个inode的<code>ref</code>就不可能是1了，所以不成立。也不用担心别的进程调用<code>ialloc</code>在当前进程释放inode的期间把这个inode分配出去，因为只有在<code>type=0</code>的时候inode才可能被分配，而input在把<code>type</code>变成0之后仍然有锁，唯一的小问题是调用ialloc的进程可能会睡眠一会(从调用<code>iupdate</code>到释放锁期间：只有在<code>iupdate</code>之后别的进程才能发现这个inode可用了)。</p>
+<p>    由于<code>iput</code>可能会修改磁盘上的inode，所以即使是一些只读的系统调用，比如<code>read()</code>，只要最终有调用<code>iput</code>，仍然会“写入”磁盘。换句话说，只读的系统调用如果使用文件系统，就也会涉及交易。</p>
+<p>    input不会只因一个inode的<code>nlink=0</code>就把它释放，因为虽然没有目录指向这个inode，也可能有其他C指针指向这个inode。换句话说，可能有其他的进程正在对这个文件进行读写。虽然<code>iput</code>不会造成问题，但是如果<code>nlink=0</code>的时候崩溃发生，那么这个文件有可能被标记为已被分配，但是没有目录指向它。文件系统有两个解决这个问题的方法：</p>
+<blockquote>
+<ol>
+<li>
+<p>在开机后遍历所有inode，找到nlink=0但是type！=0的（也就是被分配但是没有目录指向的）</p>
+</li>
+<li>
+<p>让文件系统在<code>superblock</code>中记录每一个<code>nlink=0</code>但是<code>ref!=0</code>的inode，当它们<code>ref</code>也等于0了就从记录中删除；在重启之后检查这个记录，释放所有记录中的inode。</p>
+</li>
+</ol>
+</blockquote>
+<p>xv6没解决这个问题。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="810-代码inode-内容-codeinode-content">8.10 代码：Inode 内容 Code：Inode content<a href="#810-代码inode-内容-codeinode-content" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/E7Uy8WR.png" alt="" style="width:100%; background: rgba(255, 255, 255, .5)">
+<figcaption><b>Fig.3 ip->addr[]结构</b></figcaption>
+</div>
+</figure>
+<p>    inode的真正的内容保存在不同的blocks中。用来代表磁盘上的inode的结构体<code>dinode</code>中保存着一个<code>addr</code>数组长13，前<code>NDIRECT（12）</code>个位置保存着<code>NDIREC</code>T个这个inode所使用的block number。这些block被叫做<strong>Direct block</strong>，因为在把inode读入内存中后，可以直接使用这些block number得到对应的block（共计12kB：1024*12，xv6的block为1024B）。第13个位置也是一个block number，这个block保存着剩下的<code>NINDIRECT</code>（256）个block的number，它们被叫做<strong>Indirect block</strong>，因为需要首先载入第13个block才能看到这些blocks的位置。</p>
+<p>    <code>bmap()</code>函数封装了对于第n个block的访问的操作，它返回一个inode第n个block的真正的block num。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="k">static</span> <span class="n">uint</span>
+</span></span><span class="line"><span class="cl"><span class="nf">bmap</span><span class="p">(</span><span class="k">struct</span> <span class="n">inode</span> <span class="o">*</span><span class="n">ip</span><span class="p">,</span> <span class="n">uint</span> <span class="n">bn</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="n">uint</span> <span class="n">addr</span><span class="p">,</span> <span class="o">*</span><span class="n">a</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">buf</span> <span class="o">*</span><span class="n">bp</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">//如果目标block在前十二个block中
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">(</span><span class="n">bn</span> <span class="o">&lt;</span> <span class="n">NDIRECT</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">((</span><span class="n">addr</span> <span class="o">=</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">addrs</span><span class="p">[</span><span class="n">bn</span><span class="p">])</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">      <span class="n">ip</span><span class="o">-&gt;</span><span class="n">addrs</span><span class="p">[</span><span class="n">bn</span><span class="p">]</span> <span class="o">=</span> <span class="n">addr</span> <span class="o">=</span> <span class="n">balloc</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">dev</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">addr</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">//作为offset
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">bn</span> <span class="o">-=</span> <span class="n">NDIRECT</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">//换句话说，bn不能超出12+256
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">(</span><span class="n">bn</span> <span class="o">&lt;</span> <span class="n">NINDIRECT</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// Load indirect block, allocating if necessary.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">//==0代表第13个block没有被分配
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span><span class="p">((</span><span class="n">addr</span> <span class="o">=</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">addrs</span><span class="p">[</span><span class="n">NDIRECT</span><span class="p">])</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">      <span class="n">ip</span><span class="o">-&gt;</span><span class="n">addrs</span><span class="p">[</span><span class="n">NDIRECT</span><span class="p">]</span> <span class="o">=</span> <span class="n">addr</span> <span class="o">=</span> <span class="n">balloc</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">dev</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">//获取第13个block
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">bp</span> <span class="o">=</span> <span class="n">bread</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">dev</span><span class="p">,</span> <span class="n">addr</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">a</span> <span class="o">=</span> <span class="p">(</span><span class="n">uint</span><span class="o">*</span><span class="p">)</span><span class="n">bp</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">//遍历间接block
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">//不存在就创建
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span><span class="p">((</span><span class="n">addr</span> <span class="o">=</span> <span class="n">a</span><span class="p">[</span><span class="n">bn</span><span class="p">])</span> <span class="o">==</span> <span class="mi">0</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">      <span class="n">a</span><span class="p">[</span><span class="n">bn</span><span class="p">]</span> <span class="o">=</span> <span class="n">addr</span> <span class="o">=</span> <span class="n">balloc</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">dev</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="n">log_write</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="n">brelse</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">addr</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="n">panic</span><span class="p">(</span><span class="s">&#34;bmap: out of range&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>它首先检查目标block是否为前12个，若不是，则需要把第13个block载入，然后再从中找。如果目标block不存在，<code>bmap</code>还会分配一个block。如果<code>addr[bn]/a[bn]</code>中的元素值为0，证明这个位置上还没有分配一个block。<code>bmap</code>遇到这种情况会分配一个block，并且修改0为刚分配的block的number。</p>
+<p>    <code>itrunc</code>首先会释放前12个block，然后再释放间接blocks</p>
+<p>    <code>readi</code>和<code>writei</code>获益于<code>bmap</code>。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">int</span>
+</span></span><span class="line"><span class="cl"><span class="nf">readi</span><span class="p">(</span><span class="k">struct</span> <span class="n">inode</span> <span class="o">*</span><span class="n">ip</span><span class="p">,</span> <span class="kt">int</span> <span class="n">user_dst</span><span class="p">,</span> <span class="n">uint64</span> <span class="n">dst</span><span class="p">,</span> <span class="n">uint</span> <span class="n">off</span><span class="p">,</span> <span class="n">uint</span> <span class="n">n</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="n">uint</span> <span class="n">tot</span><span class="p">,</span> <span class="n">m</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">buf</span> <span class="o">*</span><span class="n">bp</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">off</span> <span class="o">&gt;</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">size</span> <span class="o">||</span> <span class="n">off</span> <span class="o">+</span> <span class="n">n</span> <span class="o">&lt;</span> <span class="n">off</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">off</span> <span class="o">+</span> <span class="n">n</span> <span class="o">&gt;</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">size</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">n</span> <span class="o">=</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">size</span> <span class="o">-</span> <span class="n">off</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">for</span><span class="p">(</span><span class="n">tot</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span> <span class="n">tot</span><span class="o">&lt;</span><span class="n">n</span><span class="p">;</span> <span class="n">tot</span><span class="o">+=</span><span class="n">m</span><span class="p">,</span> <span class="n">off</span><span class="o">+=</span><span class="n">m</span><span class="p">,</span> <span class="n">dst</span><span class="o">+=</span><span class="n">m</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">//使用bmap获取目标block
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">bp</span> <span class="o">=</span> <span class="n">bread</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">dev</span><span class="p">,</span> <span class="n">bmap</span><span class="p">(</span><span class="n">ip</span><span class="p">,</span> <span class="n">off</span><span class="o">/</span><span class="n">BSIZE</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">//读取最大值为1个block
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">m</span> <span class="o">=</span> <span class="n">min</span><span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="n">tot</span><span class="p">,</span> <span class="n">BSIZE</span> <span class="o">-</span> <span class="n">off</span><span class="o">%</span><span class="n">BSIZE</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">//复制回用户空间
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span><span class="p">(</span><span class="n">either_copyout</span><span class="p">(</span><span class="n">user_dst</span><span class="p">,</span> <span class="n">dst</span><span class="p">,</span> <span class="n">bp</span><span class="o">-&gt;</span><span class="n">data</span> <span class="o">+</span> <span class="p">(</span><span class="n">off</span> <span class="o">%</span> <span class="n">BSIZE</span><span class="p">),</span> <span class="n">m</span><span class="p">)</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">      <span class="n">brelse</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="n">tot</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">      <span class="k">break</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="n">brelse</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">//tot为总读取量
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">return</span> <span class="n">tot</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p><code>readi</code>首先会检查<code>off</code>，偏移量，没有超过文件边界，然后检查目标读取量是否超过从off到末尾的长度，若超出则更新读取目标长度。在下面的循环中开始读取。使用bmap获取目标block，每次读取的最大单位为1024Bytes，即1个block（OS的block）。最终返回读取的数据量</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">int</span>
+</span></span><span class="line"><span class="cl"><span class="nf">writei</span><span class="p">(</span><span class="k">struct</span> <span class="n">inode</span> <span class="o">*</span><span class="n">ip</span><span class="p">,</span> <span class="kt">int</span> <span class="n">user_src</span><span class="p">,</span> <span class="n">uint64</span> <span class="n">src</span><span class="p">,</span> <span class="n">uint</span> <span class="n">off</span><span class="p">,</span> <span class="n">uint</span> <span class="n">n</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="n">uint</span> <span class="n">tot</span><span class="p">,</span> <span class="n">m</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">buf</span> <span class="o">*</span><span class="n">bp</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">off</span> <span class="o">&gt;</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">size</span> <span class="o">||</span> <span class="n">off</span> <span class="o">+</span> <span class="n">n</span> <span class="o">&lt;</span> <span class="n">off</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">off</span> <span class="o">+</span> <span class="n">n</span> <span class="o">&gt;</span> <span class="n">MAXFILE</span><span class="o">*</span><span class="n">BSIZE</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">for</span><span class="p">(</span><span class="n">tot</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span> <span class="n">tot</span><span class="o">&lt;</span><span class="n">n</span><span class="p">;</span> <span class="n">tot</span><span class="o">+=</span><span class="n">m</span><span class="p">,</span> <span class="n">off</span><span class="o">+=</span><span class="n">m</span><span class="p">,</span> <span class="n">src</span><span class="o">+=</span><span class="n">m</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="n">bp</span> <span class="o">=</span> <span class="n">bread</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">dev</span><span class="p">,</span> <span class="n">bmap</span><span class="p">(</span><span class="n">ip</span><span class="p">,</span> <span class="n">off</span><span class="o">/</span><span class="n">BSIZE</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">    <span class="n">m</span> <span class="o">=</span> <span class="n">min</span><span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="n">tot</span><span class="p">,</span> <span class="n">BSIZE</span> <span class="o">-</span> <span class="n">off</span><span class="o">%</span><span class="n">BSIZE</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">either_copyin</span><span class="p">(</span><span class="n">bp</span><span class="o">-&gt;</span><span class="n">data</span> <span class="o">+</span> <span class="p">(</span><span class="n">off</span> <span class="o">%</span> <span class="n">BSIZE</span><span class="p">),</span> <span class="n">user_src</span><span class="p">,</span> <span class="n">src</span><span class="p">,</span> <span class="n">m</span><span class="p">)</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">      <span class="n">brelse</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="k">break</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="n">log_write</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">brelse</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">off</span> <span class="o">&gt;</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">size</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ip</span><span class="o">-&gt;</span><span class="n">size</span> <span class="o">=</span> <span class="n">off</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="n">iupdate</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="n">tot</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p><code>writei</code>和<code>readi</code>类似，不同于三个方面：</p>
+<blockquote>
+<ol>
+<li><code>writei</code>会增长file的大小</li>
+<li>循环中使用<code>copyin</code>而非<code>copyout</code></li>
+<li>若使得文件大小改变需要更新inode.size。</li>
+</ol>
+</blockquote>
+<p>    另一个函数<code>stati</code>读取inode的元数据放入<code>stat</code>结构体。用户函数<code>stat</code>就使用了它。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="811-代码目录层-codedirectory-layer">8.11 代码：目录层 Code：Directory layer<a href="#811-代码目录层-codedirectory-layer" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    目录的实现和文件差不多，两者都是inode。目录的inode的类型是<code>T_DIR</code>，并且其内容的block中保存的是<strong>目录条目（Directory entries）</strong>。这些条目都是<code>dirent</code>结构体</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="k">struct</span> <span class="n">dirent</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="n">ushort</span> <span class="n">inum</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">char</span> <span class="n">name</span><span class="p">[</span><span class="n">DIRSIZ</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl"><span class="p">};</span>
+</span></span></code></pre></div><p>包括一个文件名（最长<code>DIRSIZ</code>(14)）和<code>i-number</code>。当一个<code>dirent</code>的<code>i-num=0</code>，说明这个条目没有被用。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="k">struct</span> <span class="n">inode</span><span class="o">*</span>
+</span></span><span class="line"><span class="cl"><span class="nf">dirlookup</span><span class="p">(</span><span class="k">struct</span> <span class="n">inode</span> <span class="o">*</span><span class="n">dp</span><span class="p">,</span> <span class="kt">char</span> <span class="o">*</span><span class="n">name</span><span class="p">,</span> <span class="n">uint</span> <span class="o">*</span><span class="n">poff</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="n">uint</span> <span class="n">off</span><span class="p">,</span> <span class="n">inum</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">dirent</span> <span class="n">de</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">dp</span><span class="o">-&gt;</span><span class="n">type</span> <span class="o">!=</span> <span class="n">T_DIR</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;dirlookup not DIR&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">for</span><span class="p">(</span><span class="n">off</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">off</span> <span class="o">&lt;</span> <span class="n">dp</span><span class="o">-&gt;</span><span class="n">size</span><span class="p">;</span> <span class="n">off</span> <span class="o">+=</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">de</span><span class="p">)){</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">//在内核中调用，不用关心用户空间地址
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span><span class="p">(</span><span class="n">readi</span><span class="p">(</span><span class="n">dp</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">(</span><span class="n">uint64</span><span class="p">)</span><span class="o">&amp;</span><span class="n">de</span><span class="p">,</span> <span class="n">off</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">de</span><span class="p">))</span> <span class="o">!=</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">de</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">      <span class="n">panic</span><span class="p">(</span><span class="s">&#34;dirlookup read&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">de</span><span class="p">.</span><span class="n">inum</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">      <span class="k">continue</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">namecmp</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">de</span><span class="p">.</span><span class="n">name</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">      <span class="c1">// entry matches path element
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="k">if</span><span class="p">(</span><span class="n">poff</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">//填入off
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="o">*</span><span class="n">poff</span> <span class="o">=</span> <span class="n">off</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">      <span class="n">inum</span> <span class="o">=</span> <span class="n">de</span><span class="p">.</span><span class="n">inum</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">      <span class="k">return</span> <span class="n">iget</span><span class="p">(</span><span class="n">dp</span><span class="o">-&gt;</span><span class="n">dev</span><span class="p">,</span> <span class="n">inum</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>    函数<code>dirlookup</code>通过一个<code>name</code>在一个目录中找目标条目。如果找到了就会把传入的<code>*poff</code>赋值为这个条目在当前目录中的偏移量，然后通过<code>iget</code>返回这个条目中的inode的指针.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">int</span>
+</span></span><span class="line"><span class="cl"><span class="nf">dirlink</span><span class="p">(</span><span class="k">struct</span> <span class="n">inode</span> <span class="o">*</span><span class="n">dp</span><span class="p">,</span> <span class="kt">char</span> <span class="o">*</span><span class="n">name</span><span class="p">,</span> <span class="n">uint</span> <span class="n">inum</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">off</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">dirent</span> <span class="n">de</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">inode</span> <span class="o">*</span><span class="n">ip</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="c1">// 检查重名;ip的唯一用处
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">((</span><span class="n">ip</span> <span class="o">=</span> <span class="n">dirlookup</span><span class="p">(</span><span class="n">dp</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="n">iput</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="c1">// 找空着的条目，dirent结构体
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">for</span><span class="p">(</span><span class="n">off</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">off</span> <span class="o">&lt;</span> <span class="n">dp</span><span class="o">-&gt;</span><span class="n">size</span><span class="p">;</span> <span class="n">off</span> <span class="o">+=</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">de</span><span class="p">)){</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">readi</span><span class="p">(</span><span class="n">dp</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">(</span><span class="n">uint64</span><span class="p">)</span><span class="o">&amp;</span><span class="n">de</span><span class="p">,</span> <span class="n">off</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">de</span><span class="p">))</span> <span class="o">!=</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">de</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">      <span class="n">panic</span><span class="p">(</span><span class="s">&#34;dirlink read&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">de</span><span class="p">.</span><span class="n">inum</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">      <span class="k">break</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="n">strncpy</span><span class="p">(</span><span class="n">de</span><span class="p">.</span><span class="n">name</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">DIRSIZ</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="n">de</span><span class="p">.</span><span class="n">inum</span> <span class="o">=</span> <span class="n">inum</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">//更新磁盘上的目录的内容block
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">(</span><span class="n">writei</span><span class="p">(</span><span class="n">dp</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">(</span><span class="n">uint64</span><span class="p">)</span><span class="o">&amp;</span><span class="n">de</span><span class="p">,</span> <span class="n">off</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">de</span><span class="p">))</span> <span class="o">!=</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">de</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;dirlink&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>    <code>dirlink()</code>接受一个目录inode，<code>name</code>，和一个<code>inum</code>作为参数，把目标<code>inum</code>的inode放入这个目录中名为<code>name</code>的条目中。如果重名不会添加成功。使用循环去找没有分配的<code>dirent</code>。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="812-代码路径名称-codepath-names">8.12 代码：路径名称 Code：Path names<a href="#812-代码路径名称-codepath-names" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    对**路径（Path）**的访问涉及这条路径上每一个文件/文件夹（components）的<code>dirlookup</code>的使用。xv6中提供了两个函数:<code>namei</code>与<code>nameiparent</code>:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="k">struct</span> <span class="n">inode</span><span class="o">*</span>
+</span></span><span class="line"><span class="cl"><span class="nf">namei</span><span class="p">(</span><span class="kt">char</span> <span class="o">*</span><span class="n">path</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">char</span> <span class="n">name</span><span class="p">[</span><span class="n">DIRSIZ</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="n">namex</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">name</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">struct</span> <span class="n">inode</span><span class="o">*</span>
+</span></span><span class="line"><span class="cl"><span class="nf">nameiparent</span><span class="p">(</span><span class="kt">char</span> <span class="o">*</span><span class="n">path</span><span class="p">,</span> <span class="kt">char</span> <span class="o">*</span><span class="n">name</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="n">namex</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">name</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>前者返回这条路径中最终的inode地址，后者返回这条路径中最终的inode的前一个inode，两者都会把最终的路径元素放入<code>name</code>。它们都是对<code>namex</code>的封装:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="k">static</span> <span class="k">struct</span> <span class="n">inode</span><span class="o">*</span>
+</span></span><span class="line"><span class="cl"><span class="nf">namex</span><span class="p">(</span><span class="kt">char</span> <span class="o">*</span><span class="n">path</span><span class="p">,</span> <span class="kt">int</span> <span class="n">nameiparent</span><span class="p">,</span> <span class="kt">char</span> <span class="o">*</span><span class="n">name</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">inode</span> <span class="o">*</span><span class="n">ip</span><span class="p">,</span> <span class="o">*</span><span class="n">next</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="c1">//检查路径开头
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">(</span><span class="o">*</span><span class="n">path</span> <span class="o">==</span> <span class="sc">&#39;/&#39;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ip</span> <span class="o">=</span> <span class="n">iget</span><span class="p">(</span><span class="n">ROOTDEV</span><span class="p">,</span> <span class="n">ROOTINO</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="k">else</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ip</span> <span class="o">=</span> <span class="n">idup</span><span class="p">(</span><span class="n">myproc</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">cwd</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="c1">//skipelem把下一个元素的名称放入name
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="c1">//并且把不包含下一个元素之后的路径返回path
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">while</span><span class="p">((</span><span class="n">path</span> <span class="o">=</span> <span class="n">skipelem</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">name</span><span class="p">))</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ilock</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">//检查inode类型，必须是目录
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">type</span> <span class="o">!=</span> <span class="n">T_DIR</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">      <span class="n">iunlockput</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">//如果设置了nameiparent bits，并且path值为null
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span><span class="p">(</span><span class="n">nameiparent</span> <span class="o">&amp;&amp;</span> <span class="o">*</span><span class="n">path</span> <span class="o">==</span> <span class="sc">&#39;\0&#39;</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">      <span class="c1">// 此时ip中的是倒数第二个路径元素，是一个目录
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="n">iunlock</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="k">return</span> <span class="n">ip</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">//获取下一个路径元素的inode
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span><span class="p">((</span><span class="n">next</span> <span class="o">=</span> <span class="n">dirlookup</span><span class="p">(</span><span class="n">ip</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span> <span class="o">==</span> <span class="mi">0</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">      <span class="n">iunlockput</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="n">iunlockput</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">//更新inode
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">ip</span> <span class="o">=</span> <span class="n">next</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">nameiparent</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="n">iput</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="n">ip</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>最开始这个函数会检查路径的开头：如果是<code>/</code>，就说明从根目录开始查询，如果不是，就从当前目录开始查询。 while循环依次遍历路径中的每一个元素，期间的元素必须是目录。当设置了<code>nameiparent</code> bits，并且<code>path</code>值为<code>null</code>（<code>path</code>现在保存的字符串的第一个路径元素是下下一个路径元素，当<code>path==null</code>说明下一个路径元素就是最后一个元素），返回当前<code>ip</code>，也就是倒数第二个路径元素，或者说目标inode的父inode。而在其他情况下，则使用<code>dirlookup</code>去获取下一个路径元素的inode，继续遍历直到<code>skipelem</code>的返回值为0（该函数对路径末尾的处理为返回0）。</p>
+<p>    可以看到对路径的检索涉及很多block，这就导致它可能会与磁盘进行多次交互（如果这些block没有在缓存中）。在xv6的设计中，如果一个线程在路径检索的过程中卡在了一个和磁盘的I/O上，别的线程仍然可以对部分相同的路径进行检索：xv6中，每个路径元素（目录）都是被独立地上锁的，所以对于不同的目录的检索可以平行进行。</p>
+<p>    不过这种平行看起来会带来一些危险：假如一个进程在检索某个路径，而另一个进程把；路径上的某一个目录释放掉了，那么会导致前者在检索一个不再存在的inode。但实际上这不会造成很大的问题的，因为前者使用当前目录的时候是通过iget获取的，这个函数增加了当前inode的<code>ref</code>，即使另一个线程清空了<code>nlink</code>，也仍不会导致当前inode立马被清理。另一个危险是死锁。比如在检索<code>.</code>目录的时候，<code>next</code>和<code>ip</code>会在某一时刻都指向<code>.</code>这个inode，如果同时获取两者的inode的锁会导致死锁。xv6避免了这一情景，因为在获取<code>next</code>的锁之前，<code>ip</code>的锁一定被释放了。这里也体现出了<code>ilock</code>和<code>iget</code>（<code>dirlookup</code>中调用）分隔的重要性。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="813-文件描述符层-file-descriptor-layer">8.13 文件描述符层 File descriptor layer<a href="#813-文件描述符层-file-descriptor-layer" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    Unix中，控制台，管道，和文件都被抽象成了文件，而文件描述符就是造成这样抽象的工具。每一个这样的资源都被封装在了一个<code>file</code>结构体中</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="k">struct</span> <span class="n">file</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="k">enum</span> <span class="p">{</span> <span class="n">FD_NONE</span><span class="p">,</span> <span class="n">FD_PIPE</span><span class="p">,</span> <span class="n">FD_INODE</span><span class="p">,</span> <span class="n">FD_DEVICE</span> <span class="p">}</span> <span class="n">type</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">ref</span><span class="p">;</span> <span class="c1">// reference count
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="kt">char</span> <span class="n">readable</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">char</span> <span class="n">writable</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">pipe</span> <span class="o">*</span><span class="n">pipe</span><span class="p">;</span> <span class="c1">// FD_PIPE
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">struct</span> <span class="n">inode</span> <span class="o">*</span><span class="n">ip</span><span class="p">;</span>  <span class="c1">// FD_INODE and FD_DEVICE
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">uint</span> <span class="n">off</span><span class="p">;</span>          <span class="c1">// FD_INODE
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="kt">short</span> <span class="n">major</span><span class="p">;</span>       <span class="c1">// FD_DEVICE
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">};</span>
+</span></span></code></pre></div><p><code>type</code>保存着这个“文件”的类型。xv6为每个进程提供了自己的<code>table of open files</code>，或者说fd。每次对于<code>open</code>的调用实际上都创建了一个<code>file</code>结构体。如果多个进程独立地打开了同一个文件，它们会有不同的<code>off</code>，但是所使用的inode指针都是一样的（所以inode的<code>ref</code>不会增加）。一个文件可以在一个进程中以多个fd出现，比如使用<code>dup</code>；一个文件也可以在多个进程中出现，比如使用<code>fork</code>。两种情况中的fd指向的都是同一个结构体，结构体中有<code>ref</code>记录自己被指向的个数。</p>
+<p>    所有打开的文件都被保存在一个全局的**文件表（File table）**中，<code>ftable</code>。长<code>NFILE(100)</code>:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="k">struct</span> <span class="n">devsw</span> <span class="n">devsw</span><span class="p">[</span><span class="n">NDEV</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl"><span class="k">struct</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">spinlock</span> <span class="n">lock</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">file</span> <span class="n">file</span><span class="p">[</span><span class="n">NFILE</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span> <span class="n">ftable</span><span class="p">;</span>
+</span></span></code></pre></div><p>它暴露了几个函数：<code>filealloc</code>遍历这个<code>ftable</code>，找到可以使用的file结构体并分配; <code>filedup</code>增加file的ref并返回原<code>file</code>结构体指针（比如fork中就使用了它）; <code>fileclose</code>减少<code>ref</code>，并在<code>ref=0</code>的情况下关闭资源。这三个函数遵循文件系统函数中常见的模板。<code>filtered/filewrite</code>分别封装了不同的<code>file</code>类型对应的I/O函数：设备，inode，管道; <code>filestat</code>只允许inode和设备类型使用，封装了<code>stati</code>。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">int</span>
+</span></span><span class="line"><span class="cl"><span class="nf">fileread</span><span class="p">(</span><span class="k">struct</span> <span class="n">file</span> <span class="o">*</span><span class="n">f</span><span class="p">,</span> <span class="n">uint64</span> <span class="n">addr</span><span class="p">,</span> <span class="kt">int</span> <span class="n">n</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">r</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">f</span><span class="o">-&gt;</span><span class="n">readable</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">//类型判断
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">(</span><span class="n">f</span><span class="o">-&gt;</span><span class="n">type</span> <span class="o">==</span> <span class="n">FD_PIPE</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="n">r</span> <span class="o">=</span> <span class="n">piperead</span><span class="p">(</span><span class="n">f</span><span class="o">-&gt;</span><span class="n">pipe</span><span class="p">,</span> <span class="n">addr</span><span class="p">,</span> <span class="n">n</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span> <span class="k">else</span> <span class="k">if</span><span class="p">(</span><span class="n">f</span><span class="o">-&gt;</span><span class="n">type</span> <span class="o">==</span> <span class="n">FD_DEVICE</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">f</span><span class="o">-&gt;</span><span class="n">major</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="o">||</span> <span class="n">f</span><span class="o">-&gt;</span><span class="n">major</span> <span class="o">&gt;=</span> <span class="n">NDEV</span> <span class="o">||</span> <span class="o">!</span><span class="n">devsw</span><span class="p">[</span><span class="n">f</span><span class="o">-&gt;</span><span class="n">major</span><span class="p">].</span><span class="n">read</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">      <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">r</span> <span class="o">=</span> <span class="n">devsw</span><span class="p">[</span><span class="n">f</span><span class="o">-&gt;</span><span class="n">major</span><span class="p">].</span><span class="n">read</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">addr</span><span class="p">,</span> <span class="n">n</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span> <span class="k">else</span> <span class="k">if</span><span class="p">(</span><span class="n">f</span><span class="o">-&gt;</span><span class="n">type</span> <span class="o">==</span> <span class="n">FD_INODE</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ilock</span><span class="p">(</span><span class="n">f</span><span class="o">-&gt;</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">((</span><span class="n">r</span> <span class="o">=</span> <span class="n">readi</span><span class="p">(</span><span class="n">f</span><span class="o">-&gt;</span><span class="n">ip</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">addr</span><span class="p">,</span> <span class="n">f</span><span class="o">-&gt;</span><span class="n">off</span><span class="p">,</span> <span class="n">n</span><span class="p">))</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">      <span class="n">f</span><span class="o">-&gt;</span><span class="n">off</span> <span class="o">+=</span> <span class="n">r</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">iunlock</span><span class="p">(</span><span class="n">f</span><span class="o">-&gt;</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;fileread&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="n">r</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>回忆对于inode的操作需要获取锁，这一行为也保证了对于inode读写不会出现并发问题。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="814-代码系统调用-codesystem-calls">8.14 代码：系统调用 Code：System calls<a href="#814-代码系统调用-codesystem-calls" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="c1">// Create the path new as a link to the same inode as old.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="n">uint64</span>
+</span></span><span class="line"><span class="cl"><span class="nf">sys_link</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">char</span> <span class="n">name</span><span class="p">[</span><span class="n">DIRSIZ</span><span class="p">],</span> <span class="n">new</span><span class="p">[</span><span class="n">MAXPATH</span><span class="p">],</span> <span class="n">old</span><span class="p">[</span><span class="n">MAXPATH</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">inode</span> <span class="o">*</span><span class="n">dp</span><span class="p">,</span> <span class="o">*</span><span class="n">ip</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">//获取参数
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">(</span><span class="n">argstr</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">old</span><span class="p">,</span> <span class="n">MAXPATH</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="o">||</span> <span class="n">argstr</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">new</span><span class="p">,</span> <span class="n">MAXPATH</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">//开始交易
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">begin_op</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">//获取目标inode
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">((</span><span class="n">ip</span> <span class="o">=</span> <span class="n">namei</span><span class="p">(</span><span class="n">old</span><span class="p">))</span> <span class="o">==</span> <span class="mi">0</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="n">end_op</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="n">ilock</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">type</span> <span class="o">==</span> <span class="n">T_DIR</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="n">iunlockput</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">end_op</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">//更新
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">ip</span><span class="o">-&gt;</span><span class="n">nlink</span><span class="o">++</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="n">iupdate</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="n">iunlock</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">//获取目标目录
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">((</span><span class="n">dp</span> <span class="o">=</span> <span class="n">nameiparent</span><span class="p">(</span><span class="n">new</span><span class="p">,</span> <span class="n">name</span><span class="p">))</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">goto</span> <span class="n">bad</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="n">ilock</span><span class="p">(</span><span class="n">dp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">//填入目录
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">(</span><span class="n">dp</span><span class="o">-&gt;</span><span class="n">dev</span> <span class="o">!=</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">dev</span> <span class="o">||</span> <span class="n">dirlink</span><span class="p">(</span><span class="n">dp</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">inum</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="n">iunlockput</span><span class="p">(</span><span class="n">dp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">goto</span> <span class="n">bad</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">  <span class="n">iunlockput</span><span class="p">(</span><span class="n">dp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="n">iput</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">//结束交易
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">end_op</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="nl">bad</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">  <span class="n">ilock</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="n">ip</span><span class="o">-&gt;</span><span class="n">nlink</span><span class="o">--</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="n">iupdate</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="n">iunlockput</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="n">end_op</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p><code>sys_link</code>接受两个参数，<code>new，old</code>（两个都是路径，而非只是目录名）：把<code>old</code>所指向的节点连接到<code>new</code>所指向的目录：即给一个节点创建新的链接（不会断开之前的链接）。这个系统调用首先会读取传入的参数并且通过<code>begin_op()</code>开始交易。在交易内部，会首先把<code>old</code>所指向的inode读取到进程中，如果这个inode是一个目录，则不处理，反之则继续：为<code>new</code>增加这个inode的<code>nlink</code>。然后找到<code>new</code>所在的目录：获取目录之后就可以真正地创建链接了<code>dirlink(dp, name, ip-&gt;inum)</code>。这里有一个问题：可以看到目标inode的<code>nlink</code>实际上在真正被链接之前就增加了，若崩溃发生或许会导致<code>nlink</code>和实际上的链接数量对不上。但这实际上是不会发生的：由于存在交易/提交的机制，这些对于不同的block的修改要么都发生，要么都不发生，即原子化。</p>
+<p>    <code>sys_link</code>给已经存在的inode创建了一个新的名字。而<code>create</code>给一个新的inode创建一个新的名字。<code>open()</code>用它创建一个文件，<code>mkdir()</code>用它创建一个目录，<code>mkdev()</code>用它创建一个设备：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="k">static</span> <span class="k">struct</span> <span class="n">inode</span><span class="o">*</span>
+</span></span><span class="line"><span class="cl"><span class="nf">create</span><span class="p">(</span><span class="kt">char</span> <span class="o">*</span><span class="n">path</span><span class="p">,</span> <span class="kt">short</span> <span class="n">type</span><span class="p">,</span> <span class="kt">short</span> <span class="n">major</span><span class="p">,</span> <span class="kt">short</span> <span class="n">minor</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">inode</span> <span class="o">*</span><span class="n">ip</span><span class="p">,</span> <span class="o">*</span><span class="n">dp</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">char</span> <span class="n">name</span><span class="p">[</span><span class="n">DIRSIZ</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">((</span><span class="n">dp</span> <span class="o">=</span> <span class="n">nameiparent</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">name</span><span class="p">))</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="n">ilock</span><span class="p">(</span><span class="n">dp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">((</span><span class="n">ip</span> <span class="o">=</span> <span class="n">dirlookup</span><span class="p">(</span><span class="n">dp</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="n">iunlockput</span><span class="p">(</span><span class="n">dp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ilock</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">type</span> <span class="o">==</span> <span class="n">T_FILE</span> <span class="o">&amp;&amp;</span> <span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">type</span> <span class="o">==</span> <span class="n">T_FILE</span> <span class="o">||</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">type</span> <span class="o">==</span> <span class="n">T_DEVICE</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">      <span class="k">return</span> <span class="n">ip</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">iunlockput</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">((</span><span class="n">ip</span> <span class="o">=</span> <span class="n">ialloc</span><span class="p">(</span><span class="n">dp</span><span class="o">-&gt;</span><span class="n">dev</span><span class="p">,</span> <span class="n">type</span><span class="p">))</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;create: ialloc&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="n">ilock</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="n">ip</span><span class="o">-&gt;</span><span class="n">major</span> <span class="o">=</span> <span class="n">major</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="n">ip</span><span class="o">-&gt;</span><span class="n">minor</span> <span class="o">=</span> <span class="n">minor</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="n">ip</span><span class="o">-&gt;</span><span class="n">nlink</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="n">iupdate</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">type</span> <span class="o">==</span> <span class="n">T_DIR</span><span class="p">){</span>  <span class="c1">// Create . and .. entries.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">dp</span><span class="o">-&gt;</span><span class="n">nlink</span><span class="o">++</span><span class="p">;</span>  <span class="c1">// for &#34;..&#34;
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">iupdate</span><span class="p">(</span><span class="n">dp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// No ip-&gt;nlink++ for &#34;.&#34;: avoid cyclic ref count.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span><span class="p">(</span><span class="n">dirlink</span><span class="p">(</span><span class="n">ip</span><span class="p">,</span> <span class="s">&#34;.&#34;</span><span class="p">,</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">inum</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="o">||</span> <span class="n">dirlink</span><span class="p">(</span><span class="n">ip</span><span class="p">,</span> <span class="s">&#34;..&#34;</span><span class="p">,</span> <span class="n">dp</span><span class="o">-&gt;</span><span class="n">inum</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">      <span class="n">panic</span><span class="p">(</span><span class="s">&#34;create dots&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">dirlink</span><span class="p">(</span><span class="n">dp</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">inum</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;create: dirlink&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="n">iunlockput</span><span class="p">(</span><span class="n">dp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="n">ip</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>由于也要涉及链接，显然需要文件inode和目录inode：和<code>sys_link</code>一样调用<code>nameiparent</code>获取目录，然后通过<code>dirlookup</code>检查是否有重名：如果有重名且inode类行为文件就返回上锁后的该inode（这实际上就是在<code>open</code>中以<code>O_CREATE</code>的方式打开后的一种结果），如果类型不是文件，就返回0。如果没有重名就为这个文件分配一个inode并赋值。若新建的inode是一个目录，会为目录初始化<code>. ..</code>两个<code>dirent</code>（通过<code>dirlink</code>，<code>ip</code>作为目录参数传入），分别指向当前目录和<code>dp</code>，即父目录。如果这个inode是不是目录，也通过<code>dirlink</code>，但是目录参数是<code>dp</code>。最终返回上锁后的新inode。<code>create</code>同时使用了<code>ip,dp</code>的锁，但是不可能死锁，因为<code>ip</code>由于<code>dp</code>未同步而不可能被别的进程看到。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="815-练习-exercises">8.15 练习 Exercises<a href="#815-练习-exercises" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<blockquote>
+<ol>
+<li>
+<p>Why panic in balloc ? Can xv6 recover?</p>
+</li>
+<li>
+<p>Why panic in ialloc ? Can xv6 recover?</p>
+</li>
+<li>
+<p>Why doesn’t filealloc panic when it runs out of files? Why is this more common and
+therefore worth handling?</p>
+</li>
+</ol>
+</blockquote>
+<blockquote>
+<ol start="4">
+<li>
+<p>Suppose the file corresponding to ip gets unlinked by another process between sys_link
+’s calls to iunlock(ip) and dirlink. Will the link be created correctly? Why or why not?</p>
+</li>
+<li>
+<p>create makes four function calls (one to ialloc and three to dirlink) that it requires
+to succeed. If any doesn’t, create calls panic. Why is this acceptable? Why can’t any of
+those four calls fail?</p>
+</li>
+<li>
+<p>sys_chdir calls iunlock(ip) before iput(cp-&gt;cwd), which might try to lock cp-&gt;cwd,
+yet postponing iunlock(ip) until after the iput would not cause deadlocks. Why not?</p>
+</li>
+<li>
+<p>Implement the lseek system call. Supporting lseek will also require that you modify
+filewrite to fill holes in the file with zero if lseek sets off beyond f-&gt;ip-&gt;size.</p>
+</li>
+<li>
+<p>Add O_TRUNC and O_APPEND to open, so that &gt; and &raquo; operators work in the shell.</p>
+</li>
+<li>
+<p>Modify the file system to support symbolic links.</p>
+</li>
+<li>
+<p>Modify the file system to support named pipes. 11. Modify the file and VM system to support memory-mapped files.</p>
+</li>
+</ol>
+</blockquote>
+
+		</div>
+		<aside id="toc">
+			<div class="toc-title">目录</div>
+			<nav id="TableOfContents">
+  <ul>
+    <li><a href="#目录">目录</a></li>
+    <li><a href="#导言">导言：</a></li>
+    <li><a href="#81-概述-overview">8.1 概述 Overview</a></li>
+    <li><a href="#82-缓存缓冲层-buffer-cache-layer">8.2 缓存缓冲层 Buffer cache layer</a></li>
+    <li><a href="#83-代码缓存缓冲-buffer-cache">8.3 代码：缓存缓冲 Buffer cache</a></li>
+    <li><a href="#84-日志层-logging-layer">8.4 日志层 Logging Layer</a></li>
+    <li><a href="#85-日志设计-log-design">8.5 日志设计 Log Design</a></li>
+    <li><a href="#86-代码日志-codelogging">8.6 代码：日志 Code：logging</a></li>
+    <li><a href="#87-代码block分配器-codeblock-allocator">8.7 代码：Block分配器 Code：Block Allocator</a></li>
+    <li><a href="#88-inode层-inode-layer">8.8 Inode层 Inode layer</a></li>
+    <li><a href="#89-代码inode-codeinode">8.9 代码：Inode Code：Inode</a></li>
+    <li><a href="#810-代码inode-内容-codeinode-content">8.10 代码：Inode 内容 Code：Inode content</a></li>
+    <li><a href="#811-代码目录层-codedirectory-layer">8.11 代码：目录层 Code：Directory layer</a></li>
+    <li><a href="#812-代码路径名称-codepath-names">8.12 代码：路径名称 Code：Path names</a></li>
+    <li><a href="#813-文件描述符层-file-descriptor-layer">8.13 文件描述符层 File descriptor layer</a></li>
+    <li><a href="#814-代码系统调用-codesystem-calls">8.14 代码：系统调用 Code：System calls</a></li>
+    <li><a href="#815-练习-exercises">8.15 练习 Exercises</a></li>
+  </ul>
+</nav>
+		</aside>
+	</main>
+
+	<footer id="site-footer" class="section-inner thin animated fadeIn faster">
+		<p>&copy; 2022 <a href="https://hoooao.github.io/">Xiyu Hao</a> &#183; <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" rel="noopener">CC BY-NC 4.0</a></p>
+		<p>
+			Made with <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> &#183; Theme <a href="https://github.com/Track3/hermit" target="_blank" rel="noopener">Hermit</a> &#183; <a href="https://hoooao.github.io/posts/index.xml" target="_blank" title="rss"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-rss"><path d="M4 11a9 9 0 0 1 9 9"></path><path d="M4 4a16 16 0 0 1 16 16"></path><circle cx="5" cy="19" r="1"></circle></svg></a>
+		</p>
+	</footer>
+
+
+
+	<script src="https://hoooao.github.io/js/bundle.min.5a42c67b729ee2fa1059251688235399704707e04edb4e28c42c6f6dfa49d1d9.js" integrity="sha256-WkLGe3Ke4voQWSUWiCNTmXBHB+BO204oxCxvbfpJ0dk=" crossorigin="anonymous"></script>
+	
+
+</body>
+
+</html>
