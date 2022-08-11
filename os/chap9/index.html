@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="zh-hans">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta http-equiv="X-UA-Compatible" content="ie=edge">
+	<meta name="theme-color" content="#494f5c">
+	<meta name="msapplication-TileColor" content="#494f5c">
+<meta itemprop="name" content="Chap9: Ext3 &amp; 用户空间虚拟内存应用 &amp; 微内核">
+<meta itemprop="description" content="目录  文件系统性能以及恢复 FS Performance &amp; Recovery  导言： 9.1 Linux Ext3 文件系统 9.2 Ext3 日志系统优势 9.3 Ext3 日志过程   用户程序对于虚拟内存的应用 Virtual Memory for Applications  导言： 9.4 原语 Primitives 9.5 用户空间Trap 9.6 垃圾回收器 Garbage Collector   微内核 Microkernels  导言： 9.7 内核对比 Kernel comparison 9.8 seL4      从本章开始，所有内容脱离了xv6教科书，转向了对现在操作系统（Unix/Linux等）的其他方面的介绍。本章对应于MIT 6.S081的Lec 16 至Lec 18  
+文件系统性能以及恢复 FS Performance &amp; Recovery 导言：  回忆在xv6中，文件系统维护在磁盘上维护着一个日志系统，他的结构十分简单：header block&#43;logged blocks。header中记录着当前日志中记录着的block的数量和每个block的number。重要的是，在某个系统调用使用end_op之前，使用的都是内存中的cached block，而只有在所有被修改的block都同步到了磁盘上的日志中的时候，日志的header才会更新指示着对应的block number。而更新header的这一瞬间就是commit-point：在此之前发生的崩溃都会导致这些还没有写入磁盘原来位置的数据丢失（即使已经保存在了日志中），而在此之后这些数据都可以被恢复。"><meta itemprop="datePublished" content="2022-08-06T15:49:13-04:00" />
+<meta itemprop="dateModified" content="2022-08-06T15:49:13-04:00" />
+<meta itemprop="wordCount" content="478">
+<meta itemprop="keywords" content="" /><meta property="og:title" content="Chap9: Ext3 &amp; 用户空间虚拟内存应用 &amp; 微内核" />
+<meta property="og:description" content="目录  文件系统性能以及恢复 FS Performance &amp; Recovery  导言： 9.1 Linux Ext3 文件系统 9.2 Ext3 日志系统优势 9.3 Ext3 日志过程   用户程序对于虚拟内存的应用 Virtual Memory for Applications  导言： 9.4 原语 Primitives 9.5 用户空间Trap 9.6 垃圾回收器 Garbage Collector   微内核 Microkernels  导言： 9.7 内核对比 Kernel comparison 9.8 seL4      从本章开始，所有内容脱离了xv6教科书，转向了对现在操作系统（Unix/Linux等）的其他方面的介绍。本章对应于MIT 6.S081的Lec 16 至Lec 18  
+文件系统性能以及恢复 FS Performance &amp; Recovery 导言：  回忆在xv6中，文件系统维护在磁盘上维护着一个日志系统，他的结构十分简单：header block&#43;logged blocks。header中记录着当前日志中记录着的block的数量和每个block的number。重要的是，在某个系统调用使用end_op之前，使用的都是内存中的cached block，而只有在所有被修改的block都同步到了磁盘上的日志中的时候，日志的header才会更新指示着对应的block number。而更新header的这一瞬间就是commit-point：在此之前发生的崩溃都会导致这些还没有写入磁盘原来位置的数据丢失（即使已经保存在了日志中），而在此之后这些数据都可以被恢复。" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://hoooao.github.io/os/chap9/" /><meta property="article:section" content="os" />
+<meta property="article:published_time" content="2022-08-06T15:49:13-04:00" />
+<meta property="article:modified_time" content="2022-08-06T15:49:13-04:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Chap9: Ext3 &amp; 用户空间虚拟内存应用 &amp; 微内核"/>
+<meta name="twitter:description" content="目录  文件系统性能以及恢复 FS Performance &amp; Recovery  导言： 9.1 Linux Ext3 文件系统 9.2 Ext3 日志系统优势 9.3 Ext3 日志过程   用户程序对于虚拟内存的应用 Virtual Memory for Applications  导言： 9.4 原语 Primitives 9.5 用户空间Trap 9.6 垃圾回收器 Garbage Collector   微内核 Microkernels  导言： 9.7 内核对比 Kernel comparison 9.8 seL4      从本章开始，所有内容脱离了xv6教科书，转向了对现在操作系统（Unix/Linux等）的其他方面的介绍。本章对应于MIT 6.S081的Lec 16 至Lec 18  
+文件系统性能以及恢复 FS Performance &amp; Recovery 导言：  回忆在xv6中，文件系统维护在磁盘上维护着一个日志系统，他的结构十分简单：header block&#43;logged blocks。header中记录着当前日志中记录着的block的数量和每个block的number。重要的是，在某个系统调用使用end_op之前，使用的都是内存中的cached block，而只有在所有被修改的block都同步到了磁盘上的日志中的时候，日志的header才会更新指示着对应的block number。而更新header的这一瞬间就是commit-point：在此之前发生的崩溃都会导致这些还没有写入磁盘原来位置的数据丢失（即使已经保存在了日志中），而在此之后这些数据都可以被恢复。"/>
+
+	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+	<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+	<link rel="manifest" href="/site.webmanifest">
+	<link rel="mask-icon" href="/safari-pinned-tab.svg" color="">
+	<link rel="shortcut icon" href="/favicon.ico">
+
+	<title>Chap9: Ext3 &amp; 用户空间虚拟内存应用 &amp; 微内核</title>
+	<link rel="stylesheet" href="https://hoooao.github.io/css/style.min.6b1219507aa24bcc2a46f4f7071edbc5dc448ba85934d68c4af0ca0a7ad89dcd.css" integrity="sha256-axIZUHqiS8wqRvT3Bx7bxdxEi6hZNNaMSvDKCnrYnc0=" crossorigin="anonymous">
+	<style>.bg-img {background-image: url('https://images.unsplash.com/photo-1531265726475-52ad60219627?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=2691&q=80');}</style>
+</head>
+
+<body id="page">
+	
+	<header id="site-header" class="animated slideInUp">
+		<script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML" type="text/javascript"></script>
+		<script type="text/x-mathjax-config">
+			MathJax.Hub.Config({
+				tex2jax: {
+				skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+				inlineMath: [['$','$']]
+				}
+			});
+		</script>
+		<div class="hdr-wrapper section-inner">
+			<div class="hdr-left">
+				<div class="site-branding">
+					<a href="https://hoooao.github.io/">Hao的个人博客</a>
+				</div>
+				<nav class="site-nav hide-in-mobile">
+					
+				<a href="https://hoooao.github.io/db/">Database</a>
+				<a href="https://hoooao.github.io/os/">Operating System</a>
+				<a href="https://hoooao.github.io/about-hugo/">About</a>
+
+				</nav>
+			</div>
+			<div class="hdr-right hdr-icons">
+				<span class="hdr-social hide-in-mobile"><a href="https://i.imgur.com/gzAPv6g.jpeg" target="_blank" rel="noopener me" title="Wechat"><svg xmlns="http://www.w3.org/2000/svg" class="feather" width="24" height="24" viewBox="0 0 1000 1000" fill="#c8cdd3" stroke="currentColor" stroke-width="30" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M487.4,340.2c25.2,0,42-16.9,42-42c0-25.4-16.8-41.9-42-41.9c-25.2,0-50.6,16.4-50.6,41.9C436.9,323.4,462.2,340.2,487.4,340.2z M252.2,256.4c-25.2,0-50.7,16.4-50.7,41.9c0,25.1,25.5,42,50.7,42c25.1,0,41.9-16.9,41.9-42C294.1,272.8,277.3,256.4,252.2,256.4z M990,609.2c0-132.9-123.3-246.1-274.6-257.9c0.2-1.7,0.3-3.4-0.1-5.1C684.9,204.7,532.8,98,361.4,98C167.6,98,10,233.1,10,399.1c0,89.1,45.5,169.3,131.7,232.6l-30,90.3c-1.9,5.9-0.2,12.3,4.5,16.4c2.8,2.4,6.4,3.7,10,3.7c2.3,0,4.7-0.6,6.9-1.6l112.8-56.4l13.9,2.8c34.7,7.1,64.7,13.3,101.6,13.3c10.9,0,21.9-0.5,32.7-1.4c4.4-0.4,8.1-2.6,10.6-5.8c40.7,101.8,152.8,175.2,284.7,175.2c33.8,0,68-8.1,98.7-15.8l86.9,47.5c2.3,1.3,4.8,1.9,7.3,1.9c3.4,0,6.9-1.2,9.6-3.4c4.8-3.9,6.8-10.4,5-16.3l-22.2-73.8C949.2,749.6,990,679.2,990,609.2z M391.5,668.4c-10,0.9-20.1,1.3-30.1,1.3c-33.8,0-62.4-5.8-95.5-12.7l-19.2-3.9c-3.3-0.7-6.8-0.2-9.8,1.3l-84.5,42.3l22-66c2.1-6.5-0.2-13.5-5.8-17.4C83.7,554.2,40.6,482.1,40.6,399.1c0-149.1,143.9-270.5,320.7-270.5c156.3,0,294.8,95.1,323.3,221.6c-163.9,2.1-296.6,117.4-296.6,258.9c0,20.6,3.1,40.5,8.4,59.7C394.9,668.5,393.2,668.2,391.5,668.4z M847.8,790.5c-5.1,3.9-7.3,10.5-5.5,16.6l14.5,48.2l-59.4-32.5c-2.3-1.3-4.8-1.9-7.4-1.9c-1.3,0-2.5,0.2-3.7,0.5c-31.9,8.1-64.9,16.4-97,16.4c-149.2,0-270.6-102.5-270.6-228.5c0-126,121.4-228.5,270.6-228.5c146.4,0,270,104.6,270,228.5C959.4,672,919.8,736.4,847.8,790.5z M596.7,500c-16.8,0-33.6,16.9-33.6,33.7c0,16.9,16.8,33.6,33.6,33.6c25.3,0,42-16.7,42-33.6C638.6,516.9,621.9,500,596.7,500z M781.4,500c-16.6,0-33.4,16.9-33.4,33.7c0,16.9,16.8,33.6,33.4,33.6c25.2,0,42.2-16.7,42.2-33.6C823.6,516.9,806.6,500,781.4,500z"></path>
+    </svg></a><a href="https://github.com/Hoooao" target="_blank" rel="noopener me" title="Github"><svg xmlns="http://www.w3.org/2000/svg" class="feather" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg></a></span><button id="menu-btn" class="hdr-btn" title="菜单"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-menu"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button>
+			</div>
+		</div>
+	</header>
+	<div id="mobile-menu" class="animated fast">
+		<ul>
+			<li><a href="https://hoooao.github.io/db/">Database</a></li>
+			<li><a href="https://hoooao.github.io/os/">Operating System</a></li>
+			<li><a href="https://hoooao.github.io/about-hugo/">About</a></li>
+		</ul>
+	</div>
+
+
+	<div class="bg-img"></div>
+	<main class="site-main section-inner thin animated fadeIn faster">
+		<h1>Chap9: Ext3 &amp; 用户空间虚拟内存应用 &amp; 微内核</h1>
+		<div class="content">
+			<h2 id="目录">目录<a href="#目录" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<ul>
+<li><a href="#%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9F%E6%80%A7%E8%83%BD%E4%BB%A5%E5%8F%8A%E6%81%A2%E5%A4%8D-fs-performance--recovery">文件系统性能以及恢复 FS Performance &amp; Recovery</a>
+<ul>
+<li><a href="#%E5%AF%BC%E8%A8%80">导言：</a></li>
+<li><a href="#91-linux-ext3-%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9F">9.1 Linux Ext3 文件系统</a></li>
+<li><a href="#92-ext3-%E6%97%A5%E5%BF%97%E7%B3%BB%E7%BB%9F%E4%BC%98%E5%8A%BF">9.2 Ext3 日志系统优势</a></li>
+<li><a href="#93-ext3-%E6%97%A5%E5%BF%97%E8%BF%87%E7%A8%8B">9.3 Ext3 日志过程</a></li>
+</ul>
+</li>
+<li><a href="#%E7%94%A8%E6%88%B7%E7%A8%8B%E5%BA%8F%E5%AF%B9%E4%BA%8E%E8%99%9A%E6%8B%9F%E5%86%85%E5%AD%98%E7%9A%84%E5%BA%94%E7%94%A8-virtual-memory-for-applications">用户程序对于虚拟内存的应用 Virtual Memory for Applications</a>
+<ul>
+<li><a href="#%E5%AF%BC%E8%A8%80-1">导言：</a></li>
+<li><a href="#94-%E5%8E%9F%E8%AF%AD-primitives">9.4 原语 Primitives</a></li>
+<li><a href="#95-%E7%94%A8%E6%88%B7%E7%A9%BA%E9%97%B4trap">9.5 用户空间Trap</a></li>
+<li><a href="#96-%E5%9E%83%E5%9C%BE%E5%9B%9E%E6%94%B6%E5%99%A8-garbage-collector">9.6 垃圾回收器 Garbage Collector</a></li>
+</ul>
+</li>
+<li><a href="#%E5%BE%AE%E5%86%85%E6%A0%B8-microkernels">微内核 Microkernels</a>
+<ul>
+<li><a href="#%E5%AF%BC%E8%A8%80-2">导言：</a></li>
+<li><a href="#97-%E5%86%85%E6%A0%B8%E5%AF%B9%E6%AF%94-kernel-comparison">9.7 内核对比 Kernel comparison</a></li>
+<li><a href="#98-sel4">9.8 seL4</a></li>
+</ul>
+</li>
+</ul>
+<br>
+<hr>
+<br>
+<p>    从本章开始，所有内容脱离了xv6教科书，转向了对现在操作系统（Unix/Linux等）的其他方面的介绍。本章对应于MIT 6.S081的Lec 16 至Lec 18
+<br></p>
+<hr>
+<p><br><br><br></p>
+<h1 id="文件系统性能以及恢复-fs-performance--recovery">文件系统性能以及恢复 FS Performance &amp; Recovery<a href="#文件系统性能以及恢复-fs-performance--recovery" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h1>
+<br>
+<br>
+<h2 id="导言">导言：<a href="#导言" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    回忆在xv6中，文件系统维护在磁盘上维护着一个日志系统，他的结构十分简单：header block+logged blocks。header中记录着当前日志中记录着的block的数量和每个block的number。重要的是，在某个系统调用使用<code>end_op</code>之前，使用的都是内存中的cached block，而只有在所有被修改的block都同步到了磁盘上的日志中的时候，日志的header才会更新指示着对应的block number。而更新header的这一瞬间就是commit-point：在此之前发生的崩溃都会导致这些还没有写入磁盘原来位置的数据丢失（即使已经保存在了日志中），而在此之后这些数据都可以被恢复。</p>
+<p>    任何使用日志系统的文件系统都需要遵守两个原则：</p>
+<blockquote>
+<p>Write-ahead rule：在log中的内容写入磁盘之前，任何日志中对应的block都不能提前写入磁盘原位置。这保证了原子化，是日志系统最重要的准则；</p>
+<p>Freeing rule：不能在log写入磁盘真正位置之前重写或者重新利用任何log中的block。</p>
+</blockquote>
+<p>    xv6中的日志系统被称为“synchronous”：在一个系统调用执行完一对<code>begin_op, end_op</code>之前，不可能返回用户空间，并且最重要的是在<strong>committing的过程</strong>中，没有任何其他线程可以使用日志系统，效率十分低。</p>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="91-linux-ext3-文件系统">9.1 Linux Ext3 文件系统<a href="#91-linux-ext3-文件系统" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    ext3是Linux所使用的第三代文件系统，本质上是ext2+Journaling：journaling与logging<strong>完全等同</strong>。与xv6一样，Linux也在内存中保存着一个缓冲缓存器，储存着一些从磁盘中复制来的block。但是不同的是它同样保存着transaction的信息。在ext3中，允许多个交易并发进行，所以它保存着每一个交易的信息：</p>
+<blockquote>
+<p>Sequence：是当前transaction的次序；</p>
+<p>当前transaction所修改的blocks的block numbers；</p>
+<p>Handles：当前transaction中正在运行的系统调用。</p>
+</blockquote>
+<p>在磁盘上，ext3有和xv6一样的文件目录，bitmap，以及log等。但是ext3的log的格式不太一样：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/b62rNP0.png" alt="" style="width:100%; background: rgba(255, 255, 255, .5)">
+<figcaption><b>Fig.1 Ext3Log布局</b></figcaption>
+</div>
+</figure>
+<p>在其Log中，第一个block是一个superblock，保存着当前Log系统中的元数据，比如第一个有效Transaction的偏移量以及其Sequence。由于Log是一个循环数组，所以superblock后面第一个block可能不是一个transaction的开始。<strong>Descriptor block</strong> 标志着一个transaction的开始，它记录着这个transaction的元数据，如这个交易的Sequence以及其所涉及的block numbers，类似xv6中的header block。紧随其后的是这个交易的logged block。最后是一个<strong>Commit block</strong>，标志着这个交易的结束，也保存着Sequence。这个block的后面是另一个交易的descriptor block，以此往复。</p>
+<p>为了把descriptor和commit这两个特殊的block和普通的数据block区分开，前两者的开头是一个magic number（某个32位数字），用来让文件系统区分。</p>
+<p>    不像xv6支持一个transaction，如图中所示，每一个descriptor block的出现都标志着一个交易的出现。虽然锁ext3的日志系统支持并发，但是一个时刻也只可能有一个 active transaction。这个所谓的活跃的交易必然还没有被复制到磁盘上的日志中，而仍然在内存中修改着缓存blocks。所以某一时刻的所有交易应当为：躺在磁盘上的日志里等待同步回原位置的交易和一个正在内存中读写的交易。</p>
+<p>    下面介绍这种日志系统的三个优势：</p>
+<blockquote>
+<ol>
+<li>
+<p><strong>非同步的系统调用（Asynchronous Syscalls）</strong>: Ext3中的写入磁盘的系统调用可以在系统写入磁盘的时候返回用户空间执行其他任务：系统调用只需关心对于缓存在内存的的文件的读写，不像xv6这个线程需要等待写入；</p>
+</li>
+<li>
+<p><strong>批处理（Batching）</strong>：可以把多个系统调用批处理到一个交易中（xv6实现了一定程度的批处理）；</p>
+</li>
+<li>
+<p><strong>并发</strong>：同时可以有多个交易保存在日志中；</p>
+</li>
+</ol>
+</blockquote>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="92-ext3-日志系统优势">9.2 Ext3 日志系统优势<a href="#92-ext3-日志系统优势" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    <strong>非同步的系统调用</strong>除了可以让一个系统调用更快的返回用户空间，这一特性同时也增强了整个系统的并发能力：在返回用户空间后，磁盘会写入信息，与此同时这一线程也可以并发地处理其他计算：<strong>I/O 并发</strong>。如果没有这种非同步化，线程的计算无法与其写入并发。同时这一特性也帮助批处理</p>
+<p>    不过这也可能会有个问题：即系统调用的返回不意味着磁盘写入的完成。比如设计一个程序在写入信息之后输出完成字符串，但是由于系统调用提前返回，会造成输出完成并不代表真正的写入完成，而此时发生崩溃仍会导致数据丢失。 Ext3通过提供系统调用<code>fsysc(fd)</code> 强制对于一个文件的写入结束之后再从某系统调用中返回。</p>
+<p>    在<strong>批处理</strong>中，多个系统调用可以被打包在一个交易中。它提供了三个优势。</p>
+<blockquote>
+<p><strong>单一的正在进行的交易</strong>：ext3中，每隔5秒会产生一个新的交易，五秒之后，这个交易会被提交（放入磁盘的log中）并且开启下一个交易。在这5秒钟所发生的一切系统调用都会被打包在这一个交易之中。这之所以是一个优势是因为它把多个系统调用的交易的提交（放入磁盘上的log）变成了一个固定的成本（成本来自对于写入磁盘log所造成的latency等）。</p>
+<p><strong>写入吸收（Write absorption）</strong>：当多个系统调用需要写入同一个block的时候，只需要更改缓存在内存中的这一个block即可。比如多个系统调用创建很多文件，要分配很多inode，但可能只是对几个inode block和bitmap block做出了改变，而这些改变都是对于内存中的复制品做出的，所以很快。而在同步的时候，写入吸收也会同样地使得磁盘涉及相对更少的block的写入。</p>
+<p><strong>磁盘规划</strong>：磁盘规划的优势体现在从内存写入log。Log在磁盘上是一段连续的区域。在磁盘上顺序写入相同的数量的block要比非顺序写入相同数量的block效率更高，甚至也比给同一个block写入相同的次数更高。打包本身会导致相比不打包的情况下，一次顺序写入更多的block。与此同时，磁盘规划也会提高从log写入磁盘原位置的效率：磁盘驱动可能会把目标block number排序，依次写入。</p>
+</blockquote>
+<p>    首先很显然，ext3的日志系统让多个系统调用可以<strong>并发运行</strong>，并且允许它们并发地修改缓存着的blocks，互相无需等待。</p>
+<p>    其次，同一时刻可能会有处于不同阶段的交易在文件系统中并发进行：</p>
+<blockquote>
+<ol>
+<li>最新的1个交易：正在内存中上接收写入，还没有放入磁盘中的log区；</li>
+<li>正在向log提交的交易：它正在被从内存复制到磁盘中的log；</li>
+<li>正在写入磁盘原位置的交易；</li>
+<li>成功写入的交易：改交易的区域被释放，会被后来的新交易重新利用。</li>
+</ol>
+</blockquote>
+<p>可以看到这里可能会有一个问题：当一个新的交易在处理写入的时候，可能会使用正在向log提交的交易中所正在提交的block。也就是说一个内存中的block正在被系统调用写入，同时也正在被复制到log中。显然一个交易中block中包含着来自另一个交易中的写入是不可接受的。Ext3解决这一情景的方法是，每当一个交易开始提交，会把整个它所修改了的block全部再次复制一份在内存中，所以不用担心后来的交易修改缓存中的相同block造成问题。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="93-ext3-日志过程">9.3 Ext3 日志过程<a href="#93-ext3-日志过程" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    类似xv6中的磁盘写入过程，ext3也需要系统调用标明写入的开始和结束位置：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="n">h</span> <span class="o">=</span> <span class="n">start</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl"><span class="n">get</span><span class="p">(</span><span class="n">h</span><span class="p">,</span> <span class="n">blocknum</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">//operations...
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl"><span class="n">stop</span><span class="p">(</span><span class="n">h</span><span class="p">);</span>
+</span></span></code></pre></div><p><code>star()</code>开始把接下来的操作记录到一个transaction中（内存中操作），返回一个handler：这个handler是每个写入磁盘的系统调用所独有的。调用<code>get()</code>，传入handler和目标block number，再获取目标block的同时标记“这个block正在被系统调用h使用”。在执行一系列的写入操作后，调用<code>stop()</code>，告诉文件系统当前系统调用h结束。不像xv6，这里的<code>stop</code>只是通知系统一个系统调用结束。5秒内会很有很多这样的系统调用发生并且被分配到这一个交易中。很好理解在5秒结束的瞬间，很可能还有一些系统调用正在执行写入，此时文件系统就需要等待这些操作完成，然后再开始提交。</p>
+<p>    提交的步骤：</p>
+<blockquote>
+<ol>
+<li>暂停所有系统调用：不让新的系统调用开始执行。这可能导致一点性能损失；</li>
+<li>等待正在执行的系统调用结束，并且复制修改了的block（保护信息）；</li>
+<li>开启1个新的交易，新的系统调用开始运行；</li>
+<li>写入descriptor block以及所有修改了的block 的 block numbers；</li>
+<li>把block写入日志；</li>
+<li>等待4，5结束；</li>
+<li>写入 commit block；</li>
+<li>等待7完成：7完成之后标志着达成commit-point；</li>
+<li>写入block原始位置；</li>
+<li>这个交易使用的Log中的blocks会被重新利用。</li>
+</ol>
+</blockquote>
+<p><strong>注</strong>：上述步骤都是在后台线程完成，没有其他进程会等待其中某一步的完成而继续；如果log中剩余的blocks不够这次交易提交，那么这个交易会等待，直到有足够的空间（等待之前的几个交易完成第9步）。</p>
+<p>    在重启后数据恢复写入磁盘的时候有一些细节需要注意。Superblock中永远保存着当前最新的待写入磁盘原位置的交易的descriptor block。文件系统会从这个block开始遍历整个日志找到当前保存在日志中的所有交易最末尾的位置（最后一个交易的commit block），然后开始一个接一个写入磁盘原位置。如果存在未完成的提交（只有descriptor block，没有commit block），会被文件系统忽略。这样的不完整的交易只可能是最后一个交易。</p>
+<p>    这里可能会出现一些问题。如之前所说，文件系统区分某block是否为descriptor/commit block的方法是通过检查这个block是否以magic number开头，那么考虑这样的情景：一个交易commit block结束之后没有别的交易了，下一个block是之前存在过的交易曾使用的block，而碰巧这个block也是以magic number开头（但不是descriptor block）。实际上这样的情况由于文件系统的设计不会发生：Ext3在提交的过程中（内存-&gt;Log）会检索每个block，如果发现任何一个block以magic number开头，会把这部分数据归0，然后在这个交易的descriptor中记录归零的位置。同时，已完成的交易的commit block也不会造成任何问题，因为Sequence属性本身也用来验证一个交易。</p>
+<p>    <strong>补充：</strong> 如上所述，再开始提交的瞬间任何新的系统调用不得开始写入。除了由于时间已到需要开始提交，另外一个原因是为了原子化。如果仍允许系统调用，可能会导致后来的系统调用修改了和之前的系统调用一样的block。而在提交完成的时候后来的系统调用仍没结束却崩溃发生：后来的系统调用部分发生，原子化失败。这里发生的问题是在block被复制之前（即等待系统调用结束），所以block复制的机制也帮不上忙。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h1 id="用户程序对于虚拟内存的应用-virtual-memory-for-applications">用户程序对于虚拟内存的应用 Virtual Memory for Applications<a href="#用户程序对于虚拟内存的应用-virtual-memory-for-applications" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h1>
+<br>
+<br>
+<h2 id="导言-1">导言：<a href="#导言-1" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    如第三章所介绍的，操作系统内核使用虚拟内存（Page fault）实现了很多有创意的行为，比如懒分配，COW等。这部分内容主要介绍用户空间对于虚拟内存类似的应用以及原理。</p>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="94-原语-primitives">9.4 原语 Primitives<a href="#94-原语-primitives" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    <strong>原语（Primitives）</strong> 是对一些代码的抽象，它们是为了实现某些功能的单位。在我们的语境下，为了实现用户空间对于虚拟内存的应用，需要有这几个原语：</p>
+<blockquote>
+<ol>
+<li>
+<p>Trap：这个原语使得当Trap发生后，内核可以返回到用户空间执行特定的用户空间代码（比如当某种Page fault发生后，可以让用户代码来执行一些后续的操作）；</p>
+</li>
+<li>
+<p>Prot1（Protect1）：降低某一个Page的权限，或者说降低 “accessibility”；比如从读写全乡可以降低为只读/只写/无法访问；</p>
+</li>
+<li>
+<p>ProtN：类似Prot1，但是同时可以降低多个Page权限；相比前者，ProtN效率更高：每当一个Page（PTE）的权限被修改之后，TLB会被Flush，而flush的成本很高，一次修改多个Page分摊了这一成本；</p>
+</li>
+<li>
+<p>Unprot：上述的逆向；没有UnprotN，单纯因为实现用户空间虚拟内存应用这一目标不需要；</p>
+</li>
+<li>
+<p>Dirty：找到那个Page是dirty（被修改过）的；</p>
+</li>
+<li>
+<p>Map2：把一个范围内地址映射两次到一个程序的内存空间，有不同的权限（Accessibility）。</p>
+</li>
+</ol>
+</blockquote>
+<p>Xv6不支持其中任何一个，但现代的其他操作系统，比如Linux/Unix，支持。比如Unix中的函数 <code>mprotect(addr,len,R/W/NONE)</code>可以修改某一特定范围的<strong>地址</strong>为某一权限(三选一)；以及<code>unmap</code>：取消对某一地址范围（本质上仍然是对Page的操作，但特殊）的映射；还有最重要的<code>sigaction</code>： 即signal handler的设置：signal指的是某一错误发生后的“指示”，比如page fault会发起一个 Signal：segfault：若一个程序设置了特定的segfault 处理代码，那么当错误发生就会转向这个代码；<code>mmap</code>可以把一些Object映射到用户内存中，对它的多次调用可以实现上面的map2；</p>
+<p>    这些接口的实现也获益于虚拟内存的涉及。除了分页表，另一个重要的组成是<strong>虚拟内存区域（VMAs：Virtual Memory Areas）</strong>。它们是保存在内核中的对于每一个进程的内存空间各个部分的描述，比如它会指明某一个进程所打开的一个文件在内存中的位置，同时记录文件的fd，偏移量等等。每一个VMA必定描述的是一段<strong>连续的内存</strong>，这些地址（Page）权限都一样，并且以所映射的Object为单位。对于<code>mmap</code>的每次调用都会产生一个VMA。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="95-用户空间trap">9.5 用户空间Trap<a href="#95-用户空间trap" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    用户空间Trap实际上遵循普通Trap的处理方式。假设一个用户空间的内存地址被访问，而该内存地址被标记为了禁止访问：处理器会进入内核模式，经过正常的Trap处理然后会问虚拟内存系统接下来干什么。比如VM系统给这一报错设置了处理代码（handler），那么此时会出现一个 <strong>Upcall</strong>， 它使得处理器跳转回用户空间，执行对应的处理代码</p>
+<p>    这里有一个简单的例子解释用户空间Trap处理的结构。假设有一个程序的目的是计算大量的平方根，一个有效的优化手段是预处理平方根，当需要某特定数字的平方根时直接查表。如果可能出现的数字的数量大于物理内存空间，这种优化显然不实际。但是可以实现类似懒分配一般，只在虚拟内存只能给分配足够的空间，而不实际映射，只有当目标位置被访问的时候，即有需求某平方根，才真正在收到Page fault之后分配空间并且计算平方根：这样下次使用这一数据的时候就不用计算了。</p>
+<p>    最重要的问题是如何在接收到报错之后返回用户空间并执行内存分配以及计算的用户接口。</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/81rzSAe.jpg" alt="" style="width:100%; background: rgba(255, 255, 255, .5)">
+<figcaption><b>Fig.2 sqrt代码</b></figcaption>
+</div>
+</figure>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="k">static</span> <span class="kt">void</span>
+</span></span><span class="line"><span class="cl"><span class="nf">setup_sqrt_region</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> 
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">struct</span> <span class="n">sigaction</span> <span class="n">act</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1">// Only mapping to find a safe location for the table.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// 这里的意义是找到一块可以分配的位置
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">sqrts</span> <span class="o">=</span> <span class="n">mmap</span><span class="p">(</span><span class="nb">NULL</span><span class="p">,</span> <span class="n">MAX_SQRTS</span> <span class="o">*</span> <span class="k">sizeof</span><span class="p">(</span><span class="kt">double</span><span class="p">)</span> <span class="o">+</span> <span class="n">AS_LIMIT</span><span class="p">,</span><span class="n">PROT_NONE</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">                <span class="n">MAP_PRIVATE</span> <span class="o">|</span> <span class="n">MAP_ANONYMOUS</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">sqrts</span> <span class="o">==</span> <span class="n">MAP_FAILED</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">        <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&#34;Couldn&#39;t mmap() region for sqrt table; %s</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">            <span class="n">strerror</span><span class="p">(</span><span class="n">errno</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">        <span class="n">exit</span><span class="p">(</span><span class="n">EXIT_FAILURE</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1">// Now release the virtual memory
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">//释放掉
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span> <span class="p">(</span><span class="n">munmap</span><span class="p">(</span><span class="n">sqrts</span><span class="p">,</span> <span class="n">MAX_SQRTS</span> <span class="o">*</span> <span class="k">sizeof</span><span class="p">(</span><span class="kt">double</span><span class="p">)</span><span class="o">+</span><span class="n">AS_LIMIT</span><span class="p">)</span><span class="o">==-</span><span class="mi">1</span><span class="p">){</span> 
+</span></span><span class="line"><span class="cl">        <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&#34;Couldn&#39;t munmap() region for sqrt table; %s</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">            <span class="n">strerror</span><span class="p">(</span><span class="n">errno</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">        <span class="n">exit</span><span class="p">(</span><span class="n">EXIT_FAILURE</span><span class="p">);</span> <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1">// Register a signal handler to capture SIGSEGV. 
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// 这里设置SIGSEGV的handler
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">act</span><span class="p">.</span><span class="n">sa_sigaction</span> <span class="o">=</span> <span class="n">handle_sigsegv</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">act</span><span class="p">.</span><span class="n">sa_flags</span> <span class="o">=</span> <span class="n">SA_SIGINFO</span><span class="p">;</span> 
+</span></span><span class="line"><span class="cl">    <span class="n">sigemptyset</span><span class="p">(</span><span class="o">&amp;</span><span class="n">act</span><span class="p">.</span><span class="n">sa_mask</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// 正式设置
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span> <span class="p">(</span><span class="n">sigaction</span><span class="p">(</span><span class="n">SIGSEGV</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">act</span><span class="p">,</span><span class="nb">NULL</span><span class="p">)</span><span class="o">==-</span><span class="mi">1</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">        <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&#34;Couldn&#39;t set up SIGSEGV handler;, %s</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">strerror</span><span class="p">(</span><span class="n">errno</span><span class="p">));</span> 
+</span></span><span class="line"><span class="cl">        <span class="n">exit</span><span class="p">(</span><span class="n">EXIT_FAILURE</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span> 
+</span></span><span class="line"><span class="cl"><span class="p">}</span> 
+</span></span></code></pre></div><p>在<code>setup_sqrt_region</code>函数中，进程会会真正地设置handler。当对应的Signal发生时，就会调用这里所设置的用户函数<code>handle_sigsegv</code>:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="k">static</span> <span class="kt">void</span>
+</span></span><span class="line"><span class="cl"><span class="nf">handle_sigsegv</span><span class="p">(</span><span class="kt">int</span> <span class="n">sig</span><span class="p">,</span> <span class="n">siginfo_t</span> <span class="o">*</span><span class="n">si</span><span class="p">,</span> <span class="kt">void</span> <span class="o">*</span><span class="n">ctx</span><span class="p">)</span> 
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="n">uintptr_t</span> <span class="n">fault_addr</span><span class="o">=</span><span class="p">(</span><span class="n">uintptr_t</span><span class="p">)</span><span class="n">si</span><span class="o">-&gt;</span><span class="n">si_addr</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">double</span> <span class="o">*</span><span class="n">page_base</span> <span class="o">=</span> <span class="p">(</span><span class="kt">double</span> <span class="o">*</span><span class="p">)</span><span class="n">align_down</span><span class="p">(</span><span class="n">fault_addr</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">            <span class="n">page_size</span><span class="p">);</span> 
+</span></span><span class="line"><span class="cl">    <span class="k">static</span> <span class="kt">double</span> <span class="o">*</span><span class="n">last_page_base</span> <span class="o">=</span><span class="nb">NULL</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">//开始映射
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span> <span class="p">(</span><span class="n">mmap</span><span class="p">(</span><span class="n">page_base</span><span class="p">,</span> <span class="n">page_size</span><span class="p">,</span> <span class="n">PROT_READ</span> <span class="o">|</span> <span class="n">PROT_WRITE</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">            <span class="n">MAP_PRIVATE</span><span class="o">|</span> <span class="n">MAP_ANONYMOUS</span> <span class="o">|</span> <span class="n">MAP_FIXED</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">)</span> <span class="o">==</span><span class="n">MAP_FAILED</span><span class="p">){</span> 
+</span></span><span class="line"><span class="cl">        <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&#34;Couldn&#39;t mmap(); %s</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">strerror</span><span class="p">(</span><span class="n">errno</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">        <span class="n">exit</span><span class="p">(</span><span class="n">EXIT_FAILURE</span><span class="p">);</span> 
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">//计算平方根
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">calculate_sqrts</span><span class="p">(</span><span class="n">page_base</span><span class="p">,</span> <span class="n">page_base</span> <span class="o">-</span> <span class="n">sqrts</span><span class="p">,</span> <span class="n">page_size</span> <span class="o">/</span> <span class="k">sizeof</span><span class="p">(</span><span class="kt">double</span><span class="p">));</span> 
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1">//释放之前分配的Page，压缩所使用的空间
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span> <span class="p">(</span><span class="n">last_page_base</span> <span class="o">&amp;&amp;</span> <span class="n">munmap</span><span class="p">(</span><span class="n">last_page_base</span><span class="p">,</span><span class="n">page_size</span><span class="p">)</span><span class="o">==-</span><span class="mi">1</span><span class="p">){</span>    
+</span></span><span class="line"><span class="cl">        <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&#34;Couldn&#39;t munmap(); %s</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">strerror</span><span class="p">(</span><span class="n">errno</span><span class="p">));</span> 
+</span></span><span class="line"><span class="cl">        <span class="n">exit</span><span class="p">(</span><span class="n">EXIT_FAILURE</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">last_page_base</span> <span class="o">=</span> <span class="n">page_base</span><span class="p">;</span> 
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span></code></pre></div><br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="96-垃圾回收器-garbage-collector">9.6 垃圾回收器 Garbage Collector<a href="#96-垃圾回收器-garbage-collector" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    垃圾回收器通常是编程语言自身设计的回收机制，在此机制之下可以避免资源的浪费。主流语言中，除了C语言不存在这种机制，必须手动调用<code>free</code>，其他语言皆存在。对于这些语言，程序员只需要调用内存分配接口，而不用担心内存释放，由垃圾回收器决定某一内存空间是否在被利用，如果没有，则释放。本节介绍的垃圾回收器叫做 <strong>Copying Garbage Collector</strong>，是基于<strong>Cheney</strong> 算法的实现[1]。</p>
+<p>    在这一实现中，一个进程的<strong>堆空间</strong>，也就是使用<code>malloc</code>分配的空间，被分成了两个部分：from-space&amp;to-space：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/ENxs4CT.png" alt="" style="width:100%; background: rgba(255, 255, 255, .5)">
+<figcaption><b>Fig.3 CGC：初始状态</b></figcaption>
+</div>
+</figure>
+<p>当前状态下，左侧是from-space，右侧是to-space：前者被逐渐分配，后者作为之后的容器而不使用。被一个正在使用的资源（Object）都可以从上方的root中达到。资源与资源之间使用指针相连接。不与root相连接的资源被认为是垃圾。当分配的过程中发现空间不够了，就会把其中离root最近的object移动到to-space：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/hF4uInP.png" alt="" style="width:100%; background: rgba(255, 255, 255, .5)">
+<figcaption><b>Fig.4 CGC：首次移动</b></figcaption>
+</div>
+</figure>
+<p>原来位置上的内容会变成一个 <strong>转发指针（Forwarding Pointer）</strong>，指向这个object现在所在的位置。然后对这个object所指向的其他object也做相同的事情:</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/XuVtO3n.jpeg" alt="" style="width:100%; background: rgba(255, 255, 255, .5)">
+<figcaption><b>Fig.5 CGC：全部移动</b></figcaption>
+</div>
+</figure>
+<p>可以看到，那些没有被root所联通的object指向的垃圾object会待在原来的位置，并且所指向的位置不会改变。这里观察到右侧最下面的object指向了其右上方object原来的位置并且通过其转发指针指向当前位置：产生了一个环。需要把这个修正：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/vJlQqbk.jpeg" alt="" style="width:100%; background: rgba(255, 255, 255, .5)">
+<figcaption><b>Fig.6 CGC：修正指针</b></figcaption>
+</div>
+</figure>
+<p>现在，两侧完全隔离开了（左侧的object虽然有指向右侧，但不需要关心），也就一位置左侧全都是垃圾，可以被清理：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/tnZBwHH.png" alt="" style="width:100%; background: rgba(255, 255, 255, .5)">
+<figcaption><b>Fig.7 CGC：清理</b></figcaption>
+</div>
+</figure>
+<p>除了清空了左侧，完成了回收，回收器还会把<strong>右侧识别为from-space，左侧识别为to-space</strong>，为下一轮回收做准备。</p>
+<p>     可以看到在这一系列行为中，其他一切行为需要停止，知道回收完毕。Baker‘s 算法修改了一些步骤：在最开始，只有root指向的obj会移动（<strong>转发（Forward）</strong>）到to-space，其他不动；直到调用了<code>new</code>创建新的obj才会再转发一些obj。而对于现有的被root联通的obj的访问（对指针的解引用），也会导致对这个obj未知的检查：如果在from-space，就转发。最终也可以实现有效obj和垃圾的分隔，完成回收。转发的成本被分摊。但缺点仍然明显：每次解引用和检查都需要成本，并且并没有对平行运行有什么帮助，而且可能会出现竞争问题：上面提到的两种转发原因同时对于一个obj发生，造成两次转发。</p>
+<p>     用户进程对于虚拟内存的使用解决了上述的问题。大部分步骤是与Baker的方式是一样的，不同的是to-space被分成了两部分：以扫描/未扫描部分（scanned/unscanned）。后者的page权限都是NONE，即无法访问。在最开始，to-space完全是未扫描的，但是回收器会转发root指向的obj到to-space。当用户进程访问这个obj的时候就会触发一个Page-fault。Handler会把出现错误的这部分地址标记为可使用的权限，使得这部分变成了“以扫描”区域，然后会把当前目标obj的指针所指向的其他obj转发到to-space未扫描部分（实际上转发了1Page的obj，因为“扫描”的单位也是1page）。这里看上去有个问题：已知目标地址权限是NONE，那回收器又是如何在修改权限之前进行转发的？这里的解决方法是使用Map2原语，用户进程映射to-space未扫描的部分为NONE，而回收器映射这部分空间为<code>R+W</code>。</p>
+<p><strong>注</strong>：转发本身并不是“扫描”，“以扫描”是用户进程出现page-fault之后handler行为导致的，是对目标obj所在page的“扫描”。</p>
+<p>    这种实现即维持了Baker算法的分摊，也取消了检查指针指向位置的需要（如果没导致报错，说明在to-space，反之则仍在from-space）。更重要的是，它实现了并发：用户进程和回收器可以同时运行而不用担心之前的竞争问题，因为用户空间对to-space中未扫描部分的访问会导致报错，而回收器不会再使用以扫描的部分：两者永不相交。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h1 id="微内核-microkernels">微内核 Microkernels<a href="#微内核-microkernels" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h1>
+<br>
+<br>
+<h2 id="导言-2">导言：<a href="#导言-2" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    本节内容介绍微内核的大致结构和原理</p>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="97-内核对比-kernel-comparison">9.7 内核对比 Kernel comparison<a href="#97-内核对比-kernel-comparison" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    很多系统都采用<strong>宏内核（Monolithic kernel）</strong>。宏内核为用户进程提供了巨大的抽象，把底层藏了起来，比如文件系统。这样做有很多优势：</p>
+<blockquote>
+<ol>
+<li>
+<p><strong>移植性（Portability）</strong>：软件无需关心它们运行在什么硬件上；</p>
+</li>
+<li>
+<p><strong>隐藏复杂性</strong>：软件直接使用接口即可，无需关心如磁盘读写的实现等等；</p>
+</li>
+<li>
+<p><strong>资源分配</strong>：内核进行资源分配，也是对于硬件的管理。</p>
+</li>
+</ol>
+</blockquote>
+<p>它包括了很多子系统，如文件系统和日志系统等等，这使得不同的子系统之间可以很轻松的访问对方的数据结构：比如<code>exec()</code>会读写磁盘，同时也会调用鹅你存分配，这样做的成本很小。但是它也有缺点：</p>
+<blockquote>
+<ol>
+<li>内核过大且复杂，这导致bugs和安全问题；</li>
+<li>宏内核很多功能/子系统或许冗余，比如一个服务器可能并不需要某些特性，这导致速度相对慢；</li>
+<li>设计受限：比如虽然可以<code>wait</code>子进程，但是不能等待其他进程。这也导致可拓展性相对较低。</li>
+</ol>
+</blockquote>
+<p>    <strong>微内核（Microkernel）</strong> 是为了解决上述问题的一个方案。它的主要思想是把内核控制得大小和功能受限，主要通过内核的 <strong>IPC（Inter-process communication）</strong> 来实现不同进程之间的交流，下文的Tasks和进程的概念类似。</p>
+<figure>
+<div style="text-align:center">
+<img src="https://upload.wikimedia.org/wikipedia/commons/e/ec/Kernel-microkernel.svg" alt="" style="width:60%; background: rgba(255, 255, 255, .5)">
+<figcaption><b>Fig.8 微内核[2]</b></figcaption>
+</div>
+</figure>
+<p>如上图中，应用程序如果想要和服务器，比如文件系统，交流，需要通过向内核发送一个IPC，然后内核会把这个IPC传递给目标的服务器。服务器之后会处理信息并且通过一样的路径传递给引用程序。实际上除了内核本身，每一个元素都是独立的<strong>用户进程</strong> ，不像宏内核中，文件系统会被认为是内核进程在工作。</p>
+<p>    使用微内核的原因：1～4得益于体积小；5～6的抑郁子系统事用户进程</p>
+<blockquote>
+<ol>
+<li>
+<p>安全性：内核越小，代码越少，bug越少，越安全；这种安全性是可证明的；</p>
+</li>
+<li>
+<p>高优化：简单的代码更好优化，更快；</p>
+</li>
+<li>
+<p>更灵活：对于内核设计者来说，需要做出更少的决策，更加灵活的决策；</p>
+</li>
+<li>
+<p>让不同的子系统（一些用户进程）之间更加模组化；</p>
+</li>
+<li>
+<p>客制化：子系统可以更容易被修改；</p>
+</li>
+<li>
+<p>鲁棒性：一个子进程崩溃，不会导致内核崩溃；</p>
+</li>
+<li>
+<p>可以让别的操作系统作为一个子系统在微内核上运行。</p>
+</li>
+</ol>
+</blockquote>
+<p>    微内核的设计有挑战：</p>
+<blockquote>
+<ol>
+<li>
+<p>控制系统调用数量，但系统调用要强大；显然必须支持<code>exec, fork</code>等；</p>
+</li>
+<li>
+<p>IPC速度问题；</p>
+</li>
+</ol>
+</blockquote>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="98-sel4">9.8 seL4<a href="#98-sel4" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    L4是一款微内核，它只有7个系统调用，一万多行代码。其中的Task的概念类似进程，一个Task有一个内存空间，支持多线程</p>
+<p>    系统调用：</p>
+<blockquote>
+<ol>
+<li>
+<p>Thread create：创建线程；</p>
+</li>
+<li>
+<p>send/receive IPC：IPC收发；</p>
+</li>
+<li>
+<p>Mapping：内存映射：通过这个系统调用一个线程可修改另一个Task的内存布局；</p>
+</li>
+<li>
+<p>Device Access：把设备映射到自己的内存空间；</p>
+</li>
+<li>
+<p>中断：来自设备的中断会变成一个IPC被Task接收；同时当一个Task发生page-fault的时候，这个Task也可以发送一个IPC给预先设定的Pager-Task，运行后者的代码，实现一些功能；</p>
+</li>
+<li>
+<p>Yield：线程切换；</p>
+</li>
+<li>
+<p>call：实现远程过程调用。</p>
+</li>
+</ol>
+</blockquote>
+<p>     <strong>IPC设计</strong>：这里以一个简单但是慢速的设计为例。</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/UbTP6e7.png" alt="" style="width:60%; background: rgba(255, 255, 255, .5)">
+<figcaption><b>Fig.9 seL4 IPC</b></figcaption>
+</div>
+</figure>
+<p>当T1想给T2发送IPC的时候，它会调用<code>send()</code>系统调用，标注目标线程的ID以及内容Message。内核中可能保存着一个message缓冲器，保存着待执行的IPC。在发送IPC，把message放入缓冲器之后，T1会继续运行。某一时刻T2会调用<code>recv()</code>，然后得到在缓缓冲器中的message。在处理完这一行为message之后，T2会调用<code>send</code>，执行一样的过程给T
+发送IPC。这种设计叫做Asynchronous，因为T1在发送完之后会继续执行其他任务。这种设计代价高，因为前后一共有4次系统调用，并且需要切换context，且T1在调用recv之后可能会睡眠。</p>
+<p>    现在L4的设计中采用了<strong>快速IPC</strong>，它是Synchronous的。在这种设计下，T1发送IPC之后会在内核中等待T2来接受IPC，一旦后者调用了<code>recv</code>，前者会直接进入后者的用户空间，把msg复制到后者的用户空间。这个设计中不需要缓冲器。进入后者用户空间的行为不需要context切换。当msg体积很小的时候，可以直接把msg放入寄存器中传输给T2，这样甚至不需要涉及内存复制信息。而当msg体积过大的时候，可以通过mapping系统调用直接把目标内容所在的page映射到T2的内存空间，同样不需要内存复制。</p>
+<p>    <strong>远程过程调用（RPC：Remote procedure call）</strong> 通过对<code>call()</code>和<code>sendrecv()</code>系统调用的使用实现。前者结合了<code>send,recv</code>两个系统调用：发送IPC并且等待回复，而服务器会调用<code>sendrecv()</code>发送回复，并且等待下一个输入。这一对系统调用减少了对kernel的使用（把两个系统调用变成了一个）。</p>
+<p>    <strong>兼容性</strong>：微内核会希望它可以运行其他操作系统的文件，比如seL4运行Linux的程序。重构一个应用的成本很大，所以可以直接在L4上运行一个修改版的Linux完整内核：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/uZMbsOF.png" alt="" style="width:60%; background: rgba(255, 255, 255, .5)">
+<figcaption><b>Fig.10 seL4&Linux</b></figcaption>
+</div>
+</figure>
+<p>Linux内核中会包括其原有的子系统，整个Linux作为一个巨大的Task存在。而其他Linux进程并不会在这个内核中运行，而是作为独立的Task在L4中运行。每当Linux希望修改进程的内容，比如PT的时候，就会想L4的内核发送IPC达到此目的。相似地，每当Linux用户进程希望使用Linux的系统调用的时候，L4会把这一请求作为IPC发送给Linux（而并不是L4直接运行这些系统调用）。由于是L4在真正控制着那个进程去运行，也就是说它控制着调度，这使得Linux的优秀的调度设计无法使用（之后版本的L4为Linux提供了发送调度的能力）。</p>
+<p>    微内核使用不广泛，不止因为性能不够，更多的是找不到切换到微内核的必要。但是微内核的研究对操作系统有影响。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<blockquote>
+<h3 id="参考">参考:<a href="#参考" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h3>
+<p>    [1] 垃圾回收器：https://www.youtube.com/watch?v=jYt3uQtbLfE</p>
+<p>    [2] 微内核：https://www.geeksforgeeks.org/microkernel-in-operating-systems/</p>
+</blockquote>
+
+		</div>
+	</main>
+
+	<footer id="site-footer" class="section-inner thin animated fadeIn faster">
+		<p>&copy; 2022 <a href="https://hoooao.github.io/">Xiyu Hao</a> &#183; <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" rel="noopener">CC BY-NC 4.0</a></p>
+		<p>
+			Made with <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> &#183; Theme <a href="https://github.com/Track3/hermit" target="_blank" rel="noopener">Hermit</a> &#183; <a href="https://hoooao.github.io/posts/index.xml" target="_blank" title="rss"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-rss"><path d="M4 11a9 9 0 0 1 9 9"></path><path d="M4 4a16 16 0 0 1 16 16"></path><circle cx="5" cy="19" r="1"></circle></svg></a>
+		</p>
+	</footer>
+
+
+
+	<script src="https://hoooao.github.io/js/bundle.min.5a42c67b729ee2fa1059251688235399704707e04edb4e28c42c6f6dfa49d1d9.js" integrity="sha256-WkLGe3Ke4voQWSUWiCNTmXBHB+BO204oxCxvbfpJ0dk=" crossorigin="anonymous"></script>
+	
+
+</body>
+
+</html>

@@ -7,7 +7,17 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>zh-hans</language>
     <copyright>This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.</copyright>
-    <lastBuildDate>Sat, 30 Jul 2022 21:51:42 -0400</lastBuildDate><atom:link href="https://hoooao.github.io/os/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Sat, 06 Aug 2022 15:49:13 -0400</lastBuildDate><atom:link href="https://hoooao.github.io/os/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Chap9: Ext3 &amp; 用户空间虚拟内存应用 &amp; 微内核</title>
+      <link>https://hoooao.github.io/os/chap9/</link>
+      <pubDate>Sat, 06 Aug 2022 15:49:13 -0400</pubDate>
+      
+      <guid>https://hoooao.github.io/os/chap9/</guid>
+      <description>目录  文件系统性能以及恢复 FS Performance &amp;amp; Recovery  导言： 9.1 Linux Ext3 文件系统 9.2 Ext3 日志系统优势 9.3 Ext3 日志过程   用户程序对于虚拟内存的应用 Virtual Memory for Applications  导言： 9.4 原语 Primitives 9.5 用户空间Trap 9.6 垃圾回收器 Garbage Collector   微内核 Microkernels  导言： 9.7 内核对比 Kernel comparison 9.8 seL4      从本章开始，所有内容脱离了xv6教科书，转向了对现在操作系统（Unix/Linux等）的其他方面的介绍。本章对应于MIT 6.S081的Lec 16 至Lec 18  
+文件系统性能以及恢复 FS Performance &amp;amp; Recovery 导言：  回忆在xv6中，文件系统维护在磁盘上维护着一个日志系统，他的结构十分简单：header block+logged blocks。header中记录着当前日志中记录着的block的数量和每个block的number。重要的是，在某个系统调用使用end_op之前，使用的都是内存中的cached block，而只有在所有被修改的block都同步到了磁盘上的日志中的时候，日志的header才会更新指示着对应的block number。而更新header的这一瞬间就是commit-point：在此之前发生的崩溃都会导致这些还没有写入磁盘原来位置的数据丢失（即使已经保存在了日志中），而在此之后这些数据都可以被恢复。</description>
+    </item>
+    
     <item>
       <title>Chap 8: 文件系统 File system</title>
       <link>https://hoooao.github.io/os/chap8/</link>
