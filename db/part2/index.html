@@ -7,20 +7,65 @@
 	<meta http-equiv="X-UA-Compatible" content="ie=edge">
 	<meta name="theme-color" content="#494f5c">
 	<meta name="msapplication-TileColor" content="#494f5c">
-<meta itemprop="name" content="Part2">
-<meta itemprop="description" content="目录  导言： "><meta itemprop="datePublished" content="2022-07-13T19:11:24-04:00" />
+<meta itemprop="name" content="Part2: ">
+<meta itemprop="description" content="目录  SQL进阶 Advanced SQL 导言：  DBMS负责关心query的效率。它完成了对于对算法的封装，对各种操作的的重新排序而产生高效的行为。SQL本质是一种数据库管理系统的标准，并不断更新，标准规定了DBMS需要有的特性。SQL融合了DML&#43;DDL&#43;DCL（Data Control Language）。不同于关系函数基于集合论，SQL实际上基于Bag：无序且允许重复。没有任何现实中的DBMS完全和SQL标准规范的一样，并且每一款DBMS都在尝试把自己的特性融合到“标准”中。这部分内容介绍的是SQL的规范，而非某一种特定的DBMS下的语言。注：这门课程不会专注于如何使用某一门DBMS所提供的语言。
+ 2.1 SQL作为数据定义语言 SQL&amp;Data Definition Language  SQL DDL提供了对于定义关系Schema，删除rlation，修改关系Schema的指令。具体来说，可以实现一下特性：
+   Integrity：设置这一关系下的数据必须遵守的限制，超出限制的数据不允许加入；
+  View Definition：设置视图；
+  Transaction Control：存在标注一个交易（对于数据的修改）的开始和结束的命令；
+  eEmbedded SQL &amp; Dynamic SQL：SQL语句可以被嵌入到其他高级语言中，比如：C，java等等；
+  aAuthorization：设置对于视图和关系的访问权限（比如对于数据库用户的某些访问限制）。
+    如上所述，SQL可以用来去定义很多内容，比如一个关系的Schema，所保存的数据的类型，限制等等。SQL主要有下面几个数据类型：
+   char(n)：固定长度的字符串；
+  varchar(n)：规定最长长度，在这个值之下长度可变的字符串；
+  int：一个取决于当前计算机规定的长度的int；
+  smallint：一个小int；
+  numeric(p,d)：代表某种精度的小树：p规定精度，d规定小数位数，比如numeric(3,1)中，14.5是合法的；
+  real/double precision：取决于计算机的浮点数（单精度/双精度）
+  float(n)：n为最小精度，也是浮点数
+   可以看出来所有取决于计算机本身的类型是不需要（n）的。有时可能会有null出现，比如char(n)实际使用的长度小于n，此时DBMS会把没用到的部分设置为空格，来避免出现null。另外对于varchar，它永远不会有空着的位置，因为长度可变。"><meta itemprop="datePublished" content="2022-07-13T19:11:24-04:00" />
 <meta itemprop="dateModified" content="2022-07-13T19:11:24-04:00" />
-<meta itemprop="wordCount" content="2">
-<meta itemprop="keywords" content="" /><meta property="og:title" content="Part2" />
-<meta property="og:description" content="目录  导言： " />
+<meta itemprop="wordCount" content="666">
+<meta itemprop="keywords" content="" /><meta property="og:title" content="Part2: " />
+<meta property="og:description" content="目录  SQL进阶 Advanced SQL 导言：  DBMS负责关心query的效率。它完成了对于对算法的封装，对各种操作的的重新排序而产生高效的行为。SQL本质是一种数据库管理系统的标准，并不断更新，标准规定了DBMS需要有的特性。SQL融合了DML&#43;DDL&#43;DCL（Data Control Language）。不同于关系函数基于集合论，SQL实际上基于Bag：无序且允许重复。没有任何现实中的DBMS完全和SQL标准规范的一样，并且每一款DBMS都在尝试把自己的特性融合到“标准”中。这部分内容介绍的是SQL的规范，而非某一种特定的DBMS下的语言。注：这门课程不会专注于如何使用某一门DBMS所提供的语言。
+ 2.1 SQL作为数据定义语言 SQL&amp;Data Definition Language  SQL DDL提供了对于定义关系Schema，删除rlation，修改关系Schema的指令。具体来说，可以实现一下特性：
+   Integrity：设置这一关系下的数据必须遵守的限制，超出限制的数据不允许加入；
+  View Definition：设置视图；
+  Transaction Control：存在标注一个交易（对于数据的修改）的开始和结束的命令；
+  eEmbedded SQL &amp; Dynamic SQL：SQL语句可以被嵌入到其他高级语言中，比如：C，java等等；
+  aAuthorization：设置对于视图和关系的访问权限（比如对于数据库用户的某些访问限制）。
+    如上所述，SQL可以用来去定义很多内容，比如一个关系的Schema，所保存的数据的类型，限制等等。SQL主要有下面几个数据类型：
+   char(n)：固定长度的字符串；
+  varchar(n)：规定最长长度，在这个值之下长度可变的字符串；
+  int：一个取决于当前计算机规定的长度的int；
+  smallint：一个小int；
+  numeric(p,d)：代表某种精度的小树：p规定精度，d规定小数位数，比如numeric(3,1)中，14.5是合法的；
+  real/double precision：取决于计算机的浮点数（单精度/双精度）
+  float(n)：n为最小精度，也是浮点数
+   可以看出来所有取决于计算机本身的类型是不需要（n）的。有时可能会有null出现，比如char(n)实际使用的长度小于n，此时DBMS会把没用到的部分设置为空格，来避免出现null。另外对于varchar，它永远不会有空着的位置，因为长度可变。" />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://hoooao.github.io/db/part2/" /><meta property="article:section" content="db" />
 <meta property="article:published_time" content="2022-07-13T19:11:24-04:00" />
 <meta property="article:modified_time" content="2022-07-13T19:11:24-04:00" />
 
 <meta name="twitter:card" content="summary"/>
-<meta name="twitter:title" content="Part2"/>
-<meta name="twitter:description" content="目录  导言： "/>
+<meta name="twitter:title" content="Part2: "/>
+<meta name="twitter:description" content="目录  SQL进阶 Advanced SQL 导言：  DBMS负责关心query的效率。它完成了对于对算法的封装，对各种操作的的重新排序而产生高效的行为。SQL本质是一种数据库管理系统的标准，并不断更新，标准规定了DBMS需要有的特性。SQL融合了DML&#43;DDL&#43;DCL（Data Control Language）。不同于关系函数基于集合论，SQL实际上基于Bag：无序且允许重复。没有任何现实中的DBMS完全和SQL标准规范的一样，并且每一款DBMS都在尝试把自己的特性融合到“标准”中。这部分内容介绍的是SQL的规范，而非某一种特定的DBMS下的语言。注：这门课程不会专注于如何使用某一门DBMS所提供的语言。
+ 2.1 SQL作为数据定义语言 SQL&amp;Data Definition Language  SQL DDL提供了对于定义关系Schema，删除rlation，修改关系Schema的指令。具体来说，可以实现一下特性：
+   Integrity：设置这一关系下的数据必须遵守的限制，超出限制的数据不允许加入；
+  View Definition：设置视图；
+  Transaction Control：存在标注一个交易（对于数据的修改）的开始和结束的命令；
+  eEmbedded SQL &amp; Dynamic SQL：SQL语句可以被嵌入到其他高级语言中，比如：C，java等等；
+  aAuthorization：设置对于视图和关系的访问权限（比如对于数据库用户的某些访问限制）。
+    如上所述，SQL可以用来去定义很多内容，比如一个关系的Schema，所保存的数据的类型，限制等等。SQL主要有下面几个数据类型：
+   char(n)：固定长度的字符串；
+  varchar(n)：规定最长长度，在这个值之下长度可变的字符串；
+  int：一个取决于当前计算机规定的长度的int；
+  smallint：一个小int；
+  numeric(p,d)：代表某种精度的小树：p规定精度，d规定小数位数，比如numeric(3,1)中，14.5是合法的；
+  real/double precision：取决于计算机的浮点数（单精度/双精度）
+  float(n)：n为最小精度，也是浮点数
+   可以看出来所有取决于计算机本身的类型是不需要（n）的。有时可能会有null出现，比如char(n)实际使用的长度小于n，此时DBMS会把没用到的部分设置为空格，来避免出现null。另外对于varchar，它永远不会有空着的位置，因为长度可变。"/>
 
 	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -29,7 +74,7 @@
 	<link rel="mask-icon" href="/safari-pinned-tab.svg" color="">
 	<link rel="shortcut icon" href="/favicon.ico">
 
-	<title>Part2</title>
+	<title>Part2: </title>
 	<link rel="stylesheet" href="https://hoooao.github.io/css/style.min.6b1219507aa24bcc2a46f4f7071edbc5dc448ba85934d68c4af0ca0a7ad89dcd.css" integrity="sha256-axIZUHqiS8wqRvT3Bx7bxdxEi6hZNNaMSvDKCnrYnc0=" crossorigin="anonymous">
 	<style>.bg-img {background-image: url('https://images.unsplash.com/photo-1531265726475-52ad60219627?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=2691&q=80');}</style>
 </head>
@@ -77,13 +122,577 @@
 
 	<div class="bg-img"></div>
 	<main class="site-main section-inner thin animated fadeIn faster">
-		<h1>Part2</h1>
+		<h1>Part2: </h1>
 		<div class="content">
 			<h2 id="目录">目录<a href="#目录" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
 <br>
 <hr>
 <br>
+<h1 id="sql进阶-advanced-sql">SQL进阶 Advanced SQL<a href="#sql进阶-advanced-sql" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h1>
 <h2 id="导言">导言：<a href="#导言" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>     DBMS负责关心query的效率。它完成了对于对算法的封装，对各种操作的的重新排序而产生高效的行为。SQL本质是一种数据库管理系统的标准，并不断更新，标准规定了DBMS需要有的特性。SQL融合了DML+DDL+DCL（Data Control Language）。不同于关系函数基于集合论，SQL实际上基于Bag：无序且允许重复。没有任何现实中的DBMS完全和SQL标准规范的一样，并且每一款DBMS都在尝试把自己的特性融合到“标准”中。这部分内容介绍的是SQL的规范，而非某一种特定的DBMS下的语言。<strong>注</strong>：这门课程不会专注于如何使用某一门DBMS所提供的语言。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="21-sql作为数据定义语言-sqldata-definition-language">2.1 SQL作为数据定义语言 SQL&amp;Data Definition Language<a href="#21-sql作为数据定义语言-sqldata-definition-language" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    SQL DDL提供了对于定义关系Schema，删除rlation，修改关系Schema的指令。具体来说，可以实现一下特性：</p>
+<blockquote>
+<ol>
+<li>
+<p>Integrity：设置这一关系下的数据必须遵守的限制，超出限制的数据不允许加入；</p>
+</li>
+<li>
+<p>View Definition：设置视图；</p>
+</li>
+<li>
+<p>Transaction Control：存在标注一个交易（对于数据的修改）的开始和结束的命令；</p>
+</li>
+<li>
+<p>eEmbedded SQL &amp; Dynamic SQL：SQL语句可以被嵌入到其他高级语言中，比如：C，java等等；</p>
+</li>
+<li>
+<p>aAuthorization：设置对于视图和关系的访问权限（比如对于数据库用户的某些访问限制）。</p>
+</li>
+</ol>
+</blockquote>
+<p>    如上所述，SQL可以用来去定义很多内容，比如一个关系的Schema，所保存的数据的类型，限制等等。SQL主要有下面几个数据类型：</p>
+<blockquote>
+<ol>
+<li>
+<p>char(n)：固定长度的字符串；</p>
+</li>
+<li>
+<p>varchar(n)：规定最长长度，在这个值之下长度可变的字符串；</p>
+</li>
+<li>
+<p>int：一个取决于当前计算机规定的长度的int；</p>
+</li>
+<li>
+<p>smallint：一个小int；</p>
+</li>
+<li>
+<p>numeric(p,d)：代表某种精度的小树：p规定精度，d规定小数位数，比如numeric(3,1)中，14.5是合法的；</p>
+</li>
+<li>
+<p>real/double precision：取决于计算机的浮点数（单精度/双精度）</p>
+</li>
+<li>
+<p>float(n)：n为最小精度，也是浮点数</p>
+</li>
+</ol>
+</blockquote>
+<p>可以看出来所有取决于计算机本身的类型是不需要（n）的。有时可能会有<strong>null</strong>出现，比如char(n)实际使用的长度小于n，此时DBMS会把没用到的部分设置为空格，来避免出现null。另外对于varchar，它永远不会有空着的位置，因为长度可变。</p>
+<p>    对于Schema的定义：通过 <code>create tabl + tableNam + (attrs varTypes, &lt;contrains&gt;) + ;</code> 的大致格式来创建一个R：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">create</span><span class="w"> </span><span class="k">table</span><span class="w"> </span><span class="n">department</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">(</span><span class="n">dept</span><span class="w"> </span><span class="n">name</span><span class="w"> </span><span class="nb">varchar</span><span class="w"> </span><span class="p">(</span><span class="mi">20</span><span class="p">),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="n">building</span><span class="w"> </span><span class="nb">varchar</span><span class="w"> </span><span class="p">(</span><span class="mi">15</span><span class="p">),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="n">budget</span><span class="w"> </span><span class="nb">numeric</span><span class="w"> </span><span class="p">(</span><span class="mi">12</span><span class="p">,</span><span class="mi">2</span><span class="p">),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">primary</span><span class="w"> </span><span class="k">key</span><span class="w"> </span><span class="p">(</span><span class="n">dept</span><span class="w"> </span><span class="n">name</span><span class="p">));</span><span class="w">
+</span></span></span></code></pre></div><p>这里定义了一个“部门”的R。<strong>注</strong>：这里使用<code>;</code>来表示定义结束</p>
+<p>    SQL支持对于限制的定义，比如：</p>
+<blockquote>
+<p><code>primary key（A1，Ａ2）</code>设置这个r的Primary key，其中A1，A2是两个属性；</p>
+<p><code>foreign key(A1，A2) references s</code> 设置引用于s，另一个Table，的这些（A1，A2）属性。如果r中使用了这些属性但是赋值了s中没有出现的值，那么说 “限制被破坏了”。例如可以：<code>“foreign key (dept name) references department</code>；</p>
+<p><code>not null</code>使得一个属性的值不可是NULL。使用：<code>name varchar (20) not null</code>，加载属性类型后面。</p>
+</blockquote>
+<p>    SQL支持对r的删除和对r中的属性的删除和添加：</p>
+<blockquote>
+<p><code>drop table r</code>：这个命令不管会删除该关系中的所有数据，也会把目标Schema删除；</p>
+<p><code>delete from r</code>：保留关系，只删除数据；</p>
+<p><code>alter table r add A D</code>：在关系r中添加一个属性A，其数据类型为D。在添加之后，这个属性对应的数据将都是NULL（初始值）；</p>
+<p><code>alter table r drop A</code>：删除属性A，大多DBMS不支持。</p>
+</blockquote>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="22-sql查询基础结构-basic-structure-of-sql-queries">2.2 SQL查询基础结构 Basic Structure of SQL Queries<a href="#22-sql查询基础结构-basic-structure-of-sql-queries" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    对于查询的使用实际上是SQL的DML的体现，这里可以看到对于关系函数的真正的使用。</p>
+<p>    最基础的SQ数据库查询由三个语句（从句Clause）组成：<strong>select, from, where</strong>。在一个查询中，from后面的内容会被看作是输入的r，对于输入的数据的操作在另外两个语句中明确。使用英文中的从句关系可以按阅读顺序知道一整个查询在干什么。</p>
+<h3 id="221-单关系查询-queries-on-a-single-relation">2.2.1 单关系查询 Queries on a Single Relation<a href="#221-单关系查询-queries-on-a-single-relation" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h3>
+<p>    单关系查询即输入的关系中只有一个关系，比如：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="n">name</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">instructor</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>从名为instructor的关系中找出了所有name属性对应值，输出为一列数据，第一行为 <em>name</em>，下面是每个instructor的name对应的值。可以使用<code>select distinct name </code>去重，不加distinct实际上默认使用了关键字 <code>all</code>，即<code>select all name </code>。</p>
+<p>    与此同时，在select语句中也可以对所选择的属性做出一定计算：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">salary</span><span class="w"> </span><span class="o">*</span><span class="mi">1</span><span class="p">.</span><span class="mi">1</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">instructor</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>在输出的r中，会有两列，第一列为name，第二列为salary，由于`*1.1``的存在，salary会全部乘以1.1。这计算和修改只在输出的r中呈现，不会对原r有任何影响。</p>
+<p>     <code>where</code>语句实际上就是对于谓词的描述：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="n">name</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">instructor</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">where</span><span class="w"> </span><span class="n">dept</span><span class="w"> </span><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;Comp. Sci.&#39;</span><span class="w"> </span><span class="k">and</span><span class="w"> </span><span class="n">salary</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">70000</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>表示：“Find the <strong>names</strong> of all <strong>instructors</strong> in the <strong>Computer Science</strong> department <strong>who</strong> have salary greater than $70,000”。</p>
+<p>    SQL中所支持的逻辑连接词：and, or, not；比较运算符：&lt;, &lt;=, &gt;=, =, &lt;&gt;。</p>
+<p><strong>注</strong>：select这里并不完全是关系代数中的选择，同时也是投影。</p>
+<h3 id="222-多关系查询-queries-on-a-multiple-relations">2.2.2 多关系查询 Queries on a Multiple Relations<a href="#222-多关系查询-queries-on-a-multiple-relations" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h3>
+<p>    与单关系类似，但不同的关系之间使用逗号分隔，且两个关系中同名的属性需要使用 r.attr 标注清楚使用的是谁的：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">instructor</span><span class="p">.</span><span class="n">dept</span><span class="w"> </span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">building</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">instructor</span><span class="p">,</span><span class="w"> </span><span class="n">department</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">where</span><span class="w"> </span><span class="n">instructor</span><span class="p">.</span><span class="n">dept</span><span class="w"> </span><span class="n">name</span><span class="o">=</span><span class="w"> </span><span class="n">department</span><span class="p">.</span><span class="n">dept</span><span class="w"> </span><span class="n">name</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>意为： “Retrieve the names of all instructors, along with their department names and department building name.”</p>
+<p>一个简单的查询结构是这样的：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="n">A1</span><span class="p">,</span><span class="w"> </span><span class="n">A2</span><span class="p">,</span><span class="w"> </span><span class="err">…</span><span class="w"> </span><span class="p">,</span><span class="w"> </span><span class="n">An</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">r1</span><span class="p">,</span><span class="w"> </span><span class="n">r2</span><span class="p">,</span><span class="w"> </span><span class="err">…</span><span class="w"> </span><span class="p">,</span><span class="w"> </span><span class="n">rm</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">where</span><span class="w"> </span><span class="n">P</span><span class="w"> </span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>每一个A代表一个属性，每一个r代表一个关系，P是谓词。当where语句不存在时，默认P为True。</p>
+<p>    本质上 from 语句是对每个输入的关系做之前介绍的笛卡尔积，而where决定的谓词用来限制笛卡尔积产生的结果。所以可以把一个输出的过程看作：</p>
+<blockquote>
+<ol>
+<li>
+<p>通过from产生关系的笛卡尔积；</p>
+</li>
+<li>
+<p>通过where决定的谓词少选上面的结果；</p>
+</li>
+<li>
+<p>使用select选择筛选后的目标属性并输出。</p>
+</li>
+</ol>
+</blockquote>
+<p>这或许并不是SQL底层实现输出的顺序，因为存在优化。</p>
+<p>补充：在select中，可以出现类似 <code>select instructor.*</code> 这样的写法，来选择“r的所有属性”：这样输出的关系中就全是谓词筛选后的原来instrustor中的数据；除了理解为对输入的关系的笛卡尔积的操作，from和where也可以看作是多个关系的循环体：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="k">for</span> <span class="n">each</span> <span class="nb">tuple</span> <span class="n">t1</span> <span class="ow">in</span> <span class="n">relation</span> <span class="n">r1</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="n">each</span> <span class="nb">tuple</span> <span class="n">t2</span> <span class="ow">in</span> <span class="n">relation</span> <span class="n">r2</span>
+</span></span><span class="line"><span class="cl">        <span class="err">…</span> 
+</span></span><span class="line"><span class="cl">            <span class="k">for</span> <span class="n">each</span> <span class="nb">tuple</span> <span class="n">tm</span> <span class="ow">in</span> <span class="n">relation</span> <span class="n">rm</span>
+</span></span><span class="line"><span class="cl">                <span class="n">Concatenate</span> <span class="n">t1</span><span class="p">,</span> <span class="n">t2</span><span class="p">,</span> <span class="err">…</span> <span class="p">,</span> <span class="n">tm</span> <span class="n">into</span> <span class="n">a</span> <span class="n">single</span> <span class="nb">tuple</span> <span class="n">t</span> 
+</span></span><span class="line"><span class="cl">                <span class="n">Add</span> <span class="n">t</span> <span class="n">into</span> <span class="n">the</span> <span class="n">result</span> <span class="n">relation</span>
+</span></span></code></pre></div><br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="23-基础操作-basic-operations">2.3 基础操作 Basic Operations<a href="#23-基础操作-basic-operations" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>     除了上述的三个基本操作，SQL还有其他大量的操作。</p>
+<br>
+<p>    <strong>重命名</strong>：使用 <code>as</code> 关键字，可以为select输出的属性重命名，也可以为输入的关系重命名：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="n">name</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">instructor_name</span><span class="p">,</span><span class="w"> </span><span class="n">course_id</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">instructor</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">T</span><span class="p">,</span><span class="w"> </span><span class="n">teaches</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">where</span><span class="w"> </span><span class="n">T</span><span class="p">.</span><span class="n">ID</span><span class="o">=</span><span class="w"> </span><span class="n">teaches</span><span class="p">.</span><span class="n">ID</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>这里重命名了name 为 instructor_name，instructor 为 T。后者可以被使用用于where中以及select中。对于输入的关系的重命名有多种叫法： correlation name, table alias, correlation variable, tuple bariable。值得注意的是对于输出属性的重命名会在输出的关系中以重命名后的名字出现，而对于输入的关系的重命名不会对原数据有任何影响：它只作为别名存在。</p>
+<br>
+<p>    <strong>字符串操作（String）</strong>：SQL使用<em>单引号</em> 括一个字符串，而单引号内部的引号是用双引号，比如 &ldquo;It&rsquo;s right&rdquo; 在 SQL中表示为 &lsquo;It&quot;s right&rsquo;。按SQL的标准来讲，字符床之间的比较应当是大小写敏感的，但是不同的DBMS有不同的规则，并且这一规则也可能可以通过一些行为修改。SQL还允许很多字符串的函数，比如连接，提取子串，找出长度，转换为大写/消协，删除最后的空格等等，这些函数可以出现在任意从句中。</p>
+<p>    同时也存在模式匹配，需要借助<code>like</code>关键字使用：</p>
+<blockquote>
+<ol>
+<li>%: 可以代表任何字母/子串</li>
+<li>_: 可以代表任何字母</li>
+</ol>
+</blockquote>
+<p>模式匹配是大小写敏感的。例子：</p>
+<blockquote>
+<p>&lsquo;Intro%&rsquo; matches any string beginning with “Intro”.</p>
+<p>&lsquo;%Comp%&rsquo; matches any string containing “Comp” as a substring, for example, &lsquo;Intro. to Computer Science&rsquo;, and &lsquo;Computational Biology&rsquo;.</p>
+<p>&lsquo;_ _ _&rsquo; matches any string of exactly three characters.</p>
+<p>&lsquo;_ _ _%&rsquo; matches any string of at least three characters.</p>
+</blockquote>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="n">dept_name</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">department</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">where</span><span class="w"> </span><span class="n">building</span><span class="w"> </span><span class="k">like</span><span class="w"> </span><span class="s1">&#39;%Watson%&#39;</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>意为：“Find the names of all departments whose building name includes the substring &lsquo;Watson&rsquo;”，即前后无论是什么都可以。</p>
+<p>    转义字符“<code>\</code>：用来把有特殊意义的符号变成符号本身。比如：</p>
+<blockquote>
+<p>&lsquo;ab∖%cd%&rsquo; escape &lsquo;∖&rsquo; matches all strings beginning with “ab%cd”.</p>
+<p>&lsquo;ab∖∖cd%&rsquo; escape &lsquo;∖&rsquo; matches all strings beginning with “ab∖cd”.</p>
+</blockquote>
+<p>    SQL还允许找出“不匹配”，通过<code>not like</code>关键字实现，与<code>like</code>的使用一样，但是结果相反。还有一些SQL的DBMS允许<code>similar to</code>，它实现了更高阶的正则匹配。</p>
+<br>
+<p>    <strong>排序</strong>：使用关键字<code>order by</code>实现：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="n">name</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">instructor</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">where</span><span class="w"> </span><span class="n">dept</span><span class="w"> </span><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;Physics&#39;</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">order</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="n">name</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>这样输出的结果中就是以name的字母顺序排序了。这里的排序默认升序，但是可以手动设置：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">instructor</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">order</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="n">salary</span><span class="w"> </span><span class="k">desc</span><span class="p">,</span><span class="w"> </span><span class="n">name</span><span class="w"> </span><span class="k">asc</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>这里在属性后面标注了排序的规则，desc为降序，asc为升序。同时设置了两个属性的排序，他们的优先级不一样：如果两个tuple的salary一样，那么就对比name。</p>
+<br>
+<p>    <strong>范围谓词</strong>：如之前所说，谓词中可以出现比较符号，但是如果想要表达对于一个区间的谓词时，有另一种写法。这是之前所致的选法：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="n">name</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">instructor</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">where</span><span class="w"> </span><span class="n">salary</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">100000</span><span class="w"> </span><span class="k">and</span><span class="w"> </span><span class="n">salary</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">90000</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>表达为选出特定薪资范围内的教师，它也可以写成：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="n">name</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">instructor</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">where</span><span class="w"> </span><span class="n">salary</span><span class="w"> </span><span class="k">between</span><span class="w"> </span><span class="mi">90000</span><span class="w"> </span><span class="k">and</span><span class="w"> </span><span class="mi">100000</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>即使用<code>between and</code>关键词。</p>
+<p>    除此以外，SQL还允许在谓词中使用 row constructor 来对多个属性进行缩写比较。比如：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">course</span><span class="w"> </span><span class="n">id</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">instructor</span><span class="p">,</span><span class="w"> </span><span class="n">teaches</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">where</span><span class="w"> </span><span class="n">instructor</span><span class="p">.</span><span class="n">ID</span><span class="o">=</span><span class="w"> </span><span class="n">teaches</span><span class="p">.</span><span class="n">ID</span><span class="w"> </span><span class="k">and</span><span class="w"> </span><span class="n">dept</span><span class="w"> </span><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;Biology&#39;</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>希望同时比较两个属性，并且比较符号相同，那么就可以简写为：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">course</span><span class="w"> </span><span class="n">id</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">instructor</span><span class="p">,</span><span class="w"> </span><span class="n">teaches</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">where</span><span class="w"> </span><span class="p">(</span><span class="n">instructor</span><span class="p">.</span><span class="n">ID</span><span class="p">,</span><span class="w"> </span><span class="n">dept_name</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">teaches</span><span class="p">.</span><span class="n">ID</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;Biology&#39;</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div><br>
+<p>    <strong>输出关系</strong>： 把一个select产生的结果保存到注空中作为一个关系存在：使用 <code>into</code> 关键字：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="k">distinct</span><span class="w"> </span><span class="n">cid</span><span class="w"> </span><span class="k">into</span><span class="w"> </span><span class="n">CourseIds</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">teaches</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>这样不需要提前定义关系CourseIds，因为DBMS会自定从select产生的结果中知道新的关系的属性和类型等等信息自动创建。不同的DBMS这里的语法会不一样。</p>
+<p>    同时也可以把一个select产生的结果插入到一个现有的关系中，使用<code>insert into</code>实现。需要注意，select产生的结果的属性，类型等等必须和目标关系完全一致。当出现不一致的时候，不同的DBMS会有不同的反应。</p>
+<p>    <strong>限制输出</strong>：有时候可能会希望只select前n个Tuples，使用<code>limit</code>实现：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">course</span><span class="w"> </span><span class="n">id</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">instructor</span><span class="p">,</span><span class="w"> </span><span class="n">teaches</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">where</span><span class="w"> </span><span class="n">instructor</span><span class="p">.</span><span class="n">ID</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">teaches</span><span class="p">.</span><span class="n">ID</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">limit</span><span class="w"> </span><span class="mi">20</span><span class="w"> </span><span class="k">offset</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>这样的操作可以跳过（offset）前十个Tuples，显示下20个Tuples。浏览器的分页就是这样的</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="24-集合操作-set-operations">2.4 集合操作 Set Operations<a href="#24-集合操作-set-operations" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    回忆关系代数，SQL也存在类似的集合操作: union, intersect, except。下面通过这两个查询为例：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="n">course</span><span class="w"> </span><span class="n">id</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">section</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">where</span><span class="w"> </span><span class="n">semester</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;Fall&#39;</span><span class="w"> </span><span class="k">and</span><span class="w"> </span><span class="k">year</span><span class="o">=</span><span class="w"> </span><span class="mi">2017</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">select</span><span class="w"> </span><span class="n">course</span><span class="w"> </span><span class="n">id</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">section</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">where</span><span class="w"> </span><span class="n">semester</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;Spring&#39;</span><span class="w"> </span><span class="k">and</span><span class="w"> </span><span class="k">year</span><span class="o">=</span><span class="w"> </span><span class="mi">2018</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>    <strong>并集</strong>：使用关键字<code>union</code>：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="p">(</span><span class="k">select</span><span class="w"> </span><span class="n">course_id</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">section</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">where</span><span class="w"> </span><span class="n">semester</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;Fall&#39;</span><span class="w"> </span><span class="k">and</span><span class="w"> </span><span class="k">year</span><span class="o">=</span><span class="w"> </span><span class="mi">2017</span><span class="p">)</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">union</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">(</span><span class="k">select</span><span class="w"> </span><span class="n">course_id</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">section</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">where</span><span class="w"> </span><span class="n">semester</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;Spring&#39;</span><span class="w"> </span><span class="k">and</span><span class="w"> </span><span class="k">year</span><span class="o">=</span><span class="w"> </span><span class="mi">2018</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div><p>不同于select语句，union会自动去重。由于输出的结果中属性一致，所以只是前一个输出结果后面接上后一个的输出结果（去重）：在这个例子中，输出的是2017年秋季和2018年春季所有的课程。可以手动开启<strong>允许重复</strong>：把union替换成union all 即可。</p>
+<p>    <strong>交集</strong>：使用关键字<code>intersct</code>：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="p">(</span><span class="k">select</span><span class="w"> </span><span class="n">course_id</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">section</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">where</span><span class="w"> </span><span class="n">semester</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;Fall&#39;</span><span class="w"> </span><span class="k">and</span><span class="w"> </span><span class="k">year</span><span class="o">=</span><span class="w"> </span><span class="mi">2017</span><span class="p">)</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">intersect</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">(</span><span class="k">select</span><span class="w"> </span><span class="n">course_id</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">section</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">where</span><span class="w"> </span><span class="n">semester</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;Spring&#39;</span><span class="w"> </span><span class="k">and</span><span class="w"> </span><span class="k">year</span><span class="o">=</span><span class="w"> </span><span class="mi">2018</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div><p>这里选出的是在两个学期中都出现的课程，也自动去重。同样地，使用 intersect all 允许重复。</p>
+<p>    <strong>差集</strong>：使用关键字<code>except</code>：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="p">(</span><span class="k">select</span><span class="w"> </span><span class="n">course_id</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">section</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">where</span><span class="w"> </span><span class="n">semester</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;Fall&#39;</span><span class="w"> </span><span class="k">and</span><span class="w"> </span><span class="k">year</span><span class="o">=</span><span class="w"> </span><span class="mi">2017</span><span class="p">)</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">except</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">(</span><span class="k">select</span><span class="w"> </span><span class="n">course_id</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">section</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">where</span><span class="w"> </span><span class="n">semester</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;Spring&#39;</span><span class="w"> </span><span class="k">and</span><span class="w"> </span><span class="k">year</span><span class="o">=</span><span class="w"> </span><span class="mi">2018</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div><p>这里的输出结果为在第一个学期出现，但是不在第二个学期出现的所有课程，与交集的输出完全相反。使用except all允许重复。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="25-null值-null-values">2.5 Null值 Null Values<a href="#25-null值-null-values" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    Null值在关系操作中会带来一些问题，比如算数操作，比较操作，集合操作。</p>
+<p>    <strong>算数</strong>：任何数与Null的计算结果都是Null。</p>
+<p>    <strong>比较</strong>：任何数与Null比较的结果都是<em>Unknown</em>。Unknown是一个逻辑值，是区别于true，false之外的第三个。不同的逻辑连接符对于unknown的处理不同：</p>
+<blockquote>
+<ol>
+<li>
+<p>and：True and Unknown = Unknown; False and Unknown = False; Unknown and Unknown = Unknown;</p>
+</li>
+<li>
+<p>or：True or Unknown = True; False or Unknown = Unknown; Unknown or Unknown = Unknown;</p>
+</li>
+<li>
+<p>not：not Unknown = Unknown.</p>
+</li>
+</ol>
+</blockquote>
+<p>在谓词中，结果为Unknown的运算不会进入输出。</p>
+<p>    在SQL存在关键字 <code>is/is not null, is/is not unknown</code>来对这两个值进行谓词中的判断：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="n">name</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">instructor</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">where</span><span class="w"> </span><span class="n">salary</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="k">null</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">select</span><span class="w"> </span><span class="n">name</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">instructor</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">where</span><span class="w"> </span><span class="n">salary</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">10000</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="k">unknown</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p><strong>注</strong>：unknown是一个逻辑值，所以在谓词中加在bool返回值之后，而null是一个数值，加载属性后面。在使用 select distinct时，如果两个相同属性的值都是null，那么可以判定为重复，也就是说null==null返回True：这是一个例外情况。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="26-聚合函数-aggregate-functions">2.6 聚合函数 Aggregate Functions<a href="#26-聚合函数-aggregate-functions" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    <strong>聚合函数（Aggregate Functions）</strong> 使用一个或多个集合的制作为输入，然后输出一个值。SQL中内置5个标准聚合函数：avg, min, max, sum ,count。</p>
+<br>
+<h3 id="261-基础聚合-basic-aggregation">2.6.1 基础聚合 Basic Aggregation<a href="#261-基础聚合-basic-aggregation" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h3>
+<p>    比如期望寻找某个部门的教师平均薪资，可以用过aavg来堆salary属性进行计算：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="k">avg</span><span class="w"> </span><span class="p">(</span><span class="n">salary</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">avg_salary</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">instructor</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">where</span><span class="w"> </span><span class="n">dept</span><span class="w"> </span><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;Comp. Sci.&#39;</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>avg(&hellip;)的输出结果为一个全新的属性（同时也是一个r），所以可以重命名，在这里这个属性只会有一个tuple。这里体现出了select保留重复的重要性：如果删除了某个教师，会导致输出不了想要的结果。</p>
+<p>    聚合函数还可以和其他关键字搭配使用：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="k">count</span><span class="w"> </span><span class="p">(</span><span class="k">distinct</span><span class="w"> </span><span class="n">ID</span><span class="p">)</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">teaches</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">where</span><span class="w"> </span><span class="n">semester</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;Spring&#39;</span><span class="w"> </span><span class="k">and</span><span class="w"> </span><span class="k">year</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2018</span><span class="p">;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">select</span><span class="w"> </span><span class="k">count</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">course</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>第一个操作计算出了目标学期中有几节不同的课（通过distinct去重），第二个操作所有计算课程数量。可以看出来，对于关键字的理解不应当附着与select等语句：它们本质上也是对属性做出的行为。</p>
+<br>
+<h3 id="262-分组聚合-aggregation-with-grouping">2.6.2 分组聚合 Aggregation with Grouping<a href="#262-分组聚合-aggregation-with-grouping" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h3>
+<p>    这里引入了一个新的语句/从句：<code>group by</code>。这个语句用来对数据进行分组，group by后面的属性将会作为“组”的单位，原r中这个属性上的值相同的Tuple将会比分为1组处理。比如想对某一r做分组处理，可以：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">instructor</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">group</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="n">dept_name</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>所得结果如下：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/A8B9JG3.png" alt="" style="width:80%">
+</div>
+</figure>
+<p>通常分组是为了了解不同的以组为单位之间的不同，比如每个部门的平均工资：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="n">dept_name</span><span class="p">,</span><span class="w"> </span><span class="k">avg</span><span class="w"> </span><span class="p">(</span><span class="n">salary</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="k">avg</span><span class="w"> </span><span class="n">salary</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">instructor</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">group</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="n">dept_name</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>这里以部门分组之后，又使用聚合函数计算了平均工资。此时的聚合函数会自动把每个组作为最小单位计算，而不是对所有数据统一计算。所得结果如下图：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/aoUf7zc.png" alt="" style="width:80%">
+</div>
+</figure>
+<p>这里必须要注意的是，<strong>只有</strong>分组的属性才能在select中不以聚合函数输入属性的形式出现。比如上述例子中如果写成 <code>select dept name, ID, avg (salary) </code>，就是错的，因为ID的出现不符合逻辑。</p>
+<br>
+<h3 id="263-having-语句从句">2.6.3 Having 语句/从句<a href="#263-having-语句从句" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h3>
+<p>     <code>having</code>是一个新的从句，可以说它是对于group来讲的“where”，也就是对于每组数据的谓词。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="n">dept_name</span><span class="p">,</span><span class="w"> </span><span class="k">avg</span><span class="w"> </span><span class="p">(</span><span class="n">salary</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">avg_salary</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">instructor</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">group</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="n">dept_name</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">having</span><span class="w"> </span><span class="k">avg</span><span class="w"> </span><span class="p">(</span><span class="n">salary</span><span class="p">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">42000</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>这里会把被谓词筛去的分组在输出中删忽略。having和where可以同时出现，不矛盾。</p>
+<p><strong>注</strong>：where中不可以使用聚合函数结果的重命名（比如不能where avg_salary&gt;42000`），但是having可以。</p>
+<p>    基于之前的搜索基本结构处理顺序，考虑这两个新的从句后，大致是这样的：</p>
+<blockquote>
+<ol>
+<li>
+<p>通过 <strong>from</strong> 得到输入关系/关系的笛卡尔积；</p>
+</li>
+<li>
+<p>如果有 <strong>where</strong> 存在，那么把where中的谓词施加于from得到的关系中；</p>
+</li>
+<li>
+<p>谓词为真的Tuples会被<strong>group by</strong>处理并分组，如果gourp by不存在，那么相当于把所有数据放到了一个组中（而并非“不分组”）；</p>
+</li>
+<li>
+<p>如果 <strong>having</strong> 存在，对每个组进行筛选忽略；</p>
+</li>
+<li>
+<p>使用select生成最终的结果，若聚合函数存在，则以每个group为Tuple基于对应的值。</p>
+</li>
+</ol>
+</blockquote>
+<p><strong>注</strong>：在所有聚合函数中，除了<code>count(*)</code>，对于目标关系中的null值的处理都是直接忽略，比如：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="k">sum</span><span class="w"> </span><span class="p">(</span><span class="n">salary</span><span class="p">)</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">instructor</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>中如果有的教师的salary的值时null，就不会统计他的salary。同时，由于null被忽略，可能导致输入是空的（即全部是null），此时count返回0，其他聚合函数返回null。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="27-嵌套子查询-nested-subqueries">2.7 嵌套子查询 Nested Subqueries<a href="#27-嵌套子查询-nested-subqueries" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    子查询就是嵌套在某个语句中的查询，其返回值作为该外部语句的输入。</p>
+<br>
+<h3 id="271-where中的子查询-nested-in-where">2.7.1 Where中的子查询 Nested in Where<a href="#271-where中的子查询-nested-in-where" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h3>
+<p>    SQL允许测试tuples是否存在于某个关系中，通过连接词 <code>in/not in</code> 实现。之前的例子中有希望找到所有在两个学期中都出现过的课程曾使用交集解决，而现在也可以使用子查询+in解决：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="k">distinct</span><span class="w"> </span><span class="n">course_id</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">section</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">where</span><span class="w"> </span><span class="n">semester</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;Fall&#39;</span><span class="w"> </span><span class="k">and</span><span class="w"> </span><span class="k">year</span><span class="o">=</span><span class="w"> </span><span class="mi">2017</span><span class="w"> </span><span class="k">and</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="n">course_id</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="p">(</span><span class="k">select</span><span class="w"> </span><span class="n">course_id</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                  </span><span class="k">from</span><span class="w"> </span><span class="n">section</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w">                  </span><span class="k">where</span><span class="w"> </span><span class="n">semester</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;Spring&#39;</span><span class="w"> </span><span class="k">and</span><span class="w"> </span><span class="k">year</span><span class="o">=</span><span class="w"> </span><span class="mi">2018</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div><p>这里把2018春季课程作为输入，检查2017秋季课程是否在前者之中，若存在，就把该Tuple放入输出的关系中。由于逻辑上这还应当是一种交集，所以需要在select中使用distinct来去重（无论是否2017秋季课程中本身是否有重复，因为其目的为实现“交集”）。</p>
+<p>    与此对应的是not in关键字，它实际上就是 except，差集，的另一种实现：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="n">distinct_name</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">instructor</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">where</span><span class="w"> </span><span class="n">name</span><span class="w"> </span><span class="k">not</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="p">(</span><span class="s1">&#39;Mozart&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;Einstein&#39;</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div><p>所检查是否存在的集合没必要一定是一个E，其本身是一个集合也可以。</p>
+<p>    有的DBMS支持这样的写法：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="k">count</span><span class="w"> </span><span class="p">(</span><span class="k">distinct</span><span class="w"> </span><span class="n">ID</span><span class="p">)</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">takes</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">where</span><span class="w"> </span><span class="p">(</span><span class="n">course</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">sec</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">semester</span><span class="p">,</span><span class="w"> </span><span class="k">year</span><span class="p">)</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="p">(</span><span class="k">select</span><span class="w"> </span><span class="n">course</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">sec</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">semester</span><span class="p">,</span><span class="w"> </span><span class="k">year</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">teaches</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">where</span><span class="w"> </span><span class="n">teaches</span><span class="p">.</span><span class="n">ID</span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;10101&#39;</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div><p>一次检查多个属性，表达“find the total number of (distinct) students who have taken course sections taught by the instructor with ID 110011”。</p>
+<p>     <strong>some/all</strong>：除了in，some和all也可以作为关键字通过一个输入的集合筛选另一个集合。这一行为可以通过逻辑连接词判断多个条件实现：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="k">distinct</span><span class="w"> </span><span class="n">T</span><span class="p">.</span><span class="n">name</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">instructor</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">T</span><span class="w"> </span><span class="p">,</span><span class="w"> </span><span class="n">instructor</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">S</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">where</span><span class="w"> </span><span class="n">T</span><span class="p">.</span><span class="n">salary</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">S</span><span class="p">.</span><span class="n">salary</span><span class="w"> </span><span class="k">and</span><span class="w"> </span><span class="n">S</span><span class="p">.</span><span class="n">dept_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;Biology&#39;</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>意为：找到所有比生物部门任意教师的工资高的教师。这里把instructor命名为了两个不同的变量，形成了一个笛卡尔积，这也使得下面的<code>T.salary &gt; S.salary</code>可以遍历所有教师与其他所有教师。同时SQL中允许：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="n">name</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">instructor</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">where</span><span class="w"> </span><span class="n">salary</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="k">some</span><span class="w"> </span><span class="p">(</span><span class="k">select</span><span class="w"> </span><span class="n">salary</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                     </span><span class="k">from</span><span class="w"> </span><span class="n">instructor</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w">                     </span><span class="k">where</span><span class="w"> </span><span class="n">dept_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;Biology&#39;</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div><p>它首先找到了所有所有生物部门的教师并得到了他们的工资，然后之外部查询直接检查谓词是否成立。SQL中存在<code>&gt; some, &lt; some, &lt;= some, &gt;= some, = some,&lt;&gt; some</code>，其中<code>= some, &lt;&gt; some</code> 等同于 <code>in, not in</code>。<code>all</code>的使用完全一致，只是所规范的范围更加极端，并且<code>&lt;&gt; all = not in</code>但是<code>= all</code>不是<code>in</code>。</p>
+<p>    <strong>（not）exists</strong>用来检查某一个子查询/集合是否为空集：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="n">course_id</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">section</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">S</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">where</span><span class="w"> </span><span class="n">semester</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;Fall&#39;</span><span class="w"> </span><span class="k">and</span><span class="w"> </span><span class="k">year</span><span class="o">=</span><span class="w"> </span><span class="mi">2017</span><span class="w"> </span><span class="k">and</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="k">exists</span><span class="w"> </span><span class="p">(</span><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                </span><span class="k">from</span><span class="w"> </span><span class="n">section</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">T</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w">                </span><span class="k">where</span><span class="w"> </span><span class="n">semester</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;Spring&#39;</span><span class="w"> </span><span class="k">and</span><span class="w"> </span><span class="k">year</span><span class="o">=</span><span class="w"> </span><span class="mi">2018</span><span class="w"> </span><span class="k">and</span><span class="w"> </span><span class="n">S</span><span class="p">.</span><span class="n">course_id</span><span class="o">=</span><span class="w"> </span><span class="n">T</span><span class="p">.</span><span class="n">cours_id</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div><p>这是对之前的两个学期共有的课程的另一种写法，解释为某节课在2017秋季提供，并且其课号在2018年春季也出现。如果其中的子查询返回空集，exists返回False，导致某课程不会被纳入最终输出。<code>not exists</code>即相反。</p>
+<p>    观察上面的例子，很重要的一个特征是它在子查询中使用了外部查询定义的别名。在SQL中规定，一个查询<strong>只能</strong>使用它自己定义的别名和其外部查询定义的别名，前者叫做局部定义，后者叫做全局定义（这里的全局和局部是相对来说的，如果这个子查询也有子查询，对于后者，前者的局部定义是全局定义）。</p>
+<p>    <strong>(not) unque</strong>检查其内部的子查询是否有重复Tuples，没有则返回True，若返回为空，也是True：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="n">T</span><span class="p">.</span><span class="n">course_id</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">course</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">T</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">where</span><span class="w"> </span><span class="k">unique</span><span class="w"> </span><span class="p">(</span><span class="k">select</span><span class="w"> </span><span class="n">R</span><span class="p">.</span><span class="n">course_id</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">              </span><span class="k">from</span><span class="w"> </span><span class="n">section</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">R</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w">              </span><span class="k">where</span><span class="w"> </span><span class="n">T</span><span class="w"> </span><span class="p">.</span><span class="n">course</span><span class="w"> </span><span class="n">id</span><span class="o">=</span><span class="w"> </span><span class="n">R</span><span class="p">.</span><span class="n">course</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="k">and</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                    </span><span class="n">R</span><span class="p">.</span><span class="k">year</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2017</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div><p>意为： “Find all courses that were offered at most once in 2017”。这里通过循环体的方式更好理解。</p>
+<br>
+<h3 id="272-from中的子查询--subqueries-in-the-from-clause">2.7.2 From中的子查询  Subqueries in the From Clause<a href="#272-from中的子查询--subqueries-in-the-from-clause" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h3>
+<p>     假如想 “Find the average instructors’ salaries of those departments where the average salary is greater than $42,000”，可以通过之前的having语句搭配group by实现，而这里通过给from使用子查询实现：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="n">dept_name</span><span class="p">,</span><span class="w"> </span><span class="n">avg_salary</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="p">(</span><span class="k">select</span><span class="w"> </span><span class="n">dept_name</span><span class="p">,</span><span class="w"> </span><span class="k">avg</span><span class="w"> </span><span class="p">(</span><span class="n">salary</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">avg_salary</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">from</span><span class="w"> </span><span class="n">instructor</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">group</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="n">dept_name</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">where</span><span class="w"> </span><span class="k">avg</span><span class="w"> </span><span class="n">salary</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">42000</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>这里把子查询的输出结果作为外部查询的输入关系。这里不需要再使用having，因为子查询把部门名作为了分组，而对于外部查询来说这一分组就是输入的关系的Tuple，而where对这些tuple的筛选代替了having。与普通情况类似，外部查询可以使用子查询中select给出的属性（毕竟实际上就是子查询输出的关系）。</p>
+<p>    通过这样产生的输入关系也一样可以起别名：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="n">dept_name</span><span class="p">,</span><span class="w"> </span><span class="n">avg_salary</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="p">(</span><span class="k">select</span><span class="w"> </span><span class="n">dept_name</span><span class="p">,</span><span class="w"> </span><span class="k">avg</span><span class="w"> </span><span class="p">(</span><span class="n">salary</span><span class="p">)</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">from</span><span class="w"> </span><span class="n">instructor</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">group</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="n">dept_name</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">as</span><span class="w"> </span><span class="n">dept_avg</span><span class="w"> </span><span class="p">(</span><span class="n">dept_name</span><span class="p">,</span><span class="w"> </span><span class="n">avg_salary</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">where</span><span class="w"> </span><span class="k">avg</span><span class="w"> </span><span class="n">salary</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">42000</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>这里给子查询输出的关系命名，同时也给属性命名。<strong>注</strong>：as在外部查询中，不是子查询的一部分。不同的DBMS这里会有不同的特殊规定。</p>
+<p>    当from中有多个输入的关系时，若一个输入是一个子查询，它无法使用其他输入关系的别名， SQL提供<code>lateral</code>关键字解决：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">salary</span><span class="p">,</span><span class="w"> </span><span class="k">avg</span><span class="w"> </span><span class="n">_alary</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">instructor</span><span class="w"> </span><span class="n">I1</span><span class="p">,</span><span class="w"> </span><span class="k">lateral</span><span class="w"> </span><span class="p">(</span><span class="k">select</span><span class="w"> </span><span class="k">avg</span><span class="p">(</span><span class="n">salary</span><span class="p">)</span><span class="k">as</span><span class="w"> </span><span class="n">avg_salary</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                             </span><span class="k">from</span><span class="w"> </span><span class="n">instructor</span><span class="w"> </span><span class="n">I2</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w">                             </span><span class="k">where</span><span class="w"> </span><span class="n">I2</span><span class="p">.</span><span class="n">dept_name</span><span class="o">=</span><span class="w"> </span><span class="n">I1</span><span class="p">.</span><span class="n">dept_name</span><span class="p">);</span><span class="w">
+</span></span></span></code></pre></div><br>
+<h3 id="273-select中的子查询-nested-queries-in-select">2.7.3 Select中的子查询 Nested Queries in select<a href="#273-select中的子查询-nested-queries-in-select" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h3>
+<p>    select中也可以嵌入子查询：假设想要查询某一个课程中的学生名字，可以使用where子查询：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="n">name</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">student</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">where</span><span class="w"> </span><span class="n">sid</span><span class="w"> </span><span class="k">in</span><span class="p">(</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">select</span><span class="w"> </span><span class="n">sid</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">from</span><span class="w"> </span><span class="n">enrolled</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">where</span><span class="w"> </span><span class="n">cid</span><span class="o">=</span><span class="s1">&#39;15-445&#39;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">)</span><span class="w">
+</span></span></span></code></pre></div><p>这里实际上就是首先产出了子查询的搜索结果，然后让外部查询中的每个tuple的sid元素查看它是否也在子查询的关系中。这一查询也可以改写为selec子查询：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="p">(</span><span class="k">select</span><span class="w"> </span><span class="n">S</span><span class="p">.</span><span class="n">name</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="k">from</span><span class="w"> </span><span class="n">student</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">S</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="k">where</span><span class="w"> </span><span class="n">S</span><span class="p">.</span><span class="n">sid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">E</span><span class="p">.</span><span class="n">sid</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">sname</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">enrolled</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">E</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">where</span><span class="w"> </span><span class="n">cid</span><span class="o">=</span><span class="s1">&#39;15-445&#39;</span><span class="w">
+</span></span></span></code></pre></div><p>这样修改了查询的过程：首先找到所有enrolled中Tuple的cid=&lsquo;15-445&rsquo;的，然后用它们再和student关系中的sid相对比。</p>
+<p>    两种写法产生的结果完全一样，但是由于操作顺序改了，性能可能不一样。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="28-窗函数-window-function">2.8 窗函数 Window function<a href="#28-窗函数-window-function" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    窗函数类似聚合函数，但是tuples不会被压缩成为1个Tuple。基本结构为：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="p">...</span><span class="w"> </span><span class="n">Func_Name</span><span class="p">(</span><span class="n">args</span><span class="p">)</span><span class="w"> </span><span class="n">over</span><span class="p">(...)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">r</span><span class="w">
+</span></span></span></code></pre></div><p>这里的Func_Name是聚合函数和一些特殊的窗函数，over是一个从句，限定切分数据的方式，类似group by。 特殊的窗函数：</p>
+<blockquote>
+<p>row_number(): 现在的行数；</p>
+<p>rank(): 当前行的位置。</p>
+</blockquote>
+<p><code>row_number()</code>使用：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="p">,</span><span class="w"> </span><span class="n">row_number</span><span class="p">()</span><span class="w"> </span><span class="n">over</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">row_number</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">enrolled</span><span class="p">;</span><span class="w"> 
+</span></span></span></code></pre></div><p>结果会把r原r完整输出，但是每一个tuple的后面都有当前这个tuple所在的行的函数，从1～n。由于是对所有tuple统一使用的，over()不用填参数。但如果希望把数据分组，则需要：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="n">cid</span><span class="p">,</span><span class="n">dis</span><span class="p">,</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="n">row_number</span><span class="p">()</span><span class="w"> </span><span class="n">over</span><span class="p">(</span><span class="n">partition</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="n">cid</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">row_number</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">enrolled</span><span class="p">;</span><span class="w"> 
+</span></span></span></code></pre></div><p>在这个输出中，有相同cid的数据将会被放到相邻的位置，然后row_number表达的是当前tuple在其所在的group中的位置：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/BDU9V5o.png" alt="" style="width:80%">
+</div>
+</figure>
+<p>结果类似上图。</p>
+<p>    over中还可以规定其他内容，比如一个group内部的排序：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="p">(</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="p">,</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="n">rank</span><span class="p">()</span><span class="w"> </span><span class="n">over</span><span class="p">(</span><span class="n">partition</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="n">cid</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">                    </span><span class="k">order</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="n">grade</span><span class="w"> </span><span class="k">asc</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="k">as</span><span class="w"> </span><span class="n">rank</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">     </span><span class="k">from</span><span class="w"> </span><span class="n">enrolled</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">ranking</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">where</span><span class="w"> </span><span class="n">ranking</span><span class="p">.</span><span class="n">rank</span><span class="o">=</span><span class="mi">1</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>在这个例子中，子查询使用了over，导致输出中的tuples以cid分组，每个组中以grade升序排序，同时使用窗函数rank以及 as rank，给每个tuple一个rank（rank类似row_number，子不过前者给出的是一个tuple在排序中的“rank”，且遇到重复的tuple会给予相同的数字，如果没有order by，rank函数无意义）。外部查询使用谓词找到所有rank为1的tuples。</p>
+<p>    窗函数/聚合函数+over的组合和聚合函数+group by的组合有些类似，但是后者会在输出关系中看不到原关系，而前者不会。比如：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="k">max</span><span class="p">(</span><span class="n">grade</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">enrolled</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">group</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="n">cid</span><span class="w">
+</span></span></span></code></pre></div><p>enrolled中保存着所有学生和选课。这个代码会产生一列数据，每一行代表所有相同的cid为一组中分数最高的学生的分数。输出结果类似</p>
+<pre tabindex="0"><code>max
+---
+A
+C
+B
+</code></pre><p>而：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="p">,</span><span class="w"> </span><span class="k">max</span><span class="p">(</span><span class="n">grade</span><span class="p">)</span><span class="w"> </span><span class="n">over</span><span class="p">(</span><span class="n">partition</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="n">cid</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">rank</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">enrolled</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>使用聚合函数+over，同样实现了“分组”，但是不会因此不顾其他所有属性，聚合函数的计算结果保存到了每一个tuple的rank属性中（属性名随意），结果类似：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/P2zYUlT.png" alt="" style="width:80%">
+</div>
+</figure>
+<h2 id="29-公共表表达式-common-table-expressions">2.9 公共表表达式 Common table expressions<a href="#29-公共表表达式-common-table-expressions" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    <strong>公共表表达式CTE</strong>实际上是对<strong>with</strong>从句的使用： with从句可以创建一个临时关系：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">with</span><span class="w"> </span><span class="n">max_budget</span><span class="w"> </span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">(</span><span class="k">select</span><span class="w"> </span><span class="k">max</span><span class="p">(</span><span class="n">budget</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">     </span><span class="k">from</span><span class="w"> </span><span class="n">department</span><span class="p">)</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">select</span><span class="w"> </span><span class="n">budget</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">department</span><span class="p">,</span><span class="w"> </span><span class="n">max_budget</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">where</span><span class="w"> </span><span class="n">department</span><span class="p">.</span><span class="n">budget</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">max_budget</span><span class="p">.</span><span class="n">value</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p>可以看到，完全可以使用from位置的子查询来达到相同的目的。但是由于子查询不易读，with从句提高阅读性。with去要搭配as使用，需要同时定义临时关系的名字和属性名（对应于as后面子查询的select）。可以有多个as创建多个临时关系：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">with</span><span class="w"> </span><span class="n">dept_total</span><span class="w"> </span><span class="p">(</span><span class="n">dept_name</span><span class="p">,</span><span class="w"> </span><span class="n">value</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">(</span><span class="k">select</span><span class="w"> </span><span class="n">dept_name</span><span class="p">,</span><span class="w"> </span><span class="k">sum</span><span class="p">(</span><span class="n">salary</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">from</span><span class="w"> </span><span class="n">instructor</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">group</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="n">dept_name</span><span class="p">),</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="n">dept_total_avg</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="p">(</span><span class="k">select</span><span class="w"> </span><span class="k">avg</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">         </span><span class="k">from</span><span class="w"> </span><span class="n">dept_total</span><span class="p">)</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">select</span><span class="w"> </span><span class="n">dept_name</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">from</span><span class="w"> </span><span class="n">dept_total</span><span class="p">,</span><span class="w"> </span><span class="n">dept_total_avg</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">where</span><span class="w"> </span><span class="n">dept_total</span><span class="p">.</span><span class="n">value</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">dept_total</span><span class="w"> </span><span class="k">avg</span><span class="p">.</span><span class="n">value</span><span class="p">;</span><span class="w">
+</span></span></span></code></pre></div><p><strong>注</strong>：在with/as创建一个临时关系后，只有后面的代码可以使用它，包括后面的as；不同的临时关系使用逗号分隔。</p>
+<p>    除了易读性，CTE同时也提供了递归：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">with</span><span class="w"> </span><span class="k">recursive</span><span class="w"> </span><span class="n">cteSource</span><span class="w"> </span><span class="p">(</span><span class="n">counter</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="p">(</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">(</span><span class="k">select</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">union</span><span class="w"> </span><span class="k">all</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">(</span><span class="k">select</span><span class="w"> </span><span class="n">counter</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w">     </span><span class="k">from</span><span class="w"> </span><span class="n">cteSource</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">     </span><span class="k">where</span><span class="w"> </span><span class="n">counter</span><span class="o">&lt;</span><span class="mi">10</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">cte</span><span class="w"> </span><span class="k">Source</span><span class="w">
+</span></span></span></code></pre></div><p>这里的with语句中使用了它自己定义的关系以及属性，并且通过union把递归的结果union到一个关系中。counter&lt;10作为Base case存在。在递归中union是必要的，因为需要把不同的关系放在一起。</p>
+<p>    SQL中允许子查询以及CTE，因为在理想的情况下最好把所需的查询写在一个查询里，这样方便DBMS去优化。
+<br></p>
 
 		</div>
 	</main>

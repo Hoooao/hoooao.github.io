@@ -8,41 +8,11 @@
 	<meta name="theme-color" content="#494f5c">
 	<meta name="msapplication-TileColor" content="#494f5c">
 <meta itemprop="name" content="Chap 8: 文件系统 File system">
-<meta itemprop="description" content="目录  导言：  一个文件系统的目的是储存和组织数据，把这些数据供给与多个进程和用户，同时也要保证重启后数据的保留。 创建一个文件系统有几个难点：
-   文件系统需要有一个在磁盘上的树类结构去储存文件目录和文件本身。并且也要知道哪些磁盘块（block/sector）是被占用的，哪些是可以使用的。
-  文件系统必须有崩溃修复机制。也就是说在崩溃发生，比如断电，重启后，文件系统必须正常工作。不然可能造成类似并行错误的发生。
-  不同的进程可能会同时去访问一个文件，所以需要保证并发时文件系统也能正常运行。
-  从磁盘中获取数据很慢，所以文件系统必须在内存中有对部分常用的磁盘内容缓存。
-   本章解释xv6是如何解决这些困难的。
- 8.1 概述 Overview  xv6的文件系统有7层:
- Fig.1 xv6文件系统分层   从下至上分别是：
-   磁盘层（Disk）：对磁盘直接的读写。xv6中使用的磁盘是Qemu提供的虚拟硬盘（Virtio hard drive）。
-  缓存缓冲层（Buffer cache）：这一层维护着一个数组，数组中的元素是对磁盘中某些操作部分的内容复制。用来保证并发正常和支持缓存减少磁盘访问次数。
-  日志（Logging）：对一系列磁盘的操作的记录。把多个操作一次性传递给磁盘，减少了磁盘的访问的同时保证了行为的原子化。最重要的是帮助在系统崩溃后的数据恢复和文件系统正常。
-  Inode（Index node）：实际上就是文件本身。它是一种数据结构，每个inode保存着一个文件相关的信息。文件本身的内容并不存放在inode中。
-  目录（Directory）：是一种特殊的inode，其内容是一系列的目录元素，每个元素包含着一个文件名和inode-number，即i-number，用来识别特定的inode。
-  路径（Pathname）：即文件路径。
-  文件描述符（File descriptor）：是对文件，设备，以及管道等资源的抽象。提供接口来操作这些资源。
-    数据的最小单位时bit，但是对于磁盘的每次读写的最小单位是 512Bytes，也称之为 “一块（Block/sector）”。这里的block和操作系统中的block的大小可能并不总是相等，但是后者通常是前者的整数倍。它们在磁盘上连续排列：sector0, sector1&hellip;。xv6保存着一部分block的复制，这些“复制品”被保存在独立的buf结构体中。这些复制品有的时候可能和磁盘上的本体的数据是不一样，也就是“不同步”。比如可能因为磁盘工作于本体block，而OS还没有读取；更常见的情况是OS对复制品进行了修改，但是还没更新本体来同步。"><meta itemprop="datePublished" content="2022-07-30T21:51:42-04:00" />
+<meta itemprop="description" content="目录   导言  8.1 概述 Overview  8.2 缓存缓冲层 Buffer cache layer  8.3 代码：缓存缓冲 Buffer cache  8.4 日志层 Logging Layer  8.5 日志设计 Log Design  8.6 代码：日志 Code：logging  8.7 代码：Block分配器 Code：Block Allocator  8.8 Inode层 Inode layer  8.9 代码：Inode Code：Inode  8.10 代码：Inode 内容 Code：Inode content  8.11 代码：目录层 Code：Directory layer  8.12 代码：路径名称 Code：Path names  8.13 文件描述符层 File descriptor layer  8."><meta itemprop="datePublished" content="2022-07-30T21:51:42-04:00" />
 <meta itemprop="dateModified" content="2022-07-30T21:51:42-04:00" />
-<meta itemprop="wordCount" content="2401">
+<meta itemprop="wordCount" content="2472">
 <meta itemprop="keywords" content="" /><meta property="og:title" content="Chap 8: 文件系统 File system" />
-<meta property="og:description" content="目录  导言：  一个文件系统的目的是储存和组织数据，把这些数据供给与多个进程和用户，同时也要保证重启后数据的保留。 创建一个文件系统有几个难点：
-   文件系统需要有一个在磁盘上的树类结构去储存文件目录和文件本身。并且也要知道哪些磁盘块（block/sector）是被占用的，哪些是可以使用的。
-  文件系统必须有崩溃修复机制。也就是说在崩溃发生，比如断电，重启后，文件系统必须正常工作。不然可能造成类似并行错误的发生。
-  不同的进程可能会同时去访问一个文件，所以需要保证并发时文件系统也能正常运行。
-  从磁盘中获取数据很慢，所以文件系统必须在内存中有对部分常用的磁盘内容缓存。
-   本章解释xv6是如何解决这些困难的。
- 8.1 概述 Overview  xv6的文件系统有7层:
- Fig.1 xv6文件系统分层   从下至上分别是：
-   磁盘层（Disk）：对磁盘直接的读写。xv6中使用的磁盘是Qemu提供的虚拟硬盘（Virtio hard drive）。
-  缓存缓冲层（Buffer cache）：这一层维护着一个数组，数组中的元素是对磁盘中某些操作部分的内容复制。用来保证并发正常和支持缓存减少磁盘访问次数。
-  日志（Logging）：对一系列磁盘的操作的记录。把多个操作一次性传递给磁盘，减少了磁盘的访问的同时保证了行为的原子化。最重要的是帮助在系统崩溃后的数据恢复和文件系统正常。
-  Inode（Index node）：实际上就是文件本身。它是一种数据结构，每个inode保存着一个文件相关的信息。文件本身的内容并不存放在inode中。
-  目录（Directory）：是一种特殊的inode，其内容是一系列的目录元素，每个元素包含着一个文件名和inode-number，即i-number，用来识别特定的inode。
-  路径（Pathname）：即文件路径。
-  文件描述符（File descriptor）：是对文件，设备，以及管道等资源的抽象。提供接口来操作这些资源。
-    数据的最小单位时bit，但是对于磁盘的每次读写的最小单位是 512Bytes，也称之为 “一块（Block/sector）”。这里的block和操作系统中的block的大小可能并不总是相等，但是后者通常是前者的整数倍。它们在磁盘上连续排列：sector0, sector1&hellip;。xv6保存着一部分block的复制，这些“复制品”被保存在独立的buf结构体中。这些复制品有的时候可能和磁盘上的本体的数据是不一样，也就是“不同步”。比如可能因为磁盘工作于本体block，而OS还没有读取；更常见的情况是OS对复制品进行了修改，但是还没更新本体来同步。" />
+<meta property="og:description" content="目录   导言  8.1 概述 Overview  8.2 缓存缓冲层 Buffer cache layer  8.3 代码：缓存缓冲 Buffer cache  8.4 日志层 Logging Layer  8.5 日志设计 Log Design  8.6 代码：日志 Code：logging  8.7 代码：Block分配器 Code：Block Allocator  8.8 Inode层 Inode layer  8.9 代码：Inode Code：Inode  8.10 代码：Inode 内容 Code：Inode content  8.11 代码：目录层 Code：Directory layer  8.12 代码：路径名称 Code：Path names  8.13 文件描述符层 File descriptor layer  8." />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://hoooao.github.io/os/chap8/" /><meta property="article:section" content="os" />
 <meta property="article:published_time" content="2022-07-30T21:51:42-04:00" />
@@ -50,22 +20,7 @@
 
 <meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="Chap 8: 文件系统 File system"/>
-<meta name="twitter:description" content="目录  导言：  一个文件系统的目的是储存和组织数据，把这些数据供给与多个进程和用户，同时也要保证重启后数据的保留。 创建一个文件系统有几个难点：
-   文件系统需要有一个在磁盘上的树类结构去储存文件目录和文件本身。并且也要知道哪些磁盘块（block/sector）是被占用的，哪些是可以使用的。
-  文件系统必须有崩溃修复机制。也就是说在崩溃发生，比如断电，重启后，文件系统必须正常工作。不然可能造成类似并行错误的发生。
-  不同的进程可能会同时去访问一个文件，所以需要保证并发时文件系统也能正常运行。
-  从磁盘中获取数据很慢，所以文件系统必须在内存中有对部分常用的磁盘内容缓存。
-   本章解释xv6是如何解决这些困难的。
- 8.1 概述 Overview  xv6的文件系统有7层:
- Fig.1 xv6文件系统分层   从下至上分别是：
-   磁盘层（Disk）：对磁盘直接的读写。xv6中使用的磁盘是Qemu提供的虚拟硬盘（Virtio hard drive）。
-  缓存缓冲层（Buffer cache）：这一层维护着一个数组，数组中的元素是对磁盘中某些操作部分的内容复制。用来保证并发正常和支持缓存减少磁盘访问次数。
-  日志（Logging）：对一系列磁盘的操作的记录。把多个操作一次性传递给磁盘，减少了磁盘的访问的同时保证了行为的原子化。最重要的是帮助在系统崩溃后的数据恢复和文件系统正常。
-  Inode（Index node）：实际上就是文件本身。它是一种数据结构，每个inode保存着一个文件相关的信息。文件本身的内容并不存放在inode中。
-  目录（Directory）：是一种特殊的inode，其内容是一系列的目录元素，每个元素包含着一个文件名和inode-number，即i-number，用来识别特定的inode。
-  路径（Pathname）：即文件路径。
-  文件描述符（File descriptor）：是对文件，设备，以及管道等资源的抽象。提供接口来操作这些资源。
-    数据的最小单位时bit，但是对于磁盘的每次读写的最小单位是 512Bytes，也称之为 “一块（Block/sector）”。这里的block和操作系统中的block的大小可能并不总是相等，但是后者通常是前者的整数倍。它们在磁盘上连续排列：sector0, sector1&hellip;。xv6保存着一部分block的复制，这些“复制品”被保存在独立的buf结构体中。这些复制品有的时候可能和磁盘上的本体的数据是不一样，也就是“不同步”。比如可能因为磁盘工作于本体block，而OS还没有读取；更常见的情况是OS对复制品进行了修改，但是还没更新本体来同步。"/>
+<meta name="twitter:description" content="目录   导言  8.1 概述 Overview  8.2 缓存缓冲层 Buffer cache layer  8.3 代码：缓存缓冲 Buffer cache  8.4 日志层 Logging Layer  8.5 日志设计 Log Design  8.6 代码：日志 Code：logging  8.7 代码：Block分配器 Code：Block Allocator  8.8 Inode层 Inode layer  8.9 代码：Inode Code：Inode  8.10 代码：Inode 内容 Code：Inode content  8.11 代码：目录层 Code：Directory layer  8.12 代码：路径名称 Code：Path names  8.13 文件描述符层 File descriptor layer  8."/>
 
 	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -125,6 +80,24 @@
 		<h1>Chap 8: 文件系统 File system</h1>
 		<div class="content">
 			<h2 id="目录">目录<a href="#目录" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<ul>
+<li> <a href="#%E5%AF%BC%E8%A8%80">导言</a></li>
+<li> <a href="#81-%E6%A6%82%E8%BF%B0-overview">8.1 概述 Overview</a></li>
+<li> <a href="#82-%E7%BC%93%E5%AD%98%E7%BC%93%E5%86%B2%E5%B1%82-buffer-cache-layer">8.2 缓存缓冲层 Buffer cache layer</a></li>
+<li> <a href="#83-%E4%BB%A3%E7%A0%81%E7%BC%93%E5%AD%98%E7%BC%93%E5%86%B2-buffer-cache">8.3 代码：缓存缓冲 Buffer cache</a></li>
+<li> <a href="#84-%E6%97%A5%E5%BF%97%E5%B1%82-logging-layer">8.4 日志层 Logging Layer</a></li>
+<li> <a href="#85-%E6%97%A5%E5%BF%97%E8%AE%BE%E8%AE%A1-log-design">8.5 日志设计 Log Design</a></li>
+<li> <a href="#86-%E4%BB%A3%E7%A0%81%E6%97%A5%E5%BF%97-codelogging">8.6 代码：日志 Code：logging</a></li>
+<li> <a href="#87-%E4%BB%A3%E7%A0%81block%E5%88%86%E9%85%8D%E5%99%A8-codeblock-allocator">8.7 代码：Block分配器 Code：Block Allocator</a></li>
+<li> <a href="#88-inode%E5%B1%82-inode-layer">8.8 Inode层 Inode layer</a></li>
+<li> <a href="#89-%E4%BB%A3%E7%A0%81inode-codeinode">8.9 代码：Inode Code：Inode</a></li>
+<li> <a href="#810-%E4%BB%A3%E7%A0%81inode-%E5%86%85%E5%AE%B9-codeinode-content">8.10 代码：Inode 内容 Code：Inode content</a></li>
+<li> <a href="#811-%E4%BB%A3%E7%A0%81%E7%9B%AE%E5%BD%95%E5%B1%82-codedirectory-layer">8.11 代码：目录层 Code：Directory layer</a></li>
+<li> <a href="#812-%E4%BB%A3%E7%A0%81%E8%B7%AF%E5%BE%84%E5%90%8D%E7%A7%B0-codepath-names">8.12 代码：路径名称 Code：Path names</a></li>
+<li> <a href="#813-%E6%96%87%E4%BB%B6%E6%8F%8F%E8%BF%B0%E7%AC%A6%E5%B1%82-file-descriptor-layer">8.13 文件描述符层 File descriptor layer</a></li>
+<li> <a href="#814-%E4%BB%A3%E7%A0%81%E7%B3%BB%E7%BB%9F%E8%B0%83%E7%94%A8-codesystem-calls">8.14 代码：系统调用 Code：System calls</a></li>
+<li> <a href="#815-%E7%BB%83%E4%B9%A0-exercises">8.15 练习 Exercises</a></li>
+</ul>
 <br>
 <hr>
 <br>
@@ -216,7 +189,7 @@
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="c1">// head.next is most recent, head.prev is least.
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">struct</span> <span class="n">buf</span> <span class="n">head</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span> <span class="n">bcache</span><span class="p">;</span>
-</span></span></code></pre></div><p>每个buf结构体都代表着一个从磁盘中读取的block。最重要的函数时<code>bread</code>和<code>bwrite</code>。前者会从磁盘中读取一个block放入结构体，然后返回这个结构体（上持有睡眠锁）。后者把buf结构体写回磁盘。同时还有函数<code>brelse</code>，每当一个进程使用完了一个buf之后，都需要调用它来释放这个buf的睡眠锁。在缓冲缓存层，每个buf都有一个属于自己的睡眠锁，这使得每次只能有一个进程使用这个buf。由于<code>bcache</code>的长度是有限的，每当使用完全部的槽位之后而又有新的block需要被复制进来，那么就需要重新利用某些槽位。原则是，舍弃<strong>最近最少使用（LRU：Least recently used）</strong> 的buf的草味，因为通常假设LRU位置上的是最不可能再次被使用的block。</p>
+</span></span></code></pre></div><p>每个buf结构体都代表着一个从磁盘中读取的block。最重要的函数是<code>bread</code>和<code>bwrite</code>。前者会从磁盘中读取一个block放入结构体，然后返回这个结构体（上持有睡眠锁）。后者把buf结构体写回磁盘。同时还有函数<code>brelse</code>，每当一个进程使用完了一个buf之后，都需要调用它来释放这个buf的睡眠锁。在缓冲缓存层，每个buf都有一个属于自己的睡眠锁，这使得每次只能有一个进程使用这个buf。由于<code>bcache</code>的长度是有限的，每当使用完全部的槽位之后而又有新的block需要被复制进来，那么就需要重新利用某些槽位。原则是，舍弃<strong>最近最少使用（LRU：Least recently used）</strong> 的buf的草味，因为通常假设LRU位置上的是最不可能再次被使用的block。<strong>注</strong>：由于崩溃恢复机制的规定，没有系统调用会直接使用<code>bwrite</code>写入磁盘，而是进过多层封装，最终由log相关的代码调用。</p>
 <h2 id="83-代码缓存缓冲-buffer-cache">8.3 代码：缓存缓冲 Buffer cache<a href="#83-代码缓存缓冲-buffer-cache" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
 <p>    每个buf可以被看作bcache中维护的那个数组的节点：</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="k">struct</span> <span class="n">buf</span> <span class="p">{</span>
@@ -308,16 +281,23 @@
 <br>
 <br>
 <h2 id="84-日志层-logging-layer">8.4 日志层 Logging Layer<a href="#84-日志层-logging-layer" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
-<p>    文件系统的设计的一个重要的方面就是<strong>崩溃恢复机制（Crash recovery）</strong>。假如不存在这样的机制，可能造成磁盘上的文件系统的不连贯状态。比如一个崩溃发生在了一个文件删除操作的过程当中，考虑在崩溃前做了哪些操作，可能导致两种情况：</p>
+<p>    文件系统的设计的一个重要的方面就是<strong>崩溃恢复机制（Crash recovery）</strong>。假如不存在这样的机制，可能造成磁盘上的文件系统的不连贯状态。比如一个崩溃发生在了一个文件删除操作的过程当中，考虑在崩溃前做了哪些操作，可能导致两种情况（关于同一个不变量：每个block要么free要么被分配给1个文件）：</p>
 <blockquote>
 <ol>
 <li>一个inode会指向一个被标记为free的block;</li>
-<li>一个被分配的block没有任何inode指向它。</li>
+<li>一个被分配的block没有任何inode指向它（block丢失 ）。</li>
 </ol>
 </blockquote>
-<p>后一种情况不会造成很大问题，但是前者可能导致在重启后另一个进程也使用了一个已经被一个inode指向的block，导致错误。假如一台电脑有多个用户，那么可能会导致多个用户都能访问到同一个block，造成安全问题。</p>
-<p>    xv6解决这种问题的方式是通过一个简易的日志系统。xv6中的系统调用并不会直接操作于磁盘上的数据，而是先把它所希望做出的操作记录在磁盘上的日志中(初春的实际上是修改后的block复制品)。当这个系统调用记录完了它的所有操作之后，会再发出入一个<strong>提交（Commit）</strong>，表达这里结束了一套完整的操作。然后系统调用才会真正地把做出的修改同步到磁盘上的文件。最终系统调用会清空之前的日志。</p>
-<p>    在这种模式下，假如类似的崩溃发生，重启后文件系统会首先运行一些恢复机制相关的代码来检查日志中是否存在还没有执行的完整操作日志（即被提交的日志），如果有就同步，如果没有或者操作日志并不完整（无提交），就会忽略。最终这些代码会清空日志。这样对一系列修改的打包可以让它们原子化。</p>
+<p>后一种情况不会造成很大问题，但是前者可能导致在重启后另一个进程也使用了一个已经被一个inode指向的block，导致错误。假如一台电脑有多个用户，那么可能会导致多个用户都能访问到同一个block，造成安全问题。本节主要讨论的只是这两种崩溃问题。</p>
+<p>    xv6解决这种问题的方式是通过一个简易的日志系统。xv6中的系统调用并不会直接操作于磁盘上的数据，而是先把它所希望做出的操作记录在磁盘上的日志区域中(实际上是修改后的block复制品)。当这个系统调用记录完了它的所有操作之后，会再发出入一个<strong>提交（Commit）</strong>，表达这里结束了一套完整的操作。然后系统调用才会真正地把做出的修改同步到磁盘上的文件。最终系统调用会清空之前的日志。</p>
+<p>    在这种模式下，假如类似的崩溃发生，重启后文件系统会首先运行一些恢复机制相关的代码来检查日志中是否存在还没有执行的完整操作日志（即被提交的日志），如果有就同步，如果没有或者操作日志并不完整（无提交），就会忽略。最终这些代码会清空日志。这样对一系列修改的打包可以让有多个好处：</p>
+<blockquote>
+<ol>
+<li>系统调用原子化</li>
+<li>快速恢复，不像别的恢复机制或许涉及对于其他所有block/inode的遍历操作</li>
+<li>效率高</li>
+</ol>
+</blockquote>
 <br>
 <br>
 <br>
@@ -338,12 +318,13 @@
 <br>
 <br>
 <h2 id="86-代码日志-codelogging">8.6 代码：日志 Code：logging<a href="#86-代码日志-codelogging" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
-<p>    一个通常的写入磁盘的步骤大致是这样的：</p>
+<p>    所有写入磁盘的系统调用大致是这样的（所有操作都在<code>begin_op(),end_op()</code>之间）：</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl">  <span class="n">begin_op</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">  <span class="p">...</span>
 </span></span><span class="line"><span class="cl">  <span class="n">bp</span> <span class="o">=</span> <span class="n">bread</span><span class="p">(...);</span>
 </span></span><span class="line"><span class="cl">  <span class="n">bp</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">[...]</span> <span class="o">=</span> <span class="p">...;</span>
-</span></span><span class="line"><span class="cl">  <span class="n">log_write</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">//不使用bwrite，而是log_write
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">log_write</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="p">...</span>
 </span></span><span class="line"><span class="cl">  <span class="n">end_op</span><span class="p">();</span>
 </span></span></code></pre></div><p><strong>注</strong>：这里涉及的&quot;日志&quot;实际上有两个：内存中log结构体，和磁盘上真正的log区域。由于后者本质上也是磁盘内容，前者可以理解为后者的“复制品”，用来同步修改。</p>
@@ -373,6 +354,7 @@
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="n">sleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">log</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">log</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">      <span class="c1">//LOGSIZE=30，MAXOPBLOCKS=10
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="c1">//这里检查预留问题
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="p">}</span> <span class="k">else</span> <span class="k">if</span><span class="p">(</span><span class="n">log</span><span class="p">.</span><span class="n">lh</span><span class="p">.</span><span class="n">n</span> <span class="o">+</span> <span class="p">(</span><span class="n">log</span><span class="p">.</span><span class="n">outstanding</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="n">MAXOPBLOCKS</span> <span class="o">&gt;</span> <span class="n">LOGSIZE</span><span class="p">){</span>
 </span></span><span class="line"><span class="cl">      <span class="c1">// this op might exhaust log space; wait for commit.
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="c1">//如果剩余空间不够，就睡眠
@@ -384,7 +366,7 @@
 </span></span><span class="line"><span class="cl">    <span class="p">}</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span></code></pre></div><p>顺利进入循环后会检查当前是否log系统正在提交操作，为真的话进入睡眠。若不为真，会给当前系统调用预留log中的logged block位置：通过把header中统计的logged block数量增加（这个是内存中的log结构体，而不是磁盘上真正地log），每次增加的数量是<code>MAXOPBLOCKS</code>，也就是10；换句话说，xv6的log系统保守的认为进程会最多使用10个log block。<code>outstanding</code>属性统计请求预留空间的系统调用的个数。增加这个属性既保证了空间预留，也保证了不让<code>committing</code>发生（只有<code>outstanding==0</code>才会commit）</p>
+</span></span></code></pre></div><p>顺利进入循环后会检查当前是否log系统正在提交操作，为真的话进入睡眠。若不为真，会给当前系统调用“预留”log中的logged block位置。通过把header中已有的logged block数量增加（这个是内存中的log结构体，而不是磁盘上真正地log）加上总预留位置对比容量上限，看这个系统调用能不能被塞进这次group commiting中。每次预留的数量是<code>MAXOPBLOCKS</code>，也就是10：换句话说，xv6的log系统保守的认为进程会最多使用10个log block。<code>outstanding</code>属性统计请求预留空间的系统调用的个数。增加这个属性既保证了空间预留，也保证了不让<code>committing</code>发生（只有<code>outstanding==0</code>才会commit），实现group commiting。而这个系统调用真正实用的block数量会在<code>log_write</code>中真正地被统计到log中，然后在<code>end_op</code>里放弃这预留的空间</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span>
 </span></span><span class="line"><span class="cl"><span class="nf">log_write</span><span class="p">(</span><span class="k">struct</span> <span class="n">buf</span> <span class="o">*</span><span class="n">b</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
@@ -405,9 +387,8 @@
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">bpin</span><span class="p">(</span><span class="n">b</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="n">log</span><span class="p">.</span><span class="n">lh</span><span class="p">.</span><span class="n">n</span><span class="o">++</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
-</span></span><span class="line"><span class="cl">  <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">log</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span></code></pre></div><p>    <code>log_write()</code>会把一个block的编号写入header的block数组中。假如这个编号已经存在了，那么不会把这个编号再次记录在数组末尾，这一机制叫做<strong>Absorption</strong>：它节省了空间的同时也会提高效率因为只会有一个block的复制品会被读写。如果不存在的话就添加到末尾。最终对于新添加的block，<code>log_write</code>会把它通过<code>bpin</code>“钉”在bcache中，后者实际上就是给这个block/buf添加了一个refcnt。这样保证了该buf在被提交之前不可能会被重新利用掉。</p>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span></code></pre></div><p>    <code>log_write()</code>会把一个block的编号写入header的block数组中。假如这个编号已经存在了，那么不会把这个编号再次记录在数组末尾，这一机制叫做<strong>Absorption</strong>：它节省了空间的同时也会提高效率因为只会有一个block的复制品会被读写。如果不存在的话就添加到末尾。最终对于新添加的block，<code>log_write</code>会把它通过<code>bpin</code>“钉”在bcache中，后者实际上就是给这个block/buf添加了一个refcnt。这样保证了该block不会再次被读取：在这个block被提交修改之前，所有进程都应当能看到它的最新状态。</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span>
 </span></span><span class="line"><span class="cl"><span class="nf">bpin</span><span class="p">(</span><span class="k">struct</span> <span class="n">buf</span> <span class="o">*</span><span class="n">b</span><span class="p">)</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">  <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">bcache</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
@@ -451,13 +432,13 @@
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
 </span></span><span class="line"><span class="cl">  <span class="k">if</span> <span class="p">(</span><span class="n">log</span><span class="p">.</span><span class="n">lh</span><span class="p">.</span><span class="n">n</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">    <span class="n">write_log</span><span class="p">();</span>     <span class="c1">// Write modified blocks from cache to log
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">write_head</span><span class="p">();</span>    <span class="c1">// Write header to disk -- the real commit
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">write_head</span><span class="p">();</span>    <span class="c1">// Write header to disk -- the real commit：在这个函数调用bwrite写入header的瞬间 
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">install_trans</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span> <span class="c1">// Now install writes to home locations
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">log</span><span class="p">.</span><span class="n">lh</span><span class="p">.</span><span class="n">n</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">    <span class="n">write_head</span><span class="p">();</span>    <span class="c1">// Erase the transaction from the log
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="p">}</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span></code></pre></div><p>commit首先会把log结构体中记录的所有block的复制品从<code>bcache</code>拷贝到<strong>磁盘</strong>上的log的对应位置，然后把log结构体的head放入<strong>真</strong>log.head。最后调用<code>install_trans(0)</code>把真log中的数据同步到block们的原始位置。然后把两个log（磁盘上的和结构体）初始化。</p>
+</span></span></code></pre></div><p><code>commit</code>首先会把log结构体中记录的所有block的复制品从<code>bcache</code>拷贝到<strong>磁盘</strong>上的log的对应位置，然后把log结构体的head放入<strong>真</strong><code>log.head</code>。最后调用<code>install_trans(0)</code>把真log中的数据同步到block们的原始位置。然后把两个log（磁盘上的和结构体）初始化。<strong>注</strong>：<code>outstanding</code>预留出的空间在<code>log_write</code>中被实际使用，<code>end_op</code>中减小<code>outstanding</code>并不会有什么影响：在<code>begin_op</code>中比较的是<code>log.lh.n + (log.outstanding+1)*MAXOPBLOCKS &gt; LOGSIZE</code>；由于这个交易已经被记录在了内存中的log里面，不用担心不会提交。</p>
 <p>    <code>recover_from_log()</code>在<code>initlog</code>中被调用，<code>initlog</code>在<code>fsinit</code>中被调用，后者在启动阶段被调用。它会读取<code>logheader</code>，然后模仿<code>end_op</code>的行为：作为崩溃恢复机制的重要存在</p>
 <p>    <strong>注</strong>：<code>filewrite</code>中可以看到<code>write</code>是如何被分割成多次写入的：通过一个循环多次提交。</p>
 <br>
@@ -1093,7 +1074,7 @@
 </span></span><span class="line"><span class="cl">  <span class="n">end_op</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span></code></pre></div><p><code>sys_link</code>接受两个参数，<code>new，old</code>（两个都是路径，而非只是目录名）：把<code>old</code>所指向的节点连接到<code>new</code>所指向的目录：即给一个节点创建新的链接（不会断开之前的链接）。这个系统调用首先会读取传入的参数并且通过<code>begin_op()</code>开始交易。在交易内部，会首先把<code>old</code>所指向的inode读取到进程中，如果这个inode是一个目录，则不处理，反之则继续：为<code>new</code>增加这个inode的<code>nlink</code>。然后找到<code>new</code>所在的目录：获取目录之后就可以真正地创建链接了<code>dirlink(dp, name, ip-&gt;inum)</code>。这里有一个问题：可以看到目标inode的<code>nlink</code>实际上在真正被链接之前就增加了，若崩溃发生或许会导致<code>nlink</code>和实际上的链接数量对不上。但这实际上是不会发生的：由于存在交易/提交的机制，这些对于不同的block的修改要么都发生，要么都不发生，即原子化。</p>
+</span></span></code></pre></div><p><code>sys_link</code>接受两个参数，<code>new，old</code>（两个都是路径，而非只是目录名）：把<code>old</code>所指向的节点连接到<code>new</code>所指向的目录：即给一个节点创建新的链接（不会断开之前的链接）。这个系统调用首先会读取传入的参数并且通过<code>begin_op()</code>开始交易。在交易内部，会首先把<code>old</code>所指向的inode读取到进程中，如果这个inode是一个目录，则不处理，反之则继续：为<code>new</code>增加这个inode的<code>nlink</code>。然后找到<code>new</code>所在的目录：获取目录之后就可以真正地创建链接了<code>dirlink(dp, name, ip-&gt;inum)</code>。这里有一个问题：可以看到目标inode的<code>nlink</code>实际上在真正被链接之前就增加了，若崩溃发生或许会导致<code>nlink</code>和实际上的链接数量对不上（如果这个链接是第一个链接，那么会造成这个inode从文件系统中丢失（被标记为已使用但没有任何dirent指向））。但这实际上是不会发生的：由于存在交易/提交的机制，这些对于不同的block的修改要么都发生，要么都不发生，即原子化。</p>
 <p>    <code>sys_link</code>给已经存在的inode创建了一个新的名字。而<code>create</code>给一个新的inode创建一个新的名字。<code>open()</code>用它创建一个文件，<code>mkdir()</code>用它创建一个目录，<code>mkdev()</code>用它创建一个设备：</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="k">static</span> <span class="k">struct</span> <span class="n">inode</span><span class="o">*</span>
 </span></span><span class="line"><span class="cl"><span class="nf">create</span><span class="p">(</span><span class="kt">char</span> <span class="o">*</span><span class="n">path</span><span class="p">,</span> <span class="kt">short</span> <span class="n">type</span><span class="p">,</span> <span class="kt">short</span> <span class="n">major</span><span class="p">,</span> <span class="kt">short</span> <span class="n">minor</span><span class="p">)</span>

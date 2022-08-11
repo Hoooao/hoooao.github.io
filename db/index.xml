@@ -9,16 +9,31 @@
     <copyright>This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.</copyright>
     <lastBuildDate>Wed, 13 Jul 2022 19:11:24 -0400</lastBuildDate><atom:link href="https://hoooao.github.io/db/index.xml" rel="self" type="application/rss+xml" />
     <item>
-      <title>Part2</title>
+      <title>Part2: </title>
       <link>https://hoooao.github.io/db/part2/</link>
       <pubDate>Wed, 13 Jul 2022 19:11:24 -0400</pubDate>
       
       <guid>https://hoooao.github.io/db/part2/</guid>
-      <description>目录  导言： </description>
+      <description>目录  SQL进阶 Advanced SQL 导言：  DBMS负责关心query的效率。它完成了对于对算法的封装，对各种操作的的重新排序而产生高效的行为。SQL本质是一种数据库管理系统的标准，并不断更新，标准规定了DBMS需要有的特性。SQL融合了DML+DDL+DCL（Data Control Language）。不同于关系函数基于集合论，SQL实际上基于Bag：无序且允许重复。没有任何现实中的DBMS完全和SQL标准规范的一样，并且每一款DBMS都在尝试把自己的特性融合到“标准”中。这部分内容介绍的是SQL的规范，而非某一种特定的DBMS下的语言。注：这门课程不会专注于如何使用某一门DBMS所提供的语言。
+ 2.1 SQL作为数据定义语言 SQL&amp;amp;Data Definition Language  SQL DDL提供了对于定义关系Schema，删除rlation，修改关系Schema的指令。具体来说，可以实现一下特性：
+   Integrity：设置这一关系下的数据必须遵守的限制，超出限制的数据不允许加入；
+  View Definition：设置视图；
+  Transaction Control：存在标注一个交易（对于数据的修改）的开始和结束的命令；
+  eEmbedded SQL &amp;amp; Dynamic SQL：SQL语句可以被嵌入到其他高级语言中，比如：C，java等等；
+  aAuthorization：设置对于视图和关系的访问权限（比如对于数据库用户的某些访问限制）。
+    如上所述，SQL可以用来去定义很多内容，比如一个关系的Schema，所保存的数据的类型，限制等等。SQL主要有下面几个数据类型：
+   char(n)：固定长度的字符串；
+  varchar(n)：规定最长长度，在这个值之下长度可变的字符串；
+  int：一个取决于当前计算机规定的长度的int；
+  smallint：一个小int；
+  numeric(p,d)：代表某种精度的小树：p规定精度，d规定小数位数，比如numeric(3,1)中，14.5是合法的；
+  real/double precision：取决于计算机的浮点数（单精度/双精度）
+  float(n)：n为最小精度，也是浮点数
+   可以看出来所有取决于计算机本身的类型是不需要（n）的。有时可能会有null出现，比如char(n)实际使用的长度小于n，此时DBMS会把没用到的部分设置为空格，来避免出现null。另外对于varchar，它永远不会有空着的位置，因为长度可变。</description>
     </item>
     
     <item>
-      <title>Part 1: 数据库管理系统概述与关系模型</title>
+      <title>Part 1: 数据库管理系统概述与关系模型 DBMS Overview and Rlational Model</title>
       <link>https://hoooao.github.io/db/part1/</link>
       <pubDate>Sun, 03 Jul 2022 10:06:08 -0400</pubDate>
       
