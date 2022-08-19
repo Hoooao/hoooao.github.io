@@ -7,11 +7,11 @@
 	<meta http-equiv="X-UA-Compatible" content="ie=edge">
 	<meta name="theme-color" content="#494f5c">
 	<meta name="msapplication-TileColor" content="#494f5c">
-<meta itemprop="name" content="Part 1: 数据库管理系统概述与关系模型 DBMS Overview and Rlational Model">
+<meta itemprop="name" content="Chap 1: 数据库管理系统概述与&amp;系模型 DBMS Overview and Rlational Model">
 <meta itemprop="description" content="MathJax.Hub.Config({ tex2jax: { skipTags: [&#39;script&#39;, &#39;noscript&#39;, &#39;style&#39;, &#39;textarea&#39;, &#39;pre&#39;], inlineMath: [[&#39;$&#39;,&#39;$&#39;]] } });   目录   数据库管理系统概述 Database Management System   导言  1.1 DBMS应用 DBMS Applications  1.2 DBMS目的 DBMS Purposes  1.3 数据模型 Data Models  1.4 数据抽象 Data Abstraction  1.5 数据库语言 DB Languages  1.6 数据库设计 DB Design  1.7 数据库引擎 DB Engine  1.8 数据库和应用 Database and Application Architecture    关系模型 Relational Model   导言  1."><meta itemprop="datePublished" content="2022-07-03T10:06:08-04:00" />
 <meta itemprop="dateModified" content="2022-07-03T10:06:08-04:00" />
 <meta itemprop="wordCount" content="437">
-<meta itemprop="keywords" content="" /><meta property="og:title" content="Part 1: 数据库管理系统概述与关系模型 DBMS Overview and Rlational Model" />
+<meta itemprop="keywords" content="" /><meta property="og:title" content="Chap 1: 数据库管理系统概述与&amp;系模型 DBMS Overview and Rlational Model" />
 <meta property="og:description" content="MathJax.Hub.Config({ tex2jax: { skipTags: [&#39;script&#39;, &#39;noscript&#39;, &#39;style&#39;, &#39;textarea&#39;, &#39;pre&#39;], inlineMath: [[&#39;$&#39;,&#39;$&#39;]] } });   目录   数据库管理系统概述 Database Management System   导言  1.1 DBMS应用 DBMS Applications  1.2 DBMS目的 DBMS Purposes  1.3 数据模型 Data Models  1.4 数据抽象 Data Abstraction  1.5 数据库语言 DB Languages  1.6 数据库设计 DB Design  1.7 数据库引擎 DB Engine  1.8 数据库和应用 Database and Application Architecture    关系模型 Relational Model   导言  1." />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://hoooao.github.io/db/part1/" /><meta property="article:section" content="db" />
@@ -19,7 +19,7 @@
 <meta property="article:modified_time" content="2022-07-03T10:06:08-04:00" />
 
 <meta name="twitter:card" content="summary"/>
-<meta name="twitter:title" content="Part 1: 数据库管理系统概述与关系模型 DBMS Overview and Rlational Model"/>
+<meta name="twitter:title" content="Chap 1: 数据库管理系统概述与&amp;系模型 DBMS Overview and Rlational Model"/>
 <meta name="twitter:description" content="MathJax.Hub.Config({ tex2jax: { skipTags: [&#39;script&#39;, &#39;noscript&#39;, &#39;style&#39;, &#39;textarea&#39;, &#39;pre&#39;], inlineMath: [[&#39;$&#39;,&#39;$&#39;]] } });   目录   数据库管理系统概述 Database Management System   导言  1.1 DBMS应用 DBMS Applications  1.2 DBMS目的 DBMS Purposes  1.3 数据模型 Data Models  1.4 数据抽象 Data Abstraction  1.5 数据库语言 DB Languages  1.6 数据库设计 DB Design  1.7 数据库引擎 DB Engine  1.8 数据库和应用 Database and Application Architecture    关系模型 Relational Model   导言  1."/>
 
 	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
@@ -29,7 +29,7 @@
 	<link rel="mask-icon" href="/safari-pinned-tab.svg" color="">
 	<link rel="shortcut icon" href="/favicon.ico">
 
-	<title>Part 1: 数据库管理系统概述与关系模型 DBMS Overview and Rlational Model</title>
+	<title>Chap 1: 数据库管理系统概述与&amp;系模型 DBMS Overview and Rlational Model</title>
 	<link rel="stylesheet" href="https://hoooao.github.io/css/style.min.6b1219507aa24bcc2a46f4f7071edbc5dc448ba85934d68c4af0ca0a7ad89dcd.css" integrity="sha256-axIZUHqiS8wqRvT3Bx7bxdxEi6hZNNaMSvDKCnrYnc0=" crossorigin="anonymous">
 	<style>.bg-img {background-image: url('https://images.unsplash.com/photo-1531265726475-52ad60219627?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=2691&q=80');}</style>
 </head>
@@ -76,10 +76,14 @@
 
 
 	<div class="bg-img"></div>
-	<main class="site-main section-inner thin animated fadeIn faster">
-		<h1>Part 1: 数据库管理系统概述与关系模型 DBMS Overview and Rlational Model</h1>
-		<div class="content">
-			<head>
+	<main class="site-main section-inner animated fadeIn faster">
+		<article class="thin">
+			<header class="post-header">
+				<div class="post-meta"><span>Jul 3, 2022</span></div>
+				<h1>Chap 1: 数据库管理系统概述与&amp;系模型 DBMS Overview and Rlational Model</h1>
+			</header>
+			<div class="content">
+				<head>
     <script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML" type="text/javascript"></script>
     <script type="text/x-mathjax-config">
         MathJax.Hub.Config({
@@ -267,6 +271,12 @@
 <br>
 <br>
 <br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
 <h1 id="关系模型-relational-model">关系模型 Relational Model<a href="#关系模型-relational-model" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h1>
 <br>
 <hr>
@@ -395,7 +405,20 @@ Relational calculus：declarative，不讨论。</p>
 <br>
 <br>
 
+			</div>
+			<hr class="post-end">
+			<footer class="post-info">
+				<p><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-file-text"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>4654 字</p>
+				<p><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-calendar"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>2022-07-03 10:06 -0400</p>
+			</footer>
+		</article>
+		<div class="post-nav thin">
+			<a class="next-post" href="https://hoooao.github.io/db/part2/">
+				<span class="post-nav-label"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-arrow-left"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>&nbsp;上一篇</span><br><span>Chap 2: SQL进阶 Modern SQL</span>
+			</a>
 		</div>
+		<div id="comments" class="thin">
+</div>
 	</main>
 
 	<footer id="site-footer" class="section-inner thin animated fadeIn faster">

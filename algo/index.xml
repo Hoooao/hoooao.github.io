@@ -7,7 +7,34 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>zh-hans</language>
     <copyright>This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.</copyright>
-    <lastBuildDate>Sun, 31 Jul 2022 10:51:16 -0400</lastBuildDate><atom:link href="https://hoooao.github.io/algo/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Sun, 14 Aug 2022 10:13:45 -0400</lastBuildDate><atom:link href="https://hoooao.github.io/algo/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Chap4</title>
+      <link>https://hoooao.github.io/algo/chap4/</link>
+      <pubDate>Sun, 14 Aug 2022 10:13:45 -0400</pubDate>
+      
+      <guid>https://hoooao.github.io/algo/chap4/</guid>
+      <description>目录  导言：  本章介绍数学知识，包括质数，约数，欧拉函数，快速幂，扩展欧几里得算法，中国剩余定理，高斯消元，求组合数，容斥原理，博弈论等内容。
+br&amp;gt;  4.1 数论  质数，约数。
+4.1.1 质数  </description>
+    </item>
+    
+    <item>
+      <title>Chap3</title>
+      <link>https://hoooao.github.io/algo/chap3/</link>
+      <pubDate>Thu, 11 Aug 2022 13:20:14 -0400</pubDate>
+      
+      <guid>https://hoooao.github.io/algo/chap3/</guid>
+      <description>目录  导言： 本章着重于图论的介绍，包括DFS，BFS，树与图的深度优先遍历，树与图的广度优先遍历，拓扑排序，Dijkstra，bellman-ford，spfa，Floyd，Prim，Kruskal，染色法判定二分图，匈牙利算法等内容。
+ 3.1 深度优先  DFS每次会搜索到叶节点再回溯。DFS使用stack，空间复杂度为$\mathcal{O}(h)$，也就是说大小和高度成正比。不具有最短性。DFS中最重要的两个概念：回溯，剪枝。
+ 例题：排列数字：给定一个整数 n，将数字 1∼n 排成一排，将会有很多种排列方法。现在，请你按照字典序将所有的排列方法输出。
+ 输入格式：
+ 共一行，包含一个整数 n。
+ 输出格式： 按字典序输出所有排列方案，每个方案占一行。
+ 数据范围：$1\leq n \leq 7$.
+int path[N]; int n; void DFS(int u, int state){ //如果遍历到最后一个元素了，说明可以位数足够输出了  if(u==n){ for (int i = 0; i &amp;lt; n; i ++ )printf(&amp;#34;%d &amp;#34;,path[i]); puts(&amp;#34;&amp;#34;); } //遍历每一个数字  for (int i = 0; i &amp;lt; n; i ++ ){ //检查state第i个bit的值，如果是0证明对应的数字（i+1）还没有被使用  if(!(state&amp;gt;&amp;gt;i&amp;amp;1)){ //+1得到对应的数字  path[u]=i+1; //递归path下一位，设置state对应位置为“被使用”  //这里不用担心在下次递归的时候state对应位置会出问题，因为由于传入形参作为局部变量存在，不会对着一层的state造成影响  DFS(u+1,state+(1&amp;lt;&amp;lt;i)); } } } int main(){ cin&amp;gt;&amp;gt;n; //从根节点开始，对应着遍历的最左侧的数字  //第二个0代表state，使用压位，每一位代表一个元素的状态  DFS(0,0); }</description>
+    </item>
+    
     <item>
       <title>Chap1: 基础算法</title>
       <link>https://hoooao.github.io/algo/chap1/</link>
@@ -16,7 +43,7 @@
       <guid>https://hoooao.github.io/algo/chap1/</guid>
       <description>目录  导言：  本章主要介绍一些常用的基础算法：包括排序、二分、高精度、前缀和与差分、双指针算法、位运算、离散化、区间合并等内容。
  1.1 排序  快速排序：
-int arr[N]; void quick_sort(int arr[],int l,int r){ if(l&amp;gt;=r) return; //从左右端点两侧开始，因为下面do/while  int i=l-1,j=r+1; //x取中间值可以防止边接问题  int x = arr[l + r &amp;gt;&amp;gt; 1]; while(i&amp;lt;j){ do(i++);while(arr[i]&amp;lt;x); do(j--);while(arr[j]&amp;gt;x); //交换  if (i &amp;lt; j) swap(arr[i], arr[j]); } quick_sort(arr,l,j); quick_sort(arr,j+1,r); }  归并排序
+int arr[N]; void quick_sort(int arr[],int l,int r){ if(l&amp;gt;=r) return; //从左右端点两侧开始，因为下面do/while  int i=l-1,j=r+1; //x取中间值可以防止边界问题  int x = arr[l + r &amp;gt;&amp;gt; 1]; while(i&amp;lt;j){ do(i++);while(arr[i]&amp;lt;x); do(j--);while(arr[j]&amp;gt;x); //交换  //这里的判断很重要，因为很可能会再一次循环中i&amp;gt;j  //比如当j=i+2，i++之后arr[i]碰巧&amp;lt;x，会再次i++，然后j--就会导致i&amp;gt;j  //i&amp;gt;j之后必然swap，所以没有这个if一定会出错。  if (i &amp;lt; j) swap(arr[i], arr[j]); } quick_sort(arr,l,j); quick_sort(arr,j+1,r); }  归并排序
 void merge_sort(int q[], int l, int r) { if (l &amp;gt;= r) return; //直接取中间值  int mid = l + r &amp;gt;&amp;gt; 1; merge_sort(q, l, mid), merge_sort(q, mid + 1, r); int k = 0, i = l, j = mid + 1; while (i &amp;lt;= mid &amp;amp;&amp;amp; j &amp;lt;= r) if (q[i] &amp;lt;= q[j]) tmp[k ++ ] = q[i ++ ]; else tmp[k ++ ] = q[j ++ ]; //把剩余的假如数组  while (i &amp;lt;= mid) tmp[k ++ ] = q[i ++ ]; while (j &amp;lt;= r) tmp[k ++ ] = q[j ++ ]; //放回原数组  for (i = l, j = 0; i &amp;lt;= r; i ++, j ++ ) q[i] = tmp[j]; }</description>
     </item>
     

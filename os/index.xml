@@ -7,14 +7,38 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>zh-hans</language>
     <copyright>This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.</copyright>
-    <lastBuildDate>Sat, 06 Aug 2022 15:49:13 -0400</lastBuildDate><atom:link href="https://hoooao.github.io/os/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Sat, 13 Aug 2022 11:39:17 -0400</lastBuildDate><atom:link href="https://hoooao.github.io/os/index.xml" rel="self" type="application/rss+xml" />
     <item>
-      <title>Chap9: Ext3 &amp; 用户空间虚拟内存应用 &amp; 微内核</title>
+      <title>Chap10: 虚拟机 &amp; 内核和高级语言 &amp; 网络</title>
+      <link>https://hoooao.github.io/os/chap10/</link>
+      <pubDate>Sat, 13 Aug 2022 11:39:17 -0400</pubDate>
+      
+      <guid>https://hoooao.github.io/os/chap10/</guid>
+      <description>目录  导言：  本介绍虚拟机，内核和高级语言，以及网络。对应6.S081的Lec 19到 Lec 21.
+ 
+虚拟机 Virtual Machine 导言：  本节介绍虚拟机的模拟，硬件支持，以及应用。
+ 10.1 虚拟机简介 VM Overview  基本结构：
+ Fig.1 虚拟机结构   虚拟机分为两大部分：Host和Guest。Host中包括一个 虚拟机监控器（VMM：Virtual machine monitor），Guest中是不同的操作系统，每个操作系统有自己的内核和用户空间。
+ 应用：可以把一套硬件分为多个操作系统共多个用户使用，有很强的迁移性。并且内核开发中，可以把内核跑在虚拟机上，方便Debug等。
+ 传统上来讲，我们希望运行于Guest区域的软件完全不会发现自己跑在虚拟机上。并且希望精致一个软件从它自己的虚拟系统中跑出来，跑到虚拟中的其他操作系统中或者进入VMM。但是像Linux会知道自己在虚拟机上，与VMM互动得到性能优化，所以有特殊情况。
+ 10.2 VMM实现  VMM可以通过软件实现：每当虚拟系统执行指令VMM可以检测到该指令，然后真正地运行这一指令在硬件上：这一间接行为太慢，但也有被使用。
+ 另一种实现方式是：直接在CPU上运行guest的指令。在这种设计下，不需要VMM的间接翻译，而是直接运行于CPU上，这也需要虚拟系统发出的指令和CPU型号相适配（比较好解决）。但是这里也有个问题：如果guest内核使用了SM权限的指令（比如修改PTE），如果真的只是让这些指令运行在CPU上，会导致前者突破虚拟机。对此的解决方法是：Guest内核永远运行于UM，当它使用特殊指令的时候会触发一个Trap，此时VMM接管指令运行（VMM永远在SM中），这就类似之前的进程和内核的关系。
+ 在第二种实现方式中，VMM会维护很多“Virtual state information”，比如虚拟的stvec，sepc，mode，hartid寄存器等等。每当Guest读取这些寄存器的时候说明它们执行了特殊的指令，便会产生Trap。比如guest读取了sepc，VMM就会把真实的sepc读入虚拟的sepc。
+ 10.3 Page table实现 &amp;amp; 设备使用  Page table中最重要的寄存器就是setp，它储存着当前进程的PT地址。但是虚拟机中不会让GuestOS去访问真实的setp。相反，VMM会给每一个Guest OS一个“虚拟的物理内存（GPA：Guest PA）”，每一个GuestOS的进程使用的是“虚拟的虚拟内存（GVA：Guest VA）”。VMM会把GPA映射到真实的物理内存中。在使用某GVA的时候，GuestOS会把GVA翻译成GPA，然后VMM会把这个GPA翻译成真正的PA，最后把GVA放入真的setp。这一曲线防止了Guest从它所能使用的内存中逃出：Guest不能使用VMM没有给它分配的真实PA。
+ 现在存在对于虚拟机的硬件支持，比如INtel的Vt-x。这些硬件支持使得虚拟机可以直接使用privileged指令而无需经过Trap。
+ GuestOS也会使用各种设备，VMM需要让GOS以为自己在真的使用这些设备。有三个方法：
+   模拟设备（Emulation）：之前说过，OS会把设备的寄存器当作内存地址访问使用；在这一方法中，这些地址会被标记为不可访问：一旦使用会导致VMM的Trap，VMM此时就可以处理GOS发出的对于某个模拟设备的使用了；在这种实现中，目标设备是模拟的，并不存在；Trap会导致性能不高；在实现GOS完全不知道自己在虚拟机上的情况下，这是必要的方法；
+  虚拟设备（Virtual Device）：同样不存在真实的设备，设计一些向GOS暴露的高效的接口而不需要经过VMM的Trap；xv6中的virtio disk就是一个例子；</description>
+    </item>
+    
+    <item>
+      <title>Chap 9: Ext3 &amp; 用户空间虚拟内存应用 &amp; 微内核</title>
       <link>https://hoooao.github.io/os/chap9/</link>
       <pubDate>Sat, 06 Aug 2022 15:49:13 -0400</pubDate>
       
       <guid>https://hoooao.github.io/os/chap9/</guid>
-      <description>目录  文件系统性能以及恢复 FS Performance &amp;amp; Recovery  导言： 9.1 Linux Ext3 文件系统 9.2 Ext3 日志系统优势 9.3 Ext3 日志过程   用户程序对于虚拟内存的应用 Virtual Memory for Applications  导言： 9.4 原语 Primitives 9.5 用户空间Trap 9.6 垃圾回收器 Garbage Collector   微内核 Microkernels  导言： 9.7 内核对比 Kernel comparison 9.8 seL4      从本章开始，所有内容脱离了xv6教科书，转向了对现在操作系统（Unix/Linux等）的其他方面的介绍。本章对应于MIT 6.S081的Lec 16 至Lec 18  
+      <description>目录  文件系统性能以及恢复 FS Performance &amp;amp; Recovery  导言： 9.1 Linux Ext3 文件系统 9.2 Ext3 日志系统优势 9.3 Ext3 日志过程   用户程序对于虚拟内存的应用 Virtual Memory for Applications  导言： 9.4 原语 Primitives 9.5 用户空间Trap 9.6 垃圾回收器 Garbage Collector   微内核 Microkernels  导言： 9.7 内核对比 Kernel comparison 9.8 seL4      从本章开始，所有内容脱离了xv6教科书，转向了对现代操作系统（Unix/Linux等）的其他方面的介绍。本章对应于MIT 6.S081的Lec 16 至Lec 18。
+ 
 文件系统性能以及恢复 FS Performance &amp;amp; Recovery 导言：  回忆在xv6中，文件系统维护在磁盘上维护着一个日志系统，他的结构十分简单：header block+logged blocks。header中记录着当前日志中记录着的block的数量和每个block的number。重要的是，在某个系统调用使用end_op之前，使用的都是内存中的cached block，而只有在所有被修改的block都同步到了磁盘上的日志中的时候，日志的header才会更新指示着对应的block number。而更新header的这一瞬间就是commit-point：在此之前发生的崩溃都会导致这些还没有写入磁盘原来位置的数据丢失（即使已经保存在了日志中），而在此之后这些数据都可以被恢复。</description>
     </item>
     

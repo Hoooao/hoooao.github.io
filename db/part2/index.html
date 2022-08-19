@@ -7,65 +7,20 @@
 	<meta http-equiv="X-UA-Compatible" content="ie=edge">
 	<meta name="theme-color" content="#494f5c">
 	<meta name="msapplication-TileColor" content="#494f5c">
-<meta itemprop="name" content="Part2: ">
-<meta itemprop="description" content="目录  SQL进阶 Advanced SQL 导言：  DBMS负责关心query的效率。它完成了对于对算法的封装，对各种操作的的重新排序而产生高效的行为。SQL本质是一种数据库管理系统的标准，并不断更新，标准规定了DBMS需要有的特性。SQL融合了DML&#43;DDL&#43;DCL（Data Control Language）。不同于关系函数基于集合论，SQL实际上基于Bag：无序且允许重复。没有任何现实中的DBMS完全和SQL标准规范的一样，并且每一款DBMS都在尝试把自己的特性融合到“标准”中。这部分内容介绍的是SQL的规范，而非某一种特定的DBMS下的语言。注：这门课程不会专注于如何使用某一门DBMS所提供的语言。
- 2.1 SQL作为数据定义语言 SQL&amp;Data Definition Language  SQL DDL提供了对于定义关系Schema，删除rlation，修改关系Schema的指令。具体来说，可以实现一下特性：
-   Integrity：设置这一关系下的数据必须遵守的限制，超出限制的数据不允许加入；
-  View Definition：设置视图；
-  Transaction Control：存在标注一个交易（对于数据的修改）的开始和结束的命令；
-  eEmbedded SQL &amp; Dynamic SQL：SQL语句可以被嵌入到其他高级语言中，比如：C，java等等；
-  aAuthorization：设置对于视图和关系的访问权限（比如对于数据库用户的某些访问限制）。
-    如上所述，SQL可以用来去定义很多内容，比如一个关系的Schema，所保存的数据的类型，限制等等。SQL主要有下面几个数据类型：
-   char(n)：固定长度的字符串；
-  varchar(n)：规定最长长度，在这个值之下长度可变的字符串；
-  int：一个取决于当前计算机规定的长度的int；
-  smallint：一个小int；
-  numeric(p,d)：代表某种精度的小树：p规定精度，d规定小数位数，比如numeric(3,1)中，14.5是合法的；
-  real/double precision：取决于计算机的浮点数（单精度/双精度）
-  float(n)：n为最小精度，也是浮点数
-   可以看出来所有取决于计算机本身的类型是不需要（n）的。有时可能会有null出现，比如char(n)实际使用的长度小于n，此时DBMS会把没用到的部分设置为空格，来避免出现null。另外对于varchar，它永远不会有空着的位置，因为长度可变。"><meta itemprop="datePublished" content="2022-07-13T19:11:24-04:00" />
+<meta itemprop="name" content="Chap 2: SQL进阶 Modern SQL">
+<meta itemprop="description" content="目录  SQL进阶 Advanced SQL  导言： 2.1 SQL作为数据定义语言 SQL&amp;Data Definition Language 2.2 SQL查询基础结构 Basic Structure of SQL Queries  2.2.1 单关系查询 Queries on a Single Relation 2.2.2 多关系查询 Queries on a Multiple Relations   2.3 基础操作 Basic Operations 2.4 集合操作 Set Operations 2.5 Null值 Null Values 2.6 聚合函数 Aggregate Functions  2.6.1 基础聚合 Basic Aggregation 2.6.2 分组聚合 Aggregation with Grouping 2.6.3 Having 语句/从句   2.7 嵌套子查询 Nested Subqueries  2."><meta itemprop="datePublished" content="2022-07-13T19:11:24-04:00" />
 <meta itemprop="dateModified" content="2022-07-13T19:11:24-04:00" />
-<meta itemprop="wordCount" content="666">
-<meta itemprop="keywords" content="" /><meta property="og:title" content="Part2: " />
-<meta property="og:description" content="目录  SQL进阶 Advanced SQL 导言：  DBMS负责关心query的效率。它完成了对于对算法的封装，对各种操作的的重新排序而产生高效的行为。SQL本质是一种数据库管理系统的标准，并不断更新，标准规定了DBMS需要有的特性。SQL融合了DML&#43;DDL&#43;DCL（Data Control Language）。不同于关系函数基于集合论，SQL实际上基于Bag：无序且允许重复。没有任何现实中的DBMS完全和SQL标准规范的一样，并且每一款DBMS都在尝试把自己的特性融合到“标准”中。这部分内容介绍的是SQL的规范，而非某一种特定的DBMS下的语言。注：这门课程不会专注于如何使用某一门DBMS所提供的语言。
- 2.1 SQL作为数据定义语言 SQL&amp;Data Definition Language  SQL DDL提供了对于定义关系Schema，删除rlation，修改关系Schema的指令。具体来说，可以实现一下特性：
-   Integrity：设置这一关系下的数据必须遵守的限制，超出限制的数据不允许加入；
-  View Definition：设置视图；
-  Transaction Control：存在标注一个交易（对于数据的修改）的开始和结束的命令；
-  eEmbedded SQL &amp; Dynamic SQL：SQL语句可以被嵌入到其他高级语言中，比如：C，java等等；
-  aAuthorization：设置对于视图和关系的访问权限（比如对于数据库用户的某些访问限制）。
-    如上所述，SQL可以用来去定义很多内容，比如一个关系的Schema，所保存的数据的类型，限制等等。SQL主要有下面几个数据类型：
-   char(n)：固定长度的字符串；
-  varchar(n)：规定最长长度，在这个值之下长度可变的字符串；
-  int：一个取决于当前计算机规定的长度的int；
-  smallint：一个小int；
-  numeric(p,d)：代表某种精度的小树：p规定精度，d规定小数位数，比如numeric(3,1)中，14.5是合法的；
-  real/double precision：取决于计算机的浮点数（单精度/双精度）
-  float(n)：n为最小精度，也是浮点数
-   可以看出来所有取决于计算机本身的类型是不需要（n）的。有时可能会有null出现，比如char(n)实际使用的长度小于n，此时DBMS会把没用到的部分设置为空格，来避免出现null。另外对于varchar，它永远不会有空着的位置，因为长度可变。" />
+<meta itemprop="wordCount" content="755">
+<meta itemprop="keywords" content="" /><meta property="og:title" content="Chap 2: SQL进阶 Modern SQL" />
+<meta property="og:description" content="目录  SQL进阶 Advanced SQL  导言： 2.1 SQL作为数据定义语言 SQL&amp;Data Definition Language 2.2 SQL查询基础结构 Basic Structure of SQL Queries  2.2.1 单关系查询 Queries on a Single Relation 2.2.2 多关系查询 Queries on a Multiple Relations   2.3 基础操作 Basic Operations 2.4 集合操作 Set Operations 2.5 Null值 Null Values 2.6 聚合函数 Aggregate Functions  2.6.1 基础聚合 Basic Aggregation 2.6.2 分组聚合 Aggregation with Grouping 2.6.3 Having 语句/从句   2.7 嵌套子查询 Nested Subqueries  2." />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://hoooao.github.io/db/part2/" /><meta property="article:section" content="db" />
 <meta property="article:published_time" content="2022-07-13T19:11:24-04:00" />
 <meta property="article:modified_time" content="2022-07-13T19:11:24-04:00" />
 
 <meta name="twitter:card" content="summary"/>
-<meta name="twitter:title" content="Part2: "/>
-<meta name="twitter:description" content="目录  SQL进阶 Advanced SQL 导言：  DBMS负责关心query的效率。它完成了对于对算法的封装，对各种操作的的重新排序而产生高效的行为。SQL本质是一种数据库管理系统的标准，并不断更新，标准规定了DBMS需要有的特性。SQL融合了DML&#43;DDL&#43;DCL（Data Control Language）。不同于关系函数基于集合论，SQL实际上基于Bag：无序且允许重复。没有任何现实中的DBMS完全和SQL标准规范的一样，并且每一款DBMS都在尝试把自己的特性融合到“标准”中。这部分内容介绍的是SQL的规范，而非某一种特定的DBMS下的语言。注：这门课程不会专注于如何使用某一门DBMS所提供的语言。
- 2.1 SQL作为数据定义语言 SQL&amp;Data Definition Language  SQL DDL提供了对于定义关系Schema，删除rlation，修改关系Schema的指令。具体来说，可以实现一下特性：
-   Integrity：设置这一关系下的数据必须遵守的限制，超出限制的数据不允许加入；
-  View Definition：设置视图；
-  Transaction Control：存在标注一个交易（对于数据的修改）的开始和结束的命令；
-  eEmbedded SQL &amp; Dynamic SQL：SQL语句可以被嵌入到其他高级语言中，比如：C，java等等；
-  aAuthorization：设置对于视图和关系的访问权限（比如对于数据库用户的某些访问限制）。
-    如上所述，SQL可以用来去定义很多内容，比如一个关系的Schema，所保存的数据的类型，限制等等。SQL主要有下面几个数据类型：
-   char(n)：固定长度的字符串；
-  varchar(n)：规定最长长度，在这个值之下长度可变的字符串；
-  int：一个取决于当前计算机规定的长度的int；
-  smallint：一个小int；
-  numeric(p,d)：代表某种精度的小树：p规定精度，d规定小数位数，比如numeric(3,1)中，14.5是合法的；
-  real/double precision：取决于计算机的浮点数（单精度/双精度）
-  float(n)：n为最小精度，也是浮点数
-   可以看出来所有取决于计算机本身的类型是不需要（n）的。有时可能会有null出现，比如char(n)实际使用的长度小于n，此时DBMS会把没用到的部分设置为空格，来避免出现null。另外对于varchar，它永远不会有空着的位置，因为长度可变。"/>
+<meta name="twitter:title" content="Chap 2: SQL进阶 Modern SQL"/>
+<meta name="twitter:description" content="目录  SQL进阶 Advanced SQL  导言： 2.1 SQL作为数据定义语言 SQL&amp;Data Definition Language 2.2 SQL查询基础结构 Basic Structure of SQL Queries  2.2.1 单关系查询 Queries on a Single Relation 2.2.2 多关系查询 Queries on a Multiple Relations   2.3 基础操作 Basic Operations 2.4 集合操作 Set Operations 2.5 Null值 Null Values 2.6 聚合函数 Aggregate Functions  2.6.1 基础聚合 Basic Aggregation 2.6.2 分组聚合 Aggregation with Grouping 2.6.3 Having 语句/从句   2.7 嵌套子查询 Nested Subqueries  2."/>
 
 	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -74,7 +29,7 @@
 	<link rel="mask-icon" href="/safari-pinned-tab.svg" color="">
 	<link rel="shortcut icon" href="/favicon.ico">
 
-	<title>Part2: </title>
+	<title>Chap 2: SQL进阶 Modern SQL</title>
 	<link rel="stylesheet" href="https://hoooao.github.io/css/style.min.6b1219507aa24bcc2a46f4f7071edbc5dc448ba85934d68c4af0ca0a7ad89dcd.css" integrity="sha256-axIZUHqiS8wqRvT3Bx7bxdxEi6hZNNaMSvDKCnrYnc0=" crossorigin="anonymous">
 	<style>.bg-img {background-image: url('https://images.unsplash.com/photo-1531265726475-52ad60219627?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=2691&q=80');}</style>
 </head>
@@ -121,10 +76,47 @@
 
 
 	<div class="bg-img"></div>
-	<main class="site-main section-inner thin animated fadeIn faster">
-		<h1>Part2: </h1>
-		<div class="content">
-			<h2 id="目录">目录<a href="#目录" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+	<main class="site-main section-inner animated fadeIn faster">
+		<article class="thin">
+			<header class="post-header">
+				<div class="post-meta"><span>Jul 13, 2022</span></div>
+				<h1>Chap 2: SQL进阶 Modern SQL</h1>
+			</header>
+			<div class="content">
+				<h2 id="目录">目录<a href="#目录" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<ul>
+<li><a href="#sql%E8%BF%9B%E9%98%B6-advanced-sql">SQL进阶 Advanced SQL</a>
+<ul>
+<li><a href="#%E5%AF%BC%E8%A8%80">导言：</a></li>
+<li><a href="#21-sql%E4%BD%9C%E4%B8%BA%E6%95%B0%E6%8D%AE%E5%AE%9A%E4%B9%89%E8%AF%AD%E8%A8%80-sqldata-definition-language">2.1 SQL作为数据定义语言 SQL&amp;Data Definition Language</a></li>
+<li><a href="#22-sql%E6%9F%A5%E8%AF%A2%E5%9F%BA%E7%A1%80%E7%BB%93%E6%9E%84-basic-structure-of-sql-queries">2.2 SQL查询基础结构 Basic Structure of SQL Queries</a>
+<ul>
+<li><a href="#221-%E5%8D%95%E5%85%B3%E7%B3%BB%E6%9F%A5%E8%AF%A2-queries-on-a-single-relation">2.2.1 单关系查询 Queries on a Single Relation</a></li>
+<li><a href="#222-%E5%A4%9A%E5%85%B3%E7%B3%BB%E6%9F%A5%E8%AF%A2-queries-on-a-multiple-relations">2.2.2 多关系查询 Queries on a Multiple Relations</a></li>
+</ul>
+</li>
+<li><a href="#23-%E5%9F%BA%E7%A1%80%E6%93%8D%E4%BD%9C-basic-operations">2.3 基础操作 Basic Operations</a></li>
+<li><a href="#24-%E9%9B%86%E5%90%88%E6%93%8D%E4%BD%9C-set-operations">2.4 集合操作 Set Operations</a></li>
+<li><a href="#25-null%E5%80%BC-null-values">2.5 Null值 Null Values</a></li>
+<li><a href="#26-%E8%81%9A%E5%90%88%E5%87%BD%E6%95%B0-aggregate-functions">2.6 聚合函数 Aggregate Functions</a>
+<ul>
+<li><a href="#261-%E5%9F%BA%E7%A1%80%E8%81%9A%E5%90%88-basic-aggregation">2.6.1 基础聚合 Basic Aggregation</a></li>
+<li><a href="#262-%E5%88%86%E7%BB%84%E8%81%9A%E5%90%88-aggregation-with-grouping">2.6.2 分组聚合 Aggregation with Grouping</a></li>
+<li><a href="#263-having-%E8%AF%AD%E5%8F%A5%E4%BB%8E%E5%8F%A5">2.6.3 Having 语句/从句</a></li>
+</ul>
+</li>
+<li><a href="#27-%E5%B5%8C%E5%A5%97%E5%AD%90%E6%9F%A5%E8%AF%A2-nested-subqueries">2.7 嵌套子查询 Nested Subqueries</a>
+<ul>
+<li><a href="#271-where%E4%B8%AD%E7%9A%84%E5%AD%90%E6%9F%A5%E8%AF%A2-nested-in-where">2.7.1 Where中的子查询 Nested in Where</a></li>
+<li><a href="#272-from%E4%B8%AD%E7%9A%84%E5%AD%90%E6%9F%A5%E8%AF%A2--subqueries-in-the-from-clause">2.7.2 From中的子查询  Subqueries in the From Clause</a></li>
+<li><a href="#273-select%E4%B8%AD%E7%9A%84%E5%AD%90%E6%9F%A5%E8%AF%A2-nested-queries-in-select">2.7.3 Select中的子查询 Nested Queries in select</a></li>
+</ul>
+</li>
+<li><a href="#28-%E7%AA%97%E5%87%BD%E6%95%B0-window-function">2.8 窗函数 Window function</a></li>
+<li><a href="#29-%E5%85%AC%E5%85%B1%E8%A1%A8%E8%A1%A8%E8%BE%BE%E5%BC%8F-common-table-expressions">2.9 公共表表达式 Common table expressions</a></li>
+</ul>
+</li>
+</ul>
 <br>
 <hr>
 <br>
@@ -175,7 +167,7 @@
 <p>smallint：一个小int；</p>
 </li>
 <li>
-<p>numeric(p,d)：代表某种精度的小树：p规定精度，d规定小数位数，比如numeric(3,1)中，14.5是合法的；</p>
+<p>numeric(p,d)：代表某种精度的小数：p规定精度，d规定小数位数，比如numeric(3,1)中，14.5是合法的；</p>
 </li>
 <li>
 <p>real/double precision：取决于计算机的浮点数（单精度/双精度）</p>
@@ -691,10 +683,25 @@ B
 </span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">)</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">cte</span><span class="w"> </span><span class="k">Source</span><span class="w">
 </span></span></span></code></pre></div><p>这里的with语句中使用了它自己定义的关系以及属性，并且通过union把递归的结果union到一个关系中。counter&lt;10作为Base case存在。在递归中union是必要的，因为需要把不同的关系放在一起。</p>
-<p>    SQL中允许子查询以及CTE，因为在理想的情况下最好把所需的查询写在一个查询里，这样方便DBMS去优化。
-<br></p>
+<p>    SQL中允许子查询以及CTE，因为在理想的情况下最好把所需的查询写在一个查询里，这样方便DBMS去优化。</p>
 
+			</div>
+			<hr class="post-end">
+			<footer class="post-info">
+				<p><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-file-text"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>0 字</p>
+				<p><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-calendar"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>2022-07-13 19:11 -0400</p>
+			</footer>
+		</article>
+		<div class="post-nav thin">
+			<a class="next-post" href="https://hoooao.github.io/db/part3/">
+				<span class="post-nav-label"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-arrow-left"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>&nbsp;上一篇</span><br><span>Chap 3: 数据库存储 DB Storage</span>
+			</a>
+			<a class="prev-post" href="https://hoooao.github.io/db/part1/">
+				<span class="post-nav-label">下一篇&nbsp;<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-arrow-right"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></span><br><span>Chap 1: 数据库管理系统概述与&amp;系模型 DBMS Overview and Rlational Model</span>
+			</a>
 		</div>
+		<div id="comments" class="thin">
+</div>
 	</main>
 
 	<footer id="site-footer" class="section-inner thin animated fadeIn faster">

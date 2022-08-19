@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-hans">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta http-equiv="X-UA-Compatible" content="ie=edge">
+	<meta name="theme-color" content="#494f5c">
+	<meta name="msapplication-TileColor" content="#494f5c">
+<meta itemprop="name" content="Chap 1: ">
+<meta itemprop="description" content="目录  导言：  第一章是对于计算机网络的概述，主要介绍术语和概念，以及组成网络的软硬件。本博客完全基于 《计算机网络：自顶向下方法 (Computer Networking: A Top-Down Approach)》 以及中科大郑烇、杨坚全套视频讲解。
+ 1.1 什么是网络  本书将围绕公网讨论计算机网络以及协议。互联网不是一个网络，而是由很多网络连接在一起的存在，即网络的网络。有两个理解计算机网络途径：
+  考虑网络的软硬件组成; 把网络看作响分布式应用提供服务的基建。   1.1.1 软硬件组成角度  虽然叫做计算机网络，看起来只包含传统的桌面端计算机，Linux工作站以及服务器等，但是实际上现在的设备已经不止计算机了，比如很多移动设备，电视等等也被包含在了“计算机网络”。所有的设备都叫做主机(Host)或者端系统(End system)，同时在网络中表示为主机节点。
+ 每个系统都被通信链路（Communication links）以及 信息包交换机/分组交换（Packet switches）连接着。前者通常是物理介质，比如铜线，光线，电磁波等。不同的链路有不同的传输速率（Transmission rate），单位为bit/second。发送信息的中断系统会为信息打包为 封包（packet），并传输给接收端，这些封包会被接收端重新组装。信息包交换机是信息传输的中转站，也可以叫做数据交换节点，它会把它从输入链路的数据从它的输出链路转发出去。交换机主要分为两种：路由器（Router），链路层交换机（Link-layer switches。前者通常用在网络内核（Internet core） 中使用,后者通常用在访问网络中。一段信息从发出被接受，经过链路和交换器这段路叫做路由（route/path）。主机到互联网之间的连接叫做接入网链路，服务器之间的连接叫做主干链路。
+ 数据传输的过程可以类比高速路，交叉口，和卡车：信息会被在起始点的“仓库”被打包放入卡车中，卡车会驶过高速路，在交叉口转弯，最终抵达目标仓库重新组装信息。packet类比卡车，link类比高速路，而switches类比交叉口。
+ 端系统通过互联网服务供应商 (ISPs：Internet service providers)访问互联网。存在不同的服务商：住宅ISPs比如本地线缆，座机公司等，还有企业/大学ISPs等等。每一个ISP都是一个分组交换和链路的网络（networl）。ISP同时也提供可访问内容提供者的互联网：互联网完全只关于端系统之间的连接，所以ISP之间也互相连接。每一个ISP是独立运行的，但都遵循着IP协议。协议控制着互联网信息的收发。最重要的两个协议就是TCP，IP。IP规范了封包的格式。互联网主要的协议被叫做TPC/IP，这些协议也是本书的主要内容。协议需要标准，互联网工程任务组（IETF：Internet Engineering Task Force设计了互联网标准，被叫做请求意见稿（RFCs：Request for Comments）。这一文档规范了很多协议，比如TCP，IP，HTTP，SMTP等。其他的机构，如IEEE推出了对于以太网和WiFi的标准。
+1.1.2 分布式程序服务角度  另一种理解计算机网络的方式是把它看作 分布式程序（Distributed applications） 的基础设施，为这些程序提供服务。分布式程序的意思是这个程序让多个终端设备互相交流交换数据，并且运行于端系统之上。在端上的程序如何驱动互联网让它为程序发送/接受信息？每一个连接到互联网的设备都会提供 网络接口（Socket interface），告诉一个程序如何在这个设备上让互联网基建去发送信息给另一端的程序。这一接口本质上也是一个规范。除了这最基本的发送信息的服务，互联网还有很多其他服务，将在第二章展开。
+1.1.3 协议  就像人与人之间的交流遵守的基本准则一般，协议（Protocol） 是终端的交流的范式。
+ Fig.1 协议   当一个人打招呼的时候开启了一个会话，对方的回应侧面确认了对方听到了，标志着两者的链接。前者便可继续发问。当然后者也可以用不同的回应来回复前者的打招呼，来象征不同的状态。"><meta itemprop="datePublished" content="2022-08-17T10:59:26-04:00" />
+<meta itemprop="dateModified" content="2022-08-17T10:59:26-04:00" />
+<meta itemprop="wordCount" content="57">
+<meta itemprop="keywords" content="" /><meta property="og:title" content="Chap 1: " />
+<meta property="og:description" content="目录  导言：  第一章是对于计算机网络的概述，主要介绍术语和概念，以及组成网络的软硬件。本博客完全基于 《计算机网络：自顶向下方法 (Computer Networking: A Top-Down Approach)》 以及中科大郑烇、杨坚全套视频讲解。
+ 1.1 什么是网络  本书将围绕公网讨论计算机网络以及协议。互联网不是一个网络，而是由很多网络连接在一起的存在，即网络的网络。有两个理解计算机网络途径：
+  考虑网络的软硬件组成; 把网络看作响分布式应用提供服务的基建。   1.1.1 软硬件组成角度  虽然叫做计算机网络，看起来只包含传统的桌面端计算机，Linux工作站以及服务器等，但是实际上现在的设备已经不止计算机了，比如很多移动设备，电视等等也被包含在了“计算机网络”。所有的设备都叫做主机(Host)或者端系统(End system)，同时在网络中表示为主机节点。
+ 每个系统都被通信链路（Communication links）以及 信息包交换机/分组交换（Packet switches）连接着。前者通常是物理介质，比如铜线，光线，电磁波等。不同的链路有不同的传输速率（Transmission rate），单位为bit/second。发送信息的中断系统会为信息打包为 封包（packet），并传输给接收端，这些封包会被接收端重新组装。信息包交换机是信息传输的中转站，也可以叫做数据交换节点，它会把它从输入链路的数据从它的输出链路转发出去。交换机主要分为两种：路由器（Router），链路层交换机（Link-layer switches。前者通常用在网络内核（Internet core） 中使用,后者通常用在访问网络中。一段信息从发出被接受，经过链路和交换器这段路叫做路由（route/path）。主机到互联网之间的连接叫做接入网链路，服务器之间的连接叫做主干链路。
+ 数据传输的过程可以类比高速路，交叉口，和卡车：信息会被在起始点的“仓库”被打包放入卡车中，卡车会驶过高速路，在交叉口转弯，最终抵达目标仓库重新组装信息。packet类比卡车，link类比高速路，而switches类比交叉口。
+ 端系统通过互联网服务供应商 (ISPs：Internet service providers)访问互联网。存在不同的服务商：住宅ISPs比如本地线缆，座机公司等，还有企业/大学ISPs等等。每一个ISP都是一个分组交换和链路的网络（networl）。ISP同时也提供可访问内容提供者的互联网：互联网完全只关于端系统之间的连接，所以ISP之间也互相连接。每一个ISP是独立运行的，但都遵循着IP协议。协议控制着互联网信息的收发。最重要的两个协议就是TCP，IP。IP规范了封包的格式。互联网主要的协议被叫做TPC/IP，这些协议也是本书的主要内容。协议需要标准，互联网工程任务组（IETF：Internet Engineering Task Force设计了互联网标准，被叫做请求意见稿（RFCs：Request for Comments）。这一文档规范了很多协议，比如TCP，IP，HTTP，SMTP等。其他的机构，如IEEE推出了对于以太网和WiFi的标准。
+1.1.2 分布式程序服务角度  另一种理解计算机网络的方式是把它看作 分布式程序（Distributed applications） 的基础设施，为这些程序提供服务。分布式程序的意思是这个程序让多个终端设备互相交流交换数据，并且运行于端系统之上。在端上的程序如何驱动互联网让它为程序发送/接受信息？每一个连接到互联网的设备都会提供 网络接口（Socket interface），告诉一个程序如何在这个设备上让互联网基建去发送信息给另一端的程序。这一接口本质上也是一个规范。除了这最基本的发送信息的服务，互联网还有很多其他服务，将在第二章展开。
+1.1.3 协议  就像人与人之间的交流遵守的基本准则一般，协议（Protocol） 是终端的交流的范式。
+ Fig.1 协议   当一个人打招呼的时候开启了一个会话，对方的回应侧面确认了对方听到了，标志着两者的链接。前者便可继续发问。当然后者也可以用不同的回应来回复前者的打招呼，来象征不同的状态。" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://hoooao.github.io/net/chap1/" /><meta property="article:section" content="net" />
+<meta property="article:published_time" content="2022-08-17T10:59:26-04:00" />
+<meta property="article:modified_time" content="2022-08-17T10:59:26-04:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Chap 1: "/>
+<meta name="twitter:description" content="目录  导言：  第一章是对于计算机网络的概述，主要介绍术语和概念，以及组成网络的软硬件。本博客完全基于 《计算机网络：自顶向下方法 (Computer Networking: A Top-Down Approach)》 以及中科大郑烇、杨坚全套视频讲解。
+ 1.1 什么是网络  本书将围绕公网讨论计算机网络以及协议。互联网不是一个网络，而是由很多网络连接在一起的存在，即网络的网络。有两个理解计算机网络途径：
+  考虑网络的软硬件组成; 把网络看作响分布式应用提供服务的基建。   1.1.1 软硬件组成角度  虽然叫做计算机网络，看起来只包含传统的桌面端计算机，Linux工作站以及服务器等，但是实际上现在的设备已经不止计算机了，比如很多移动设备，电视等等也被包含在了“计算机网络”。所有的设备都叫做主机(Host)或者端系统(End system)，同时在网络中表示为主机节点。
+ 每个系统都被通信链路（Communication links）以及 信息包交换机/分组交换（Packet switches）连接着。前者通常是物理介质，比如铜线，光线，电磁波等。不同的链路有不同的传输速率（Transmission rate），单位为bit/second。发送信息的中断系统会为信息打包为 封包（packet），并传输给接收端，这些封包会被接收端重新组装。信息包交换机是信息传输的中转站，也可以叫做数据交换节点，它会把它从输入链路的数据从它的输出链路转发出去。交换机主要分为两种：路由器（Router），链路层交换机（Link-layer switches。前者通常用在网络内核（Internet core） 中使用,后者通常用在访问网络中。一段信息从发出被接受，经过链路和交换器这段路叫做路由（route/path）。主机到互联网之间的连接叫做接入网链路，服务器之间的连接叫做主干链路。
+ 数据传输的过程可以类比高速路，交叉口，和卡车：信息会被在起始点的“仓库”被打包放入卡车中，卡车会驶过高速路，在交叉口转弯，最终抵达目标仓库重新组装信息。packet类比卡车，link类比高速路，而switches类比交叉口。
+ 端系统通过互联网服务供应商 (ISPs：Internet service providers)访问互联网。存在不同的服务商：住宅ISPs比如本地线缆，座机公司等，还有企业/大学ISPs等等。每一个ISP都是一个分组交换和链路的网络（networl）。ISP同时也提供可访问内容提供者的互联网：互联网完全只关于端系统之间的连接，所以ISP之间也互相连接。每一个ISP是独立运行的，但都遵循着IP协议。协议控制着互联网信息的收发。最重要的两个协议就是TCP，IP。IP规范了封包的格式。互联网主要的协议被叫做TPC/IP，这些协议也是本书的主要内容。协议需要标准，互联网工程任务组（IETF：Internet Engineering Task Force设计了互联网标准，被叫做请求意见稿（RFCs：Request for Comments）。这一文档规范了很多协议，比如TCP，IP，HTTP，SMTP等。其他的机构，如IEEE推出了对于以太网和WiFi的标准。
+1.1.2 分布式程序服务角度  另一种理解计算机网络的方式是把它看作 分布式程序（Distributed applications） 的基础设施，为这些程序提供服务。分布式程序的意思是这个程序让多个终端设备互相交流交换数据，并且运行于端系统之上。在端上的程序如何驱动互联网让它为程序发送/接受信息？每一个连接到互联网的设备都会提供 网络接口（Socket interface），告诉一个程序如何在这个设备上让互联网基建去发送信息给另一端的程序。这一接口本质上也是一个规范。除了这最基本的发送信息的服务，互联网还有很多其他服务，将在第二章展开。
+1.1.3 协议  就像人与人之间的交流遵守的基本准则一般，协议（Protocol） 是终端的交流的范式。
+ Fig.1 协议   当一个人打招呼的时候开启了一个会话，对方的回应侧面确认了对方听到了，标志着两者的链接。前者便可继续发问。当然后者也可以用不同的回应来回复前者的打招呼，来象征不同的状态。"/>
+
+	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+	<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+	<link rel="manifest" href="/site.webmanifest">
+	<link rel="mask-icon" href="/safari-pinned-tab.svg" color="">
+	<link rel="shortcut icon" href="/favicon.ico">
+
+	<title>Chap 1: </title>
+	<link rel="stylesheet" href="https://hoooao.github.io/css/style.min.6b1219507aa24bcc2a46f4f7071edbc5dc448ba85934d68c4af0ca0a7ad89dcd.css" integrity="sha256-axIZUHqiS8wqRvT3Bx7bxdxEi6hZNNaMSvDKCnrYnc0=" crossorigin="anonymous">
+	<style>.bg-img {background-image: url('https://images.unsplash.com/photo-1531265726475-52ad60219627?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=2691&q=80');}</style>
+</head>
+
+<body id="page">
+	
+	<header id="site-header" class="animated slideInUp">
+		<script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML" type="text/javascript"></script>
+		<script type="text/x-mathjax-config">
+			MathJax.Hub.Config({
+				tex2jax: {
+				skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+				inlineMath: [['$','$']]
+				}
+			});
+		</script>
+		<div class="hdr-wrapper section-inner">
+			<div class="hdr-left">
+				<div class="site-branding">
+					<a href="https://hoooao.github.io/">Hao的个人博客</a>
+				</div>
+				<nav class="site-nav hide-in-mobile">
+					
+				<a href="https://hoooao.github.io/db/">Database</a>
+				<a href="https://hoooao.github.io/os/">Operating System</a>
+				<a href="https://hoooao.github.io/about-hugo/">About</a>
+
+				</nav>
+			</div>
+			<div class="hdr-right hdr-icons">
+				<span class="hdr-social hide-in-mobile"><a href="https://i.imgur.com/gzAPv6g.jpeg" target="_blank" rel="noopener me" title="Wechat"><svg xmlns="http://www.w3.org/2000/svg" class="feather" width="24" height="24" viewBox="0 0 1000 1000" fill="#c8cdd3" stroke="currentColor" stroke-width="30" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M487.4,340.2c25.2,0,42-16.9,42-42c0-25.4-16.8-41.9-42-41.9c-25.2,0-50.6,16.4-50.6,41.9C436.9,323.4,462.2,340.2,487.4,340.2z M252.2,256.4c-25.2,0-50.7,16.4-50.7,41.9c0,25.1,25.5,42,50.7,42c25.1,0,41.9-16.9,41.9-42C294.1,272.8,277.3,256.4,252.2,256.4z M990,609.2c0-132.9-123.3-246.1-274.6-257.9c0.2-1.7,0.3-3.4-0.1-5.1C684.9,204.7,532.8,98,361.4,98C167.6,98,10,233.1,10,399.1c0,89.1,45.5,169.3,131.7,232.6l-30,90.3c-1.9,5.9-0.2,12.3,4.5,16.4c2.8,2.4,6.4,3.7,10,3.7c2.3,0,4.7-0.6,6.9-1.6l112.8-56.4l13.9,2.8c34.7,7.1,64.7,13.3,101.6,13.3c10.9,0,21.9-0.5,32.7-1.4c4.4-0.4,8.1-2.6,10.6-5.8c40.7,101.8,152.8,175.2,284.7,175.2c33.8,0,68-8.1,98.7-15.8l86.9,47.5c2.3,1.3,4.8,1.9,7.3,1.9c3.4,0,6.9-1.2,9.6-3.4c4.8-3.9,6.8-10.4,5-16.3l-22.2-73.8C949.2,749.6,990,679.2,990,609.2z M391.5,668.4c-10,0.9-20.1,1.3-30.1,1.3c-33.8,0-62.4-5.8-95.5-12.7l-19.2-3.9c-3.3-0.7-6.8-0.2-9.8,1.3l-84.5,42.3l22-66c2.1-6.5-0.2-13.5-5.8-17.4C83.7,554.2,40.6,482.1,40.6,399.1c0-149.1,143.9-270.5,320.7-270.5c156.3,0,294.8,95.1,323.3,221.6c-163.9,2.1-296.6,117.4-296.6,258.9c0,20.6,3.1,40.5,8.4,59.7C394.9,668.5,393.2,668.2,391.5,668.4z M847.8,790.5c-5.1,3.9-7.3,10.5-5.5,16.6l14.5,48.2l-59.4-32.5c-2.3-1.3-4.8-1.9-7.4-1.9c-1.3,0-2.5,0.2-3.7,0.5c-31.9,8.1-64.9,16.4-97,16.4c-149.2,0-270.6-102.5-270.6-228.5c0-126,121.4-228.5,270.6-228.5c146.4,0,270,104.6,270,228.5C959.4,672,919.8,736.4,847.8,790.5z M596.7,500c-16.8,0-33.6,16.9-33.6,33.7c0,16.9,16.8,33.6,33.6,33.6c25.3,0,42-16.7,42-33.6C638.6,516.9,621.9,500,596.7,500z M781.4,500c-16.6,0-33.4,16.9-33.4,33.7c0,16.9,16.8,33.6,33.4,33.6c25.2,0,42.2-16.7,42.2-33.6C823.6,516.9,806.6,500,781.4,500z"></path>
+    </svg></a><a href="https://github.com/Hoooao" target="_blank" rel="noopener me" title="Github"><svg xmlns="http://www.w3.org/2000/svg" class="feather" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg></a></span><button id="menu-btn" class="hdr-btn" title="菜单"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-menu"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button>
+			</div>
+		</div>
+	</header>
+	<div id="mobile-menu" class="animated fast">
+		<ul>
+			<li><a href="https://hoooao.github.io/db/">Database</a></li>
+			<li><a href="https://hoooao.github.io/os/">Operating System</a></li>
+			<li><a href="https://hoooao.github.io/about-hugo/">About</a></li>
+		</ul>
+	</div>
+
+
+	<div class="bg-img"></div>
+	<main class="site-main section-inner animated fadeIn faster">
+		<article class="thin">
+			<header class="post-header">
+				<div class="post-meta"><span>Aug 17, 2022</span></div>
+				<h1>Chap 1: </h1>
+			</header>
+			<div class="content">
+				<h2 id="目录">目录<a href="#目录" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<br>
+<hr>
+<br>
+<h2 id="导言">导言：<a href="#导言" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    第一章是对于计算机网络的概述，主要介绍术语和概念，以及组成网络的软硬件。本博客完全基于 <strong>《计算机网络：自顶向下方法 (Computer Networking: A Top-Down Approach)》</strong> 以及<strong>中科大郑烇、杨坚全套视频讲解</strong>。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="11-什么是网络">1.1 什么是网络<a href="#11-什么是网络" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    本书将围绕公网讨论计算机网络以及协议。互联网不是一个网络，而是由很多网络连接在一起的存在，即网络的网络。有两个理解计算机网络途径：</p>
+<blockquote>
+<ol>
+<li>考虑网络的软硬件组成;</li>
+<li>把网络看作响分布式应用提供服务的基建。</li>
+</ol>
+</blockquote>
+<br>
+<br>
+<h3 id="111-软硬件组成角度">1.1.1 软硬件组成角度<a href="#111-软硬件组成角度" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h3>
+<p>    虽然叫做计算机网络，看起来只包含传统的桌面端计算机，Linux工作站以及服务器等，但是实际上现在的设备已经不止计算机了，比如很多移动设备，电视等等也被包含在了“计算机网络”。所有的设备都叫做<strong>主机(Host)<strong>或者</strong>端系统(End system)</strong>，同时在网络中表示为主机节点。</p>
+<p>    每个系统都被<strong>通信链路（Communication links）<strong>以及 <strong>信息包交换机/分组交换（Packet switches）<strong>连接着。前者通常是物理介质，比如铜线，光线，电磁波等。不同的链路有不同的</strong>传输速率（Transmission rate）</strong>，单位为</strong>bit/second</strong>。发送信息的中断系统会为信息打包为 <strong>封包（packet）</strong>，并传输给接收端，这些封包会被接收端重新组装。信息包交换机是信息传输的中转站，也可以叫做<strong>数据交换节点</strong>，它会把它从输入链路的数据从它的输出链路转发出去。交换机主要分为两种：<strong>路由器（Router）</strong>，<strong>链路层交换机（Link-layer switches</strong>。前者通常用在<strong>网络内核（Internet core）</strong> 中使用,后者通常用在访问网络中。一段信息从发出被接受，经过链路和交换器这段路叫做<strong>路由（route/path）</strong>。主机到互联网之间的连接叫做<strong>接入网链路</strong>，服务器之间的连接叫做<strong>主干链路</strong>。</p>
+<p>    数据传输的过程可以类比高速路，交叉口，和卡车：信息会被在起始点的“仓库”被打包放入卡车中，卡车会驶过高速路，在交叉口转弯，最终抵达目标仓库重新组装信息。packet类比卡车，link类比高速路，而switches类比交叉口。</p>
+<p>    端系统通过<strong>互联网服务供应商 (ISPs：Internet service providers)<strong>访问互联网。存在不同的服务商：住宅ISPs比如本地线缆，座机公司等，还有企业/大学ISPs等等。每一个ISP都是一个分组交换和链路的网络（networl）。ISP同时也提供可访问内容提供者的互联网：互联网完全只关于端系统之间的连接，所以ISP之间也互相连接。每一个ISP是独立运行的，但都遵循着IP协议。协议控制着互联网信息的收发。最重要的两个协议就是</strong>TCP，IP</strong>。IP规范了封包的格式。互联网主要的协议被叫做TPC/IP，这些协议也是本书的主要内容。协议需要标准，<strong>互联网工程任务组（IETF：Internet Engineering Task Force</strong>设计了互联网标准，被叫做<strong>请求意见稿（RFCs：Request for Comments）</strong>。这一文档规范了很多协议，比如TCP，IP，HTTP，SMTP等。其他的机构，如<strong>IEEE</strong>推出了对于以太网和WiFi的标准。</p>
+<br>
+<br>
+<h3 id="112-分布式程序服务角度">1.1.2 分布式程序服务角度<a href="#112-分布式程序服务角度" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h3>
+<p>    另一种理解计算机网络的方式是把它看作 <strong>分布式程序（Distributed applications）</strong> 的基础设施，为这些程序提供服务。分布式程序的意思是这个程序让多个终端设备互相交流交换数据，并且运行于端系统之上。在端上的程序如何驱动互联网让它为程序发送/接受信息？每一个连接到互联网的设备都会提供 <strong>网络接口（Socket interface）</strong>，告诉一个程序如何在这个设备上让互联网基建去发送信息给另一端的程序。这一接口本质上也是一个规范。除了这最基本的发送信息的服务，互联网还有很多其他服务，将在第二章展开。</p>
+<br>
+<br>
+<h3 id="113-协议">1.1.3 协议<a href="#113-协议" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h3>
+<p>    就像人与人之间的交流遵守的基本准则一般，<strong>协议（Protocol）</strong> 是终端的交流的范式。</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/KVEWtFv.png" alt="" style="width:100%; background: rgba(255, 255, 255, .5)">
+<figcaption><b>Fig.1 协议</b></figcaption>
+</div>
+</figure>
+<p>当一个人打招呼的时候开启了一个会话，对方的回应侧面确认了对方听到了，标志着两者的链接。前者便可继续发问。当然后者也可以用不同的回应来回复前者的打招呼，来象征不同的状态。</p>
+<p>    网路协议是类似的，除了它们使用软硬件作为基础。所有互联网中的活动都涉及两个及以上的，被协议规范的远程交流。假设你希望访问一个网页，首先计算机会发送一个连接<strong>请求报文（Request message）</strong> 给网络服务器然后等待回复。之后网络服务器会接收到这一请求然后返回一个连接回复。如果计算机发现交流建立了，它会向服务器发送网页名。最终服务器会返回计算机所请求的网页/文件。</p>
+<p>    协议的正式定义：协议定义了在两个或多个通信实体之间交换的报文格式（语法/语义）和次序，以及在报文传输/接收或其他事件方面所采取的动作。</p>
+
+			</div>
+			<hr class="post-end">
+			<footer class="post-info">
+				<p><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-file-text"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>0 字</p>
+				<p><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-calendar"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>2022-08-17 10:59 -0400</p>
+			</footer>
+		</article>
+		<div class="post-nav thin">
+		</div>
+		<div id="comments" class="thin">
+</div>
+	</main>
+
+	<footer id="site-footer" class="section-inner thin animated fadeIn faster">
+		<p>&copy; 2022 <a href="https://hoooao.github.io/">Xiyu Hao</a> &#183; <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" rel="noopener">CC BY-NC 4.0</a></p>
+		<p>
+			Made with <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> &#183; Theme <a href="https://github.com/Track3/hermit" target="_blank" rel="noopener">Hermit</a> &#183; <a href="https://hoooao.github.io/posts/index.xml" target="_blank" title="rss"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-rss"><path d="M4 11a9 9 0 0 1 9 9"></path><path d="M4 4a16 16 0 0 1 16 16"></path><circle cx="5" cy="19" r="1"></circle></svg></a>
+		</p>
+	</footer>
+
+
+
+	<script src="https://hoooao.github.io/js/bundle.min.5a42c67b729ee2fa1059251688235399704707e04edb4e28c42c6f6dfa49d1d9.js" integrity="sha256-WkLGe3Ke4voQWSUWiCNTmXBHB+BO204oxCxvbfpJ0dk=" crossorigin="anonymous"></script>
+	
+
+</body>
+
+</html>

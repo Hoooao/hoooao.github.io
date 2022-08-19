@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-hans">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta http-equiv="X-UA-Compatible" content="ie=edge">
+	<meta name="theme-color" content="#494f5c">
+	<meta name="msapplication-TileColor" content="#494f5c">
+<meta itemprop="name" content="Chap10: 虚拟机 &amp; 内核和高级语言 &amp; 网络">
+<meta itemprop="description" content="目录  导言：  本介绍虚拟机，内核和高级语言，以及网络。对应6.S081的Lec 19到 Lec 21.
+ 
+虚拟机 Virtual Machine 导言：  本节介绍虚拟机的模拟，硬件支持，以及应用。
+ 10.1 虚拟机简介 VM Overview  基本结构：
+ Fig.1 虚拟机结构   虚拟机分为两大部分：Host和Guest。Host中包括一个 虚拟机监控器（VMM：Virtual machine monitor），Guest中是不同的操作系统，每个操作系统有自己的内核和用户空间。
+ 应用：可以把一套硬件分为多个操作系统共多个用户使用，有很强的迁移性。并且内核开发中，可以把内核跑在虚拟机上，方便Debug等。
+ 传统上来讲，我们希望运行于Guest区域的软件完全不会发现自己跑在虚拟机上。并且希望精致一个软件从它自己的虚拟系统中跑出来，跑到虚拟中的其他操作系统中或者进入VMM。但是像Linux会知道自己在虚拟机上，与VMM互动得到性能优化，所以有特殊情况。
+ 10.2 VMM实现  VMM可以通过软件实现：每当虚拟系统执行指令VMM可以检测到该指令，然后真正地运行这一指令在硬件上：这一间接行为太慢，但也有被使用。
+ 另一种实现方式是：直接在CPU上运行guest的指令。在这种设计下，不需要VMM的间接翻译，而是直接运行于CPU上，这也需要虚拟系统发出的指令和CPU型号相适配（比较好解决）。但是这里也有个问题：如果guest内核使用了SM权限的指令（比如修改PTE），如果真的只是让这些指令运行在CPU上，会导致前者突破虚拟机。对此的解决方法是：Guest内核永远运行于UM，当它使用特殊指令的时候会触发一个Trap，此时VMM接管指令运行（VMM永远在SM中），这就类似之前的进程和内核的关系。
+ 在第二种实现方式中，VMM会维护很多“Virtual state information”，比如虚拟的stvec，sepc，mode，hartid寄存器等等。每当Guest读取这些寄存器的时候说明它们执行了特殊的指令，便会产生Trap。比如guest读取了sepc，VMM就会把真实的sepc读入虚拟的sepc。
+ 10.3 Page table实现 &amp; 设备使用  Page table中最重要的寄存器就是setp，它储存着当前进程的PT地址。但是虚拟机中不会让GuestOS去访问真实的setp。相反，VMM会给每一个Guest OS一个“虚拟的物理内存（GPA：Guest PA）”，每一个GuestOS的进程使用的是“虚拟的虚拟内存（GVA：Guest VA）”。VMM会把GPA映射到真实的物理内存中。在使用某GVA的时候，GuestOS会把GVA翻译成GPA，然后VMM会把这个GPA翻译成真正的PA，最后把GVA放入真的setp。这一曲线防止了Guest从它所能使用的内存中逃出：Guest不能使用VMM没有给它分配的真实PA。
+ 现在存在对于虚拟机的硬件支持，比如INtel的Vt-x。这些硬件支持使得虚拟机可以直接使用privileged指令而无需经过Trap。
+ GuestOS也会使用各种设备，VMM需要让GOS以为自己在真的使用这些设备。有三个方法：
+   模拟设备（Emulation）：之前说过，OS会把设备的寄存器当作内存地址访问使用；在这一方法中，这些地址会被标记为不可访问：一旦使用会导致VMM的Trap，VMM此时就可以处理GOS发出的对于某个模拟设备的使用了；在这种实现中，目标设备是模拟的，并不存在；Trap会导致性能不高；在实现GOS完全不知道自己在虚拟机上的情况下，这是必要的方法；
+  虚拟设备（Virtual Device）：同样不存在真实的设备，设计一些向GOS暴露的高效的接口而不需要经过VMM的Trap；xv6中的virtio disk就是一个例子；"><meta itemprop="datePublished" content="2022-08-13T11:39:17-04:00" />
+<meta itemprop="dateModified" content="2022-08-13T11:39:17-04:00" />
+<meta itemprop="wordCount" content="63">
+<meta itemprop="keywords" content="" /><meta property="og:title" content="Chap10: 虚拟机 &amp; 内核和高级语言 &amp; 网络" />
+<meta property="og:description" content="目录  导言：  本介绍虚拟机，内核和高级语言，以及网络。对应6.S081的Lec 19到 Lec 21.
+ 
+虚拟机 Virtual Machine 导言：  本节介绍虚拟机的模拟，硬件支持，以及应用。
+ 10.1 虚拟机简介 VM Overview  基本结构：
+ Fig.1 虚拟机结构   虚拟机分为两大部分：Host和Guest。Host中包括一个 虚拟机监控器（VMM：Virtual machine monitor），Guest中是不同的操作系统，每个操作系统有自己的内核和用户空间。
+ 应用：可以把一套硬件分为多个操作系统共多个用户使用，有很强的迁移性。并且内核开发中，可以把内核跑在虚拟机上，方便Debug等。
+ 传统上来讲，我们希望运行于Guest区域的软件完全不会发现自己跑在虚拟机上。并且希望精致一个软件从它自己的虚拟系统中跑出来，跑到虚拟中的其他操作系统中或者进入VMM。但是像Linux会知道自己在虚拟机上，与VMM互动得到性能优化，所以有特殊情况。
+ 10.2 VMM实现  VMM可以通过软件实现：每当虚拟系统执行指令VMM可以检测到该指令，然后真正地运行这一指令在硬件上：这一间接行为太慢，但也有被使用。
+ 另一种实现方式是：直接在CPU上运行guest的指令。在这种设计下，不需要VMM的间接翻译，而是直接运行于CPU上，这也需要虚拟系统发出的指令和CPU型号相适配（比较好解决）。但是这里也有个问题：如果guest内核使用了SM权限的指令（比如修改PTE），如果真的只是让这些指令运行在CPU上，会导致前者突破虚拟机。对此的解决方法是：Guest内核永远运行于UM，当它使用特殊指令的时候会触发一个Trap，此时VMM接管指令运行（VMM永远在SM中），这就类似之前的进程和内核的关系。
+ 在第二种实现方式中，VMM会维护很多“Virtual state information”，比如虚拟的stvec，sepc，mode，hartid寄存器等等。每当Guest读取这些寄存器的时候说明它们执行了特殊的指令，便会产生Trap。比如guest读取了sepc，VMM就会把真实的sepc读入虚拟的sepc。
+ 10.3 Page table实现 &amp; 设备使用  Page table中最重要的寄存器就是setp，它储存着当前进程的PT地址。但是虚拟机中不会让GuestOS去访问真实的setp。相反，VMM会给每一个Guest OS一个“虚拟的物理内存（GPA：Guest PA）”，每一个GuestOS的进程使用的是“虚拟的虚拟内存（GVA：Guest VA）”。VMM会把GPA映射到真实的物理内存中。在使用某GVA的时候，GuestOS会把GVA翻译成GPA，然后VMM会把这个GPA翻译成真正的PA，最后把GVA放入真的setp。这一曲线防止了Guest从它所能使用的内存中逃出：Guest不能使用VMM没有给它分配的真实PA。
+ 现在存在对于虚拟机的硬件支持，比如INtel的Vt-x。这些硬件支持使得虚拟机可以直接使用privileged指令而无需经过Trap。
+ GuestOS也会使用各种设备，VMM需要让GOS以为自己在真的使用这些设备。有三个方法：
+   模拟设备（Emulation）：之前说过，OS会把设备的寄存器当作内存地址访问使用；在这一方法中，这些地址会被标记为不可访问：一旦使用会导致VMM的Trap，VMM此时就可以处理GOS发出的对于某个模拟设备的使用了；在这种实现中，目标设备是模拟的，并不存在；Trap会导致性能不高；在实现GOS完全不知道自己在虚拟机上的情况下，这是必要的方法；
+  虚拟设备（Virtual Device）：同样不存在真实的设备，设计一些向GOS暴露的高效的接口而不需要经过VMM的Trap；xv6中的virtio disk就是一个例子；" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://hoooao.github.io/os/chap10/" /><meta property="article:section" content="os" />
+<meta property="article:published_time" content="2022-08-13T11:39:17-04:00" />
+<meta property="article:modified_time" content="2022-08-13T11:39:17-04:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Chap10: 虚拟机 &amp; 内核和高级语言 &amp; 网络"/>
+<meta name="twitter:description" content="目录  导言：  本介绍虚拟机，内核和高级语言，以及网络。对应6.S081的Lec 19到 Lec 21.
+ 
+虚拟机 Virtual Machine 导言：  本节介绍虚拟机的模拟，硬件支持，以及应用。
+ 10.1 虚拟机简介 VM Overview  基本结构：
+ Fig.1 虚拟机结构   虚拟机分为两大部分：Host和Guest。Host中包括一个 虚拟机监控器（VMM：Virtual machine monitor），Guest中是不同的操作系统，每个操作系统有自己的内核和用户空间。
+ 应用：可以把一套硬件分为多个操作系统共多个用户使用，有很强的迁移性。并且内核开发中，可以把内核跑在虚拟机上，方便Debug等。
+ 传统上来讲，我们希望运行于Guest区域的软件完全不会发现自己跑在虚拟机上。并且希望精致一个软件从它自己的虚拟系统中跑出来，跑到虚拟中的其他操作系统中或者进入VMM。但是像Linux会知道自己在虚拟机上，与VMM互动得到性能优化，所以有特殊情况。
+ 10.2 VMM实现  VMM可以通过软件实现：每当虚拟系统执行指令VMM可以检测到该指令，然后真正地运行这一指令在硬件上：这一间接行为太慢，但也有被使用。
+ 另一种实现方式是：直接在CPU上运行guest的指令。在这种设计下，不需要VMM的间接翻译，而是直接运行于CPU上，这也需要虚拟系统发出的指令和CPU型号相适配（比较好解决）。但是这里也有个问题：如果guest内核使用了SM权限的指令（比如修改PTE），如果真的只是让这些指令运行在CPU上，会导致前者突破虚拟机。对此的解决方法是：Guest内核永远运行于UM，当它使用特殊指令的时候会触发一个Trap，此时VMM接管指令运行（VMM永远在SM中），这就类似之前的进程和内核的关系。
+ 在第二种实现方式中，VMM会维护很多“Virtual state information”，比如虚拟的stvec，sepc，mode，hartid寄存器等等。每当Guest读取这些寄存器的时候说明它们执行了特殊的指令，便会产生Trap。比如guest读取了sepc，VMM就会把真实的sepc读入虚拟的sepc。
+ 10.3 Page table实现 &amp; 设备使用  Page table中最重要的寄存器就是setp，它储存着当前进程的PT地址。但是虚拟机中不会让GuestOS去访问真实的setp。相反，VMM会给每一个Guest OS一个“虚拟的物理内存（GPA：Guest PA）”，每一个GuestOS的进程使用的是“虚拟的虚拟内存（GVA：Guest VA）”。VMM会把GPA映射到真实的物理内存中。在使用某GVA的时候，GuestOS会把GVA翻译成GPA，然后VMM会把这个GPA翻译成真正的PA，最后把GVA放入真的setp。这一曲线防止了Guest从它所能使用的内存中逃出：Guest不能使用VMM没有给它分配的真实PA。
+ 现在存在对于虚拟机的硬件支持，比如INtel的Vt-x。这些硬件支持使得虚拟机可以直接使用privileged指令而无需经过Trap。
+ GuestOS也会使用各种设备，VMM需要让GOS以为自己在真的使用这些设备。有三个方法：
+   模拟设备（Emulation）：之前说过，OS会把设备的寄存器当作内存地址访问使用；在这一方法中，这些地址会被标记为不可访问：一旦使用会导致VMM的Trap，VMM此时就可以处理GOS发出的对于某个模拟设备的使用了；在这种实现中，目标设备是模拟的，并不存在；Trap会导致性能不高；在实现GOS完全不知道自己在虚拟机上的情况下，这是必要的方法；
+  虚拟设备（Virtual Device）：同样不存在真实的设备，设计一些向GOS暴露的高效的接口而不需要经过VMM的Trap；xv6中的virtio disk就是一个例子；"/>
+
+	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+	<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+	<link rel="manifest" href="/site.webmanifest">
+	<link rel="mask-icon" href="/safari-pinned-tab.svg" color="">
+	<link rel="shortcut icon" href="/favicon.ico">
+
+	<title>Chap10: 虚拟机 &amp; 内核和高级语言 &amp; 网络</title>
+	<link rel="stylesheet" href="https://hoooao.github.io/css/style.min.6b1219507aa24bcc2a46f4f7071edbc5dc448ba85934d68c4af0ca0a7ad89dcd.css" integrity="sha256-axIZUHqiS8wqRvT3Bx7bxdxEi6hZNNaMSvDKCnrYnc0=" crossorigin="anonymous">
+	<style>.bg-img {background-image: url('https://images.unsplash.com/photo-1531265726475-52ad60219627?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=2691&q=80');}</style>
+</head>
+
+<body id="page">
+	
+	<header id="site-header" class="animated slideInUp">
+		<script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML" type="text/javascript"></script>
+		<script type="text/x-mathjax-config">
+			MathJax.Hub.Config({
+				tex2jax: {
+				skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+				inlineMath: [['$','$']]
+				}
+			});
+		</script>
+		<div class="hdr-wrapper section-inner">
+			<div class="hdr-left">
+				<div class="site-branding">
+					<a href="https://hoooao.github.io/">Hao的个人博客</a>
+				</div>
+				<nav class="site-nav hide-in-mobile">
+					
+				<a href="https://hoooao.github.io/db/">Database</a>
+				<a href="https://hoooao.github.io/os/">Operating System</a>
+				<a href="https://hoooao.github.io/about-hugo/">About</a>
+
+				</nav>
+			</div>
+			<div class="hdr-right hdr-icons">
+				<span class="hdr-social hide-in-mobile"><a href="https://i.imgur.com/gzAPv6g.jpeg" target="_blank" rel="noopener me" title="Wechat"><svg xmlns="http://www.w3.org/2000/svg" class="feather" width="24" height="24" viewBox="0 0 1000 1000" fill="#c8cdd3" stroke="currentColor" stroke-width="30" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M487.4,340.2c25.2,0,42-16.9,42-42c0-25.4-16.8-41.9-42-41.9c-25.2,0-50.6,16.4-50.6,41.9C436.9,323.4,462.2,340.2,487.4,340.2z M252.2,256.4c-25.2,0-50.7,16.4-50.7,41.9c0,25.1,25.5,42,50.7,42c25.1,0,41.9-16.9,41.9-42C294.1,272.8,277.3,256.4,252.2,256.4z M990,609.2c0-132.9-123.3-246.1-274.6-257.9c0.2-1.7,0.3-3.4-0.1-5.1C684.9,204.7,532.8,98,361.4,98C167.6,98,10,233.1,10,399.1c0,89.1,45.5,169.3,131.7,232.6l-30,90.3c-1.9,5.9-0.2,12.3,4.5,16.4c2.8,2.4,6.4,3.7,10,3.7c2.3,0,4.7-0.6,6.9-1.6l112.8-56.4l13.9,2.8c34.7,7.1,64.7,13.3,101.6,13.3c10.9,0,21.9-0.5,32.7-1.4c4.4-0.4,8.1-2.6,10.6-5.8c40.7,101.8,152.8,175.2,284.7,175.2c33.8,0,68-8.1,98.7-15.8l86.9,47.5c2.3,1.3,4.8,1.9,7.3,1.9c3.4,0,6.9-1.2,9.6-3.4c4.8-3.9,6.8-10.4,5-16.3l-22.2-73.8C949.2,749.6,990,679.2,990,609.2z M391.5,668.4c-10,0.9-20.1,1.3-30.1,1.3c-33.8,0-62.4-5.8-95.5-12.7l-19.2-3.9c-3.3-0.7-6.8-0.2-9.8,1.3l-84.5,42.3l22-66c2.1-6.5-0.2-13.5-5.8-17.4C83.7,554.2,40.6,482.1,40.6,399.1c0-149.1,143.9-270.5,320.7-270.5c156.3,0,294.8,95.1,323.3,221.6c-163.9,2.1-296.6,117.4-296.6,258.9c0,20.6,3.1,40.5,8.4,59.7C394.9,668.5,393.2,668.2,391.5,668.4z M847.8,790.5c-5.1,3.9-7.3,10.5-5.5,16.6l14.5,48.2l-59.4-32.5c-2.3-1.3-4.8-1.9-7.4-1.9c-1.3,0-2.5,0.2-3.7,0.5c-31.9,8.1-64.9,16.4-97,16.4c-149.2,0-270.6-102.5-270.6-228.5c0-126,121.4-228.5,270.6-228.5c146.4,0,270,104.6,270,228.5C959.4,672,919.8,736.4,847.8,790.5z M596.7,500c-16.8,0-33.6,16.9-33.6,33.7c0,16.9,16.8,33.6,33.6,33.6c25.3,0,42-16.7,42-33.6C638.6,516.9,621.9,500,596.7,500z M781.4,500c-16.6,0-33.4,16.9-33.4,33.7c0,16.9,16.8,33.6,33.4,33.6c25.2,0,42.2-16.7,42.2-33.6C823.6,516.9,806.6,500,781.4,500z"></path>
+    </svg></a><a href="https://github.com/Hoooao" target="_blank" rel="noopener me" title="Github"><svg xmlns="http://www.w3.org/2000/svg" class="feather" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg></a></span><button id="menu-btn" class="hdr-btn" title="菜单"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-menu"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button>
+			</div>
+		</div>
+	</header>
+	<div id="mobile-menu" class="animated fast">
+		<ul>
+			<li><a href="https://hoooao.github.io/db/">Database</a></li>
+			<li><a href="https://hoooao.github.io/os/">Operating System</a></li>
+			<li><a href="https://hoooao.github.io/about-hugo/">About</a></li>
+		</ul>
+	</div>
+
+
+	<div class="bg-img"></div>
+	<main class="site-main section-inner animated fadeIn faster">
+		<article class="thin">
+			<header class="post-header">
+				<div class="post-meta"><span>Aug 13, 2022</span></div>
+				<h1>Chap10: 虚拟机 &amp; 内核和高级语言 &amp; 网络</h1>
+			</header>
+			<div class="content">
+				<h2 id="目录">目录<a href="#目录" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<br>
+<hr>
+<br>
+<h2 id="导言">导言：<a href="#导言" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    本介绍虚拟机，内核和高级语言，以及网络。对应6.S081的Lec 19到 Lec 21.</p>
+<br>
+<hr>
+<p><br><br><br></p>
+<h1 id="虚拟机-virtual-machine">虚拟机 Virtual Machine<a href="#虚拟机-virtual-machine" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h1>
+<br>
+<br>
+<h2 id="导言-1">导言：<a href="#导言-1" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    本节介绍虚拟机的模拟，硬件支持，以及应用。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="101-虚拟机简介-vm-overview">10.1 虚拟机简介 VM Overview<a href="#101-虚拟机简介-vm-overview" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    <strong>基本结构</strong>：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/ts4GkTJ.png" alt="" style="width:60%; background: rgba(255, 255, 255, .5)">
+<figcaption><b>Fig.1 虚拟机结构</b></figcaption>
+</div>
+</figure>
+<p>虚拟机分为两大部分：Host和Guest。Host中包括一个 <strong>虚拟机监控器（VMM：Virtual machine monitor）</strong>，Guest中是不同的操作系统，每个操作系统有自己的内核和用户空间。</p>
+<p>    <strong>应用</strong>：可以把一套硬件分为多个操作系统共多个用户使用，有很强的迁移性。并且内核开发中，可以把内核跑在虚拟机上，方便Debug等。</p>
+<p>    传统上来讲，我们希望运行于Guest区域的软件完全不会发现自己跑在虚拟机上。并且希望精致一个软件从它自己的虚拟系统中跑出来，跑到虚拟中的其他操作系统中或者进入VMM。但是像Linux会知道自己在虚拟机上，与VMM互动得到性能优化，所以有特殊情况。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="102-vmm实现">10.2 VMM实现<a href="#102-vmm实现" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    VMM可以通过软件实现：每当虚拟系统执行指令VMM可以检测到该指令，然后真正地运行这一指令在硬件上：这一间接行为太慢，但也有被使用。</p>
+<p>    另一种实现方式是：直接在CPU上运行guest的指令。在这种设计下，不需要VMM的间接翻译，而是直接运行于CPU上，这也需要虚拟系统发出的指令和CPU型号相适配（比较好解决）。但是这里也有个问题：如果guest内核使用了SM权限的指令（比如修改PTE），如果真的只是让这些指令运行在CPU上，会导致前者突破虚拟机。对此的解决方法是：Guest内核永远运行于UM，当它使用特殊指令的时候会触发一个Trap，此时VMM接管指令运行（VMM永远在SM中），这就类似之前的进程和内核的关系。</p>
+<p>    在第二种实现方式中，VMM会维护很多“Virtual state information”，比如虚拟的stvec，sepc，mode，hartid寄存器等等。每当Guest读取这些寄存器的时候说明它们执行了特殊的指令，便会产生Trap。比如guest读取了sepc，VMM就会把真实的sepc读入虚拟的sepc。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="103-page-table实现--设备使用">10.3 Page table实现 &amp; 设备使用<a href="#103-page-table实现--设备使用" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    <strong>Page table</strong>中最重要的寄存器就是<code>setp</code>，它储存着当前进程的PT地址。但是虚拟机中不会让GuestOS去访问真实的setp。相反，VMM会给每一个Guest OS一个“虚拟的物理内存（GPA：Guest PA）”，每一个GuestOS的进程使用的是“虚拟的虚拟内存（GVA：Guest VA）”。VMM会把GPA映射到真实的物理内存中。在使用某GVA的时候，GuestOS会把GVA翻译成GPA，然后VMM会把这个GPA翻译成真正的PA，最后把GVA放入真的setp。这一曲线防止了Guest从它所能使用的内存中逃出：Guest不能使用VMM没有给它分配的真实PA。</p>
+<p>    现在存在对于虚拟机的硬件支持，比如INtel的Vt-x。这些硬件支持使得虚拟机可以直接使用privileged指令而无需经过Trap。</p>
+<p>    GuestOS也会使用各种设备，VMM需要让GOS以为自己在真的使用这些设备。有三个方法：</p>
+<blockquote>
+<ol>
+<li>
+<p>模拟设备（Emulation）：之前说过，OS会把设备的寄存器当作内存地址访问使用；在这一方法中，这些地址会被标记为不可访问：一旦使用会导致VMM的Trap，VMM此时就可以处理GOS发出的对于某个模拟设备的使用了；在这种实现中，目标设备是模拟的，并不存在；Trap会导致性能不高；在实现GOS完全不知道自己在虚拟机上的情况下，这是必要的方法；</p>
+</li>
+<li>
+<p>虚拟设备（Virtual Device）：同样不存在真实的设备，设计一些向GOS暴露的高效的接口而不需要经过VMM的Trap；xv6中的virtio disk就是一个例子；</p>
+</li>
+<li>
+<p>Pass-Through NIC（Network Interface Controllers）：是现代实现的一种，GOS直接和设备交流：每一个GOS都可以获得一个设备的一小部分。</p>
+</li>
+</ol>
+</blockquote>
+<p><strong>注</strong>：前两者是相似的，但是模拟会精确地模拟出一套设备，任何行为都会导致Trap；而后者只是暴露一些接口且不需要Trap。由于前者是对于设备的复刻，不同的GOS都可以运行在这种VMM上：因为和真的设备没区别；后者只支持会使用它给的接口的GOS。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="104-硬件支持">10.4 硬件支持<a href="#104-硬件支持" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h1 id="内核和高级语言-kernels-and-high-level-languages">内核和高级语言 Kernels and High Level Languages<a href="#内核和高级语言-kernels-and-high-level-languages" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h1>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h1 id="网络-networking">网络 Networking<a href="#网络-networking" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h1>
+<blockquote>
+<h3 id="参考">参考：<a href="#参考" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h3>
+</blockquote>
+
+			</div>
+			<hr class="post-end">
+			<footer class="post-info">
+				<p><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-file-text"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>0 字</p>
+				<p><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-calendar"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>2022-08-13 11:39 -0400</p>
+			</footer>
+		</article>
+		<div class="post-nav thin">
+			<a class="prev-post" href="https://hoooao.github.io/os/chap9/">
+				<span class="post-nav-label">下一篇&nbsp;<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-arrow-right"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></span><br><span>Chap 9: Ext3 &amp; 用户空间虚拟内存应用 &amp; 微内核</span>
+			</a>
+		</div>
+		<div id="comments" class="thin">
+</div>
+	</main>
+
+	<footer id="site-footer" class="section-inner thin animated fadeIn faster">
+		<p>&copy; 2022 <a href="https://hoooao.github.io/">Xiyu Hao</a> &#183; <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" rel="noopener">CC BY-NC 4.0</a></p>
+		<p>
+			Made with <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> &#183; Theme <a href="https://github.com/Track3/hermit" target="_blank" rel="noopener">Hermit</a> &#183; <a href="https://hoooao.github.io/posts/index.xml" target="_blank" title="rss"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-rss"><path d="M4 11a9 9 0 0 1 9 9"></path><path d="M4 4a16 16 0 0 1 16 16"></path><circle cx="5" cy="19" r="1"></circle></svg></a>
+		</p>
+	</footer>
+
+
+
+	<script src="https://hoooao.github.io/js/bundle.min.5a42c67b729ee2fa1059251688235399704707e04edb4e28c42c6f6dfa49d1d9.js" integrity="sha256-WkLGe3Ke4voQWSUWiCNTmXBHB+BO204oxCxvbfpJ0dk=" crossorigin="anonymous"></script>
+	
+
+</body>
+
+</html>

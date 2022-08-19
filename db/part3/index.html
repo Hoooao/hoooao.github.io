@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="zh-hans">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta http-equiv="X-UA-Compatible" content="ie=edge">
+	<meta name="theme-color" content="#494f5c">
+	<meta name="msapplication-TileColor" content="#494f5c">
+<meta itemprop="name" content="Chap 3: 数据库存储 DB Storage">
+<meta itemprop="description" content="目录  导言：  本章的主要内容包括文件是如何储存在磁盘上的，以及对于如何构建可靠的储存结构的讨论。
+ 3.1 物理储存&amp;接口概述 Overview of Physical Storage Media&amp;Interface  缓存（Cache）：缓存是最快的存储，但缓存不是数据库的重点。
+ 主内存（Main Memory）：通常来说，只有储存在内存的数据可以被直接修改。相对于DB，内存太小，并且“volatile”，即在断电后数据被清除。
+ 闪存（Flash memory）：闪存是“non-volatile”的，SSD就在内部使用了闪存，但是提供了类似磁盘的接口，正在逐渐代替磁盘。
+ 磁盘（Magnetic-disk storage）：也被叫做硬盘HDD。系统为了访问磁盘上的数据，必须先把磁盘上的数据放入内存。在内存中修改之后再写回磁盘。
+ 磁带（Tape storage）：通常被用来做永久备份，最慢。
+    上图前两个被叫做 Primary Storage，之后两个被叫做 Secondary/online Storage，最后两个被叫做 Tertiary/oﬄine Storage。Volatile的储存设备支持快随机访问，并且能精确的访问特定的Byte。但是Non-volatile设备，除了SSD，不支持随机访问，只支持顺序访问，并且访问的最小单位是block/page/sector。
+ HDD和SSD都通过接口与计算机相连。常见的接口：
+  Serial ATA (SATA)/Serial Attached SCSI (SAS)：它们通常使用在服务器中； Non-Volatile Memory Express (NVMe)：似一种逻辑接口，帮助 PCIe接口实现更好的    Storage area network (SAN)：这是一种架构，在这种架构中，磁盘可以组成阵列，被称为独立磁盘冗余阵列（RAID： Redundant arrays of independent disks）。Network attached storage (NAS) 与此类似，但是使用在云储存中。
+ 3."><meta itemprop="datePublished" content="2022-08-18T15:30:08-04:00" />
+<meta itemprop="dateModified" content="2022-08-18T15:30:08-04:00" />
+<meta itemprop="wordCount" content="201">
+<meta itemprop="keywords" content="" /><meta property="og:title" content="Chap 3: 数据库存储 DB Storage" />
+<meta property="og:description" content="目录  导言：  本章的主要内容包括文件是如何储存在磁盘上的，以及对于如何构建可靠的储存结构的讨论。
+ 3.1 物理储存&amp;接口概述 Overview of Physical Storage Media&amp;Interface  缓存（Cache）：缓存是最快的存储，但缓存不是数据库的重点。
+ 主内存（Main Memory）：通常来说，只有储存在内存的数据可以被直接修改。相对于DB，内存太小，并且“volatile”，即在断电后数据被清除。
+ 闪存（Flash memory）：闪存是“non-volatile”的，SSD就在内部使用了闪存，但是提供了类似磁盘的接口，正在逐渐代替磁盘。
+ 磁盘（Magnetic-disk storage）：也被叫做硬盘HDD。系统为了访问磁盘上的数据，必须先把磁盘上的数据放入内存。在内存中修改之后再写回磁盘。
+ 磁带（Tape storage）：通常被用来做永久备份，最慢。
+    上图前两个被叫做 Primary Storage，之后两个被叫做 Secondary/online Storage，最后两个被叫做 Tertiary/oﬄine Storage。Volatile的储存设备支持快随机访问，并且能精确的访问特定的Byte。但是Non-volatile设备，除了SSD，不支持随机访问，只支持顺序访问，并且访问的最小单位是block/page/sector。
+ HDD和SSD都通过接口与计算机相连。常见的接口：
+  Serial ATA (SATA)/Serial Attached SCSI (SAS)：它们通常使用在服务器中； Non-Volatile Memory Express (NVMe)：似一种逻辑接口，帮助 PCIe接口实现更好的    Storage area network (SAN)：这是一种架构，在这种架构中，磁盘可以组成阵列，被称为独立磁盘冗余阵列（RAID： Redundant arrays of independent disks）。Network attached storage (NAS) 与此类似，但是使用在云储存中。
+ 3." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://hoooao.github.io/db/part3/" /><meta property="article:section" content="db" />
+<meta property="article:published_time" content="2022-08-18T15:30:08-04:00" />
+<meta property="article:modified_time" content="2022-08-18T15:30:08-04:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Chap 3: 数据库存储 DB Storage"/>
+<meta name="twitter:description" content="目录  导言：  本章的主要内容包括文件是如何储存在磁盘上的，以及对于如何构建可靠的储存结构的讨论。
+ 3.1 物理储存&amp;接口概述 Overview of Physical Storage Media&amp;Interface  缓存（Cache）：缓存是最快的存储，但缓存不是数据库的重点。
+ 主内存（Main Memory）：通常来说，只有储存在内存的数据可以被直接修改。相对于DB，内存太小，并且“volatile”，即在断电后数据被清除。
+ 闪存（Flash memory）：闪存是“non-volatile”的，SSD就在内部使用了闪存，但是提供了类似磁盘的接口，正在逐渐代替磁盘。
+ 磁盘（Magnetic-disk storage）：也被叫做硬盘HDD。系统为了访问磁盘上的数据，必须先把磁盘上的数据放入内存。在内存中修改之后再写回磁盘。
+ 磁带（Tape storage）：通常被用来做永久备份，最慢。
+    上图前两个被叫做 Primary Storage，之后两个被叫做 Secondary/online Storage，最后两个被叫做 Tertiary/oﬄine Storage。Volatile的储存设备支持快随机访问，并且能精确的访问特定的Byte。但是Non-volatile设备，除了SSD，不支持随机访问，只支持顺序访问，并且访问的最小单位是block/page/sector。
+ HDD和SSD都通过接口与计算机相连。常见的接口：
+  Serial ATA (SATA)/Serial Attached SCSI (SAS)：它们通常使用在服务器中； Non-Volatile Memory Express (NVMe)：似一种逻辑接口，帮助 PCIe接口实现更好的    Storage area network (SAN)：这是一种架构，在这种架构中，磁盘可以组成阵列，被称为独立磁盘冗余阵列（RAID： Redundant arrays of independent disks）。Network attached storage (NAS) 与此类似，但是使用在云储存中。
+ 3."/>
+
+	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+	<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+	<link rel="manifest" href="/site.webmanifest">
+	<link rel="mask-icon" href="/safari-pinned-tab.svg" color="">
+	<link rel="shortcut icon" href="/favicon.ico">
+
+	<title>Chap 3: 数据库存储 DB Storage</title>
+	<link rel="stylesheet" href="https://hoooao.github.io/css/style.min.6b1219507aa24bcc2a46f4f7071edbc5dc448ba85934d68c4af0ca0a7ad89dcd.css" integrity="sha256-axIZUHqiS8wqRvT3Bx7bxdxEi6hZNNaMSvDKCnrYnc0=" crossorigin="anonymous">
+	<style>.bg-img {background-image: url('https://images.unsplash.com/photo-1531265726475-52ad60219627?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=2691&q=80');}</style>
+</head>
+
+<body id="page">
+	
+	<header id="site-header" class="animated slideInUp">
+		<script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML" type="text/javascript"></script>
+		<script type="text/x-mathjax-config">
+			MathJax.Hub.Config({
+				tex2jax: {
+				skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+				inlineMath: [['$','$']]
+				}
+			});
+		</script>
+		<div class="hdr-wrapper section-inner">
+			<div class="hdr-left">
+				<div class="site-branding">
+					<a href="https://hoooao.github.io/">Hao的个人博客</a>
+				</div>
+				<nav class="site-nav hide-in-mobile">
+					
+				<a href="https://hoooao.github.io/db/">Database</a>
+				<a href="https://hoooao.github.io/os/">Operating System</a>
+				<a href="https://hoooao.github.io/about-hugo/">About</a>
+
+				</nav>
+			</div>
+			<div class="hdr-right hdr-icons">
+				<span class="hdr-social hide-in-mobile"><a href="https://i.imgur.com/gzAPv6g.jpeg" target="_blank" rel="noopener me" title="Wechat"><svg xmlns="http://www.w3.org/2000/svg" class="feather" width="24" height="24" viewBox="0 0 1000 1000" fill="#c8cdd3" stroke="currentColor" stroke-width="30" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M487.4,340.2c25.2,0,42-16.9,42-42c0-25.4-16.8-41.9-42-41.9c-25.2,0-50.6,16.4-50.6,41.9C436.9,323.4,462.2,340.2,487.4,340.2z M252.2,256.4c-25.2,0-50.7,16.4-50.7,41.9c0,25.1,25.5,42,50.7,42c25.1,0,41.9-16.9,41.9-42C294.1,272.8,277.3,256.4,252.2,256.4z M990,609.2c0-132.9-123.3-246.1-274.6-257.9c0.2-1.7,0.3-3.4-0.1-5.1C684.9,204.7,532.8,98,361.4,98C167.6,98,10,233.1,10,399.1c0,89.1,45.5,169.3,131.7,232.6l-30,90.3c-1.9,5.9-0.2,12.3,4.5,16.4c2.8,2.4,6.4,3.7,10,3.7c2.3,0,4.7-0.6,6.9-1.6l112.8-56.4l13.9,2.8c34.7,7.1,64.7,13.3,101.6,13.3c10.9,0,21.9-0.5,32.7-1.4c4.4-0.4,8.1-2.6,10.6-5.8c40.7,101.8,152.8,175.2,284.7,175.2c33.8,0,68-8.1,98.7-15.8l86.9,47.5c2.3,1.3,4.8,1.9,7.3,1.9c3.4,0,6.9-1.2,9.6-3.4c4.8-3.9,6.8-10.4,5-16.3l-22.2-73.8C949.2,749.6,990,679.2,990,609.2z M391.5,668.4c-10,0.9-20.1,1.3-30.1,1.3c-33.8,0-62.4-5.8-95.5-12.7l-19.2-3.9c-3.3-0.7-6.8-0.2-9.8,1.3l-84.5,42.3l22-66c2.1-6.5-0.2-13.5-5.8-17.4C83.7,554.2,40.6,482.1,40.6,399.1c0-149.1,143.9-270.5,320.7-270.5c156.3,0,294.8,95.1,323.3,221.6c-163.9,2.1-296.6,117.4-296.6,258.9c0,20.6,3.1,40.5,8.4,59.7C394.9,668.5,393.2,668.2,391.5,668.4z M847.8,790.5c-5.1,3.9-7.3,10.5-5.5,16.6l14.5,48.2l-59.4-32.5c-2.3-1.3-4.8-1.9-7.4-1.9c-1.3,0-2.5,0.2-3.7,0.5c-31.9,8.1-64.9,16.4-97,16.4c-149.2,0-270.6-102.5-270.6-228.5c0-126,121.4-228.5,270.6-228.5c146.4,0,270,104.6,270,228.5C959.4,672,919.8,736.4,847.8,790.5z M596.7,500c-16.8,0-33.6,16.9-33.6,33.7c0,16.9,16.8,33.6,33.6,33.6c25.3,0,42-16.7,42-33.6C638.6,516.9,621.9,500,596.7,500z M781.4,500c-16.6,0-33.4,16.9-33.4,33.7c0,16.9,16.8,33.6,33.4,33.6c25.2,0,42.2-16.7,42.2-33.6C823.6,516.9,806.6,500,781.4,500z"></path>
+    </svg></a><a href="https://github.com/Hoooao" target="_blank" rel="noopener me" title="Github"><svg xmlns="http://www.w3.org/2000/svg" class="feather" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg></a></span><button id="menu-btn" class="hdr-btn" title="菜单"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-menu"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button>
+			</div>
+		</div>
+	</header>
+	<div id="mobile-menu" class="animated fast">
+		<ul>
+			<li><a href="https://hoooao.github.io/db/">Database</a></li>
+			<li><a href="https://hoooao.github.io/os/">Operating System</a></li>
+			<li><a href="https://hoooao.github.io/about-hugo/">About</a></li>
+		</ul>
+	</div>
+
+
+	<div class="bg-img"></div>
+	<main class="site-main section-inner animated fadeIn faster">
+		<article class="thin">
+			<header class="post-header">
+				<div class="post-meta"><span>Aug 18, 2022</span></div>
+				<h1>Chap 3: 数据库存储 DB Storage</h1>
+			</header>
+			<div class="content">
+				<h2 id="目录">目录<a href="#目录" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<br>
+<hr>
+<br>
+<h2 id="导言">导言：<a href="#导言" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>     本章的主要内容包括文件是如何储存在磁盘上的，以及对于如何构建可靠的储存结构的讨论。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="31-物理储存接口概述-overview-of-physical-storage-mediainterface">3.1 物理储存&amp;接口概述 Overview of Physical Storage Media&amp;Interface<a href="#31-物理储存接口概述-overview-of-physical-storage-mediainterface" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>     <strong>缓存（Cache）</strong>：缓存是最快的存储，但缓存不是数据库的重点。</p>
+<p>    <strong>主内存（Main Memory）</strong>：通常来说，只有储存在内存的数据可以被直接修改。相对于DB，内存太小，并且“volatile”，即在断电后数据被清除。</p>
+<p>    <strong>闪存（Flash memory）</strong>：闪存是“non-volatile”的，SSD就在内部使用了闪存，但是提供了类似磁盘的接口，正在逐渐代替磁盘。</p>
+<p>    <strong>磁盘（Magnetic-disk storage）</strong>：也被叫做硬盘HDD。系统为了访问磁盘上的数据，必须先把磁盘上的数据放入内存。在内存中修改之后再写回磁盘。</p>
+<p>    <strong>磁带（Tape storage）</strong>：通常被用来做永久备份，最慢。</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/bJcf4cQ.png" alt="" style="width:80%">
+</div>
+</figure>
+<p>    上图前两个被叫做 Primary Storage，之后两个被叫做 Secondary/online Storage，最后两个被叫做 Tertiary/oﬄine Storage。Volatile的储存设备支持快随机访问，并且能精确的访问特定的Byte。但是Non-volatile设备，除了SSD，不支持随机访问，只支持顺序访问，并且访问的最小单位是block/page/sector。</p>
+<p>    HDD和SSD都通过接口与计算机相连。常见的接口：</p>
+<blockquote>
+<ol>
+<li><strong>Serial ATA (SATA)/Serial Attached SCSI (SAS)</strong>：它们通常使用在服务器中；</li>
+<li><strong>Non-Volatile Memory Express (NVMe)</strong>：似一种逻辑接口，帮助 <strong>PCIe</strong>接口实现更好的</li>
+</ol>
+</blockquote>
+<p>     <strong>Storage area network (SAN)</strong>：这是一种架构，在这种架构中，磁盘可以组成阵列，被称为<strong>独立磁盘冗余阵列（RAID： Redundant arrays of independent disks）</strong>。<strong>Network attached storage (NAS)</strong> 与此类似，但是使用在云储存中。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="32-磁盘-magnetic-disks">3.2 磁盘 Magnetic Disks<a href="#32-磁盘-magnetic-disks" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    这是一个磁盘的结构：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/d7g2N1R.png" alt="" style="width:80%">
+</div>
+</figure>
+<p>    每一层 <strong>盘（Platter）</strong> 都有两面，被有磁性的物质覆盖着，信息被记录在他们的表面。当磁盘被使用的时候，Drive motor会驱动中心的轴，所有盘同时开始运动。**读写头（R/W head）**会被放置在盘的表面。形式上每个表面都被分为了不同的 <strong>轨道（Track）</strong>，而这些轨道又再次被分为 <strong>扇区（Sectors）</strong>。扇区就是磁盘读写的最小单位。每一个扇区通常512Bytes，通常一整个磁盘有20～240亿个扇区。</p>
+<p>    读写头可以通过磁力来改变盘表面上的磁的方向，从而修改数据。一个磁盘通畅有多个盘组成，也就会有多个读写头。这些读写头被一个disk arm操控，所以它们的运动是一样的：当第一个头运动到了第i个track的时候，其他所有头也都运动到了对应表面的第i个track，这些track在形式上右组成了第i个“<strong>圆柱体（Cylinder）</strong>”。</p>
+<p>    Disk Controller是OS与磁盘硬件之间的接口。现在磁盘系统中，这个控制器是驱动的一部分。它可以监测数据是否成功读写，并且也可以标记坏掉的sector，让系统不再使用这个sector。</p>
+<p>     **访问时间（Access time）**指的是从数据请求到数据发送开始之间的过程。为了访问一个数据arm需要运动到指定的轨道上。调整arm的时间叫做 <strong>Sek time</strong>。之后，磁盘会旋转，让目标扇区在读写头之下，这一过程的时间叫做 <strong>Rotational Latency Time</strong>。平均旋转时间是磁盘旋转一圈时间的一半。**数据传输速率（data-transfer rate）**是数据读写的时间。</p>
+<p>     <strong>Block number</strong>是操作系统在形式上给磁盘的部分设置的“地址”。一个block通常是4-16KB。有时候会和Page混用。对block的访问可以被看作 <strong>Sequential access</strong>，访问是对连续的block number进行的，只需要seek一次。与此对比的是随机访问，也就是对不同的block number的访问，需要seek多次。</p>
+<p>    计算机中的Page：</p>
+<blockquote>
+<ol>
+<li>硬件（磁盘）Page：4KB；</li>
+<li>OS Page：4KB；</li>
+<li>DB Page： 512B-16KB。</li>
+</ol>
+</blockquote>
+<p>当DB page和前两者不同步的时候，可能导致写入非原子化（比如当DBpage为16KB，而硬件只保证4KB的原子写入）。</p>
+<p>    **失效中位时间（MTTF：Mean time to failure）**是磁盘可靠性的指标。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="33-文件组成-file-organization">3.3 文件组成 File Organization<a href="#33-文件组成-file-organization" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    设计一个DBMS的目标是让应用程序认为它有足够的内存存放所有的数据，这和虚拟内存的目标以及一些OS文件系统的内存分配方式类似。但是DBMS，类似一个独立的文件系统，更高效地管理着自己的数据。有一些DBMS一定程度上依靠着OS的文件系统（或定制OS文件系统），比如Ext3等等，的指令，比如系统调用，来帮助信息读取，但是大部分数据库实际上完全脱离了OS的文件系统。</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/craJ4xq.png" alt="" style="width:80%">
+</div>
+</figure>
+<p>上图描述了一个执行引擎（一个可以理解DBMS语言的程序）获取信息的过程：它首先把SQL语句解析为对Page#2的请求发送到内存。通过查询Buffer Pool中的目录得到Page#2在磁盘上的位置，把它从磁盘读入内存，最后把其内存指针返回给引擎。</p>
+<p>    一个数据库被映射为一个被底层操作系统维护着的多个文件。一个文件在形式上是对一系列的 <strong>record</strong>的储存。这些信息/record又映射到对应的disk block上。一个block中可能储存着多个record。通常来说，一个记录/Tuple不会比block大，所以可以假设没有记录比block大。并且被一个记录必须完整地存在于一个block中：不能不同的部分在不同的block中。这个限制简化并加速了对数据的取用。record实际上是之前所提到的关系中的tuple在硬盘上的真实的表达。Block通常需要以下特点：</p>
+<blockquote>
+<ol>
+<li>
+<p>可以储存任何内容：tuples，原数据，indecies, log等；</p>
+</li>
+<li>
+<p>通常内容不会混在一个block中；</p>
+</li>
+<li>
+<p>一些系统要求block是 “self-contained”，也就是说一个block需要保存着自己的原数据。如何解读一个block的内容的方法应当储存在block自身，这个解读包括数据的原数据，比如属性和schema等。这一要求可以用来数据恢复。假如原数据只存在于某一个block中，那么这个block的损坏可能造成无法解读其位于其他block上的数据。</p>
+</li>
+</ol>
+</blockquote>
+<p>    比如之前提到的instructor表中的一个tuple就可以是一个“record”。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">type</span><span class="w"> </span><span class="n">instructor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">record</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="n">ID</span><span class="w"> </span><span class="nb">varchar</span><span class="w"> </span><span class="p">(</span><span class="mi">5</span><span class="p">);</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="n">name</span><span class="w"> </span><span class="nb">varchar</span><span class="p">(</span><span class="mi">20</span><span class="p">);</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="n">dept</span><span class="w"> </span><span class="n">name</span><span class="w"> </span><span class="nb">varchar</span><span class="w"> </span><span class="p">(</span><span class="mi">20</span><span class="p">);</span><span class="w"> 
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="n">salary</span><span class="w"> </span><span class="nb">numeric</span><span class="w"> </span><span class="p">(</span><span class="mi">8</span><span class="p">,</span><span class="mi">2</span><span class="p">);</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">      </span><span class="k">end</span><span class="w">
+</span></span></span></code></pre></div><p>把每个数据的大小加起来，可以得到5+20+20+8=53bytes：所以一个教师的信息就是53bytes。这可以是一个instructor的record的文件：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/nN9HMoz.png" alt="" style="width:80%">
+</div>
+</figure>
+<p>我们称这种record为 <strong>定长record（Fixed-length records）</strong>。</p>
+<p>这里有两个问题：</p>
+<blockquote>
+<ol>
+<li>
+<p>除非block的大小是53的倍数，不然会造成block分开存储在不同的block中；
+解决方法：宁愿浪费空间也不让record分开存储：如果剩下的空间不足存放一个record1，就重新开一个block；</p>
+</li>
+<li>
+<p>不方便删除；
+解决方法：当删除一个record的时候，可以把其后面的所有record1都往前移1单位，完成删除，或者直接把最后一个record一种到前者的位置，这样就不需要移动目标位置后面的所有元素了。</p>
+</li>
+</ol>
+</blockquote>
+<p>但是对于删除，实际上由于删除操作远比添加操作少，我们可以直接把那个位置标记为不使用即可。对此的实现方式是 <strong>文件头（File header）</strong>。文件头中保存着关于此文件很多信息，比如checksum，DB版本，压缩信息，可视性（权限）等。在当前语境下，我们只关心record的删除，可以假设文件头中之储存着第一个被删除的record，而后者种储存着第二个被删除的record，以此往复：他们形成了一个自由表。每当有添加操作时，文件头指向的位置可以被重新利用，然后让文件头指向原先的第二个被删除的record。</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/CGGISww.png" alt="" style="width:80%">
+</div>
+</figure>
+<p>    与定长record相对应的是 <strong>变长record（Variable-length records）</strong>。它出现的原因伴随着对长度可变的变量的使用，比如字符串和数组（SQL中的var类型的属性）。为了实现这种record，有两个问题：</p>
+<blockquote>
+<ol>
+<li>如何取出/储存长度不定的变量：<strong>Record/Tuple布局</strong>；</li>
+<li>如何存储长度不定的record在block中：<strong>Page/Block布局</strong>。</li>
+</ol>
+</blockquote>
+<br>
+<br>
+<p>//.1和。2重写：page结构</p>
+<h2 id="331-属性在record中的存储">3.3.1 属性在Record中的存储<a href="#331-属性在record中的存储" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    Tuple本质上是连续的Bytes，DBMS的一个任务就是把这些Bytes识别为不同的数据和类型。</p>
+<p>    Tuple的布局：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/3frs6U1.png" alt="" style="width:80%">
+</div>
+</figure>
+<p>同样地，Tuple也有header，它储存着这个Tuple的可见性（为并发服务）以及Null bitmap，指示null值位置。Tuple通常不需要self-contained。数据的排列通常和定义的顺序一样，不考虑对齐。</p>
+<blockquote>
+<ol>
+<li>
+<p>Tuple-oriented;</p>
+</li>
+<li>
+<p>Log-structured.</p>
+</li>
+</ol>
+</blockquote>
+<br>
+<br>
+<h2 id="332-block布局tuple-oriented">3.3.2 Block布局：Tuple-oriented<a href="#332-block布局tuple-oriented" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>     <strong>Slotted-page structure</strong> 常作为<strong>Tuple-oriented</strong>储存方式的数据结构，用来在Block中储存Records：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/uQit2PF.png" alt="" style="width:80%">
+</div>
+</figure>
+<p>上图是使用这一数据结构的block的结构。它的header记录着：</p>
+<blockquote>
+<ol>
+<li>record的数量；</li>
+<li>free space的结尾；</li>
+<li>一个储存着每个recode的位置（偏移量）和大小的数组（也就是Slot数组，可以单独看作一部分）。</li>
+</ol>
+</blockquote>
+<p>所有的record都在这个block中连续的储存着。Slot数组从前向后增加，而record/tuple<strong>从后向前</strong> 增加：也就是说，第一个record实际上是在block的末尾被创建，每当一个新的record被插入，就会在free space的末尾分配空间。如果一个record被删除了，那么它的空间会被释放，它在header中也会变成-1。同时，在这这个record之前的records会被移动，让所有可用的空间再次集中在free space这一段空间内（实际上有的时候还是会有空隙，比如为了align；空隙是否被压缩取决于DBMS），然后更新header中保存的指向free space末尾的指针。</p>
+<p>    每个tuple/record都有独一无二的<code>record_id=page_id+offset/slot</code>（这个组成大致是这样，DBMS之间不同，有的有file_id），类似PTE的组成。但是这个id是可能变化的，比如有写入删除，compaction等（取决于DBMS）。这样的indirection让 <strong>在Page内部的Tuple</strong> 位置变化只影响一层indirection，即每个Slot中储存的指针。这种Indirection在DBMS的Directory中也有使用：系统不用时刻知道某个page在哪里，它只需要能在目录中找到就行，记录Page准确位置是目录的任务。假设一个<code>Tuple_id=1+3</code>，那么系统就会去目录中先找到Page_id为1的Page的位置（第一层Indirection），找到Page后通过Slot数组找到slot为3的Tuple的指针/off（第二层Indirection）。</p>
+<p>    <strong>注</strong>：这里的Page指的是DBMS定义的Page，而不是磁盘上的Page；所以Page_id也是DBMS定义的。</p>
+<br>
+<br>
+<h2 id="333-block布局log-structured">3.3.3 Block布局：Log-structured<a href="#333-block布局log-structured" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="34-文件中的records的组织-organization-of-records-in-files">3.4 文件中的Records的组织 Organization of Records in Files<a href="#34-文件中的records的组织-organization-of-records-in-files" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    上述内容解决了Record内部和Block内部的组成。更高一层的单位是文件。对于文件组织结构的设计有很多，它们规划一个文件的Pages在磁盘上的布局。这里主要介绍 <strong>堆文件组织（Heap File Organization）</strong>。</p>
+<p>    Head file是一个无序的Pages的集合。在这种结构中，records的排列没有顺序：即使在一个关系中某个tuple比另一个tuple靠前，但实际上的磁盘上的顺序不一定是这样的（它们所在的Page的顺序不是它们在关系中的顺序）。需要原数据来追踪哪些Page存在，并且哪些有可以使用的空间。</p>
+<p>    Heap File有两种实现方式：Linked List 和 Page Directory。</p>
+<p>    <strong>Linked List</strong>（双向链表）：现在没有人使用这种实现。在文件的开头，存在一个header page，保存着两个指针：1. 可用Page的Page list的头节点；2.满了的Page的Page list的头节点</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/oGu4NgP.png" alt="" style="width:80%">
+</div>
+</figure>
+<p>与此同时每一个Free Page还会保存它自己剩余的空间。</p>
+<p>    <strong>Page Directory</strong>：每个文件在开始会维护这样一个目录Page：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/Js9RcWD.png" alt="" style="width:80%">
+</div>
+</figure>
+<p>它记录着每一个Page的位置以及对应的Page中剩余的空间。DBMS需要确保目录中记录的数据和对应的Data Page的真实信息同步：假设对某个Page进行了使用，其剩余容量减少，此时崩溃发生；如果Dir中的原数据先更新，Page可能实际上并没有被写入，实际容量也没有减少；如果成功写入但是没有更新Dir，也一样。</p>
+<p>很多DB使用 <strong>free-space map</strong> 来跟踪哪一个block有空间来储存更多的records。这个map会被要求放在内存中，虽然其本体也在一个文件中。这个map是一个数组，每一个元素（1Byte）负责记录一个block的使用情况：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/LrdElsN.png" alt="" style="width:80%">
+</div>
+</figure>
+<p>假设每个元素3bits，数字代表fraction：比如第五个元素是7，那么就代表它所对应的block中有至少$7/2^3$ 的空间是可以使用的。当一个新的record被储存的时候，DB会扫描这个map找到一个足够大的block储存这个record。这种抽象简化了遍历block的过程。但如果一个文件涉及很多block的时候，这一遍历也很耗时。对此的优化是：使用第二层map，记录每i个第一层map中最大的fraction。假如i=4，上图map的第二层mao会变成：4 | 7 | 2 | 6。这样一来，对于第二层的遍历的速度就等于block数量/i。当使用第二层map找到合适的一个之后，会对对应的的第一层的这部分map再次遍历。如果每次对于free-space map的修改都需要同时修改其在硬盘上的本体，会效率低。所以该map采用的方式是周期性修改。</p>
+
+			</div>
+			<hr class="post-end">
+			<footer class="post-info">
+				<p><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-file-text"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>0 字</p>
+				<p><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-calendar"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>2022-08-18 15:30 -0400</p>
+			</footer>
+		</article>
+		<div class="post-nav thin">
+			<a class="prev-post" href="https://hoooao.github.io/db/part2/">
+				<span class="post-nav-label">下一篇&nbsp;<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-arrow-right"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></span><br><span>Chap 2: SQL进阶 Modern SQL</span>
+			</a>
+		</div>
+		<div id="comments" class="thin">
+</div>
+	</main>
+
+	<footer id="site-footer" class="section-inner thin animated fadeIn faster">
+		<p>&copy; 2022 <a href="https://hoooao.github.io/">Xiyu Hao</a> &#183; <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" rel="noopener">CC BY-NC 4.0</a></p>
+		<p>
+			Made with <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> &#183; Theme <a href="https://github.com/Track3/hermit" target="_blank" rel="noopener">Hermit</a> &#183; <a href="https://hoooao.github.io/posts/index.xml" target="_blank" title="rss"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-rss"><path d="M4 11a9 9 0 0 1 9 9"></path><path d="M4 4a16 16 0 0 1 16 16"></path><circle cx="5" cy="19" r="1"></circle></svg></a>
+		</p>
+	</footer>
+
+
+
+	<script src="https://hoooao.github.io/js/bundle.min.5a42c67b729ee2fa1059251688235399704707e04edb4e28c42c6f6dfa49d1d9.js" integrity="sha256-WkLGe3Ke4voQWSUWiCNTmXBHB+BO204oxCxvbfpJ0dk=" crossorigin="anonymous"></script>
+	
+
+</body>
+
+</html>
