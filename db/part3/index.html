@@ -19,7 +19,7 @@
   Serial ATA (SATA)/Serial Attached SCSI (SAS)：它们通常使用在服务器中； Non-Volatile Memory Express (NVMe)：似一种逻辑接口，帮助 PCIe接口实现更好的    Storage area network (SAN)：这是一种架构，在这种架构中，磁盘可以组成阵列，被称为独立磁盘冗余阵列（RAID： Redundant arrays of independent disks）。Network attached storage (NAS) 与此类似，但是使用在云储存中。
  3."><meta itemprop="datePublished" content="2022-08-18T15:30:08-04:00" />
 <meta itemprop="dateModified" content="2022-08-18T15:30:08-04:00" />
-<meta itemprop="wordCount" content="201">
+<meta itemprop="wordCount" content="246">
 <meta itemprop="keywords" content="" /><meta property="og:title" content="Chap 3: 数据库存储 DB Storage" />
 <meta property="og:description" content="目录  导言：  本章的主要内容包括文件是如何储存在磁盘上的，以及对于如何构建可靠的储存结构的讨论。
  3.1 物理储存&amp;接口概述 Overview of Physical Storage Media&amp;Interface  缓存（Cache）：缓存是最快的存储，但缓存不是数据库的重点。
@@ -243,10 +243,9 @@
 </blockquote>
 <br>
 <br>
-<p>//.1和。2重写：page结构</p>
 <h2 id="331-属性在record中的存储">3.3.1 属性在Record中的存储<a href="#331-属性在record中的存储" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
 <p>    Tuple本质上是连续的Bytes，DBMS的一个任务就是把这些Bytes识别为不同的数据和类型。</p>
-<p>    Tuple的布局：</p>
+<p>    Tuple内部的布局：</p>
 <figure>
 <div style="text-align:center">
 <img src="https://i.imgur.com/3frs6U1.png" alt="" style="width:80%">
@@ -286,6 +285,13 @@
 <br>
 <br>
 <h2 id="333-block布局log-structured">3.3.3 Block布局：Log-structured<a href="#333-block布局log-structured" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    这种Tuple的组织不常用。在Log-structured组织中，每个Page存的实际上不是Tuple，而是对其修改的信息的记录。比如增删改。</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/XjA91Va.png" alt="" style="width:80%">
+</div>
+</figure>
+<p>每一个操作都是一个新的条目，从头开始写入。但是读取“Tuple”的时候实际上是从下往上读，来“重构”某个Tuple。这样做的缺点很明显：如果想要查找/修改/删除某一个Tuple的时候，需要把这个表遍历，找到对应的Tuple相关的内容，再操作。对此存在优化：给这个log的不同部分做标记，使用这些标记（类似目录），跳转到对应的部分。同时，也可以周期性的把操作“打包”重构成真正的Tuple储存在Page中。</p>
 <br>
 <br>
 <br>
@@ -311,18 +317,95 @@
 </div>
 </figure>
 <p>它记录着每一个Page的位置以及对应的Page中剩余的空间。DBMS需要确保目录中记录的数据和对应的Data Page的真实信息同步：假设对某个Page进行了使用，其剩余容量减少，此时崩溃发生；如果Dir中的原数据先更新，Page可能实际上并没有被写入，实际容量也没有减少；如果成功写入但是没有更新Dir，也一样。</p>
-<p>很多DB使用 <strong>free-space map</strong> 来跟踪哪一个block有空间来储存更多的records。这个map会被要求放在内存中，虽然其本体也在一个文件中。这个map是一个数组，每一个元素（1Byte）负责记录一个block的使用情况：</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="35-数据表示-data-representation">3.5 数据表示 Data Representation<a href="#35-数据表示-data-representation" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    Tuple中的值只是连续的Bytes，BDMS负责解释这些信息，识别出这些Byte是什么数据类型，是什么内容。它识别内容需要遵守规范。通常数据库支持多种数据类型。</p>
+<ul>
+<li>
+<p>Integer/Bigint,/Smallint/Tinyint：直接使用C/C++给出的规范；</p>
+</li>
+<li>
+<p>Float/Real：使用IEEE-754标准，前者双精度，后者单精度，用来表达浮点小数。但是它们，由于是计算机与安生的数据类型，无法保证精度过高时的数据的准确性，可能造成rounding errors；</p>
+</li>
+<li>
+<p>Numeric/Decimal：同样是浮点数，但是是DBMS自定义的数据类型，前者接受准确的数字长度（scale）和精度，后者只接受准确的长度，精度会大于等于传入的精度。底层是结构体和C++程序，类似varchar，储存的是人类可以阅读的数字/字符串，然后通过原数据来指示小数点在哪里。由于它底层并不直接是机器而是一堆程序，导致相对于上述类型，执行速度较慢；这就是一个Numeric的表示：</p>
+</li>
+</ul>
 <figure>
 <div style="text-align:center">
-<img src="https://i.imgur.com/LrdElsN.png" alt="" style="width:80%">
+<img src="https://i.imgur.com/659dJdF.png" alt="" style="width:80%">
 </div>
 </figure>
-<p>假设每个元素3bits，数字代表fraction：比如第五个元素是7，那么就代表它所对应的block中有至少$7/2^3$ 的空间是可以使用的。当一个新的record被储存的时候，DB会扫描这个map找到一个足够大的block储存这个record。这种抽象简化了遍历block的过程。但如果一个文件涉及很多block的时候，这一遍历也很耗时。对此的优化是：使用第二层map，记录每i个第一层map中最大的fraction。假如i=4，上图map的第二层mao会变成：4 | 7 | 2 | 6。这样一来，对于第二层的遍历的速度就等于block数量/i。当使用第二层map找到合适的一个之后，会对对应的的第一层的这部分map再次遍历。如果每次对于free-space map的修改都需要同时修改其在硬盘上的本体，会效率低。所以该map采用的方式是周期性修改。</p>
+<ul>
+<li>Varchar/Varbinary/Text/Blob(Binary large object)：这些数据通常会很大甚至超过Pgae：由于一个数据不应当跨Page储存，它们不会像之前所展示的那样把这些数据一个接一个储存在Tuple中：</li>
+</ul>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/z1CtXDr.png" alt="" style="width:80%">
+</div>
+</figure>
+<p>如图所示，储存在Tuple中的实际上是一个指针，这个指针指向该数据真正储存的位置。对于这个Page，有的DBMS叫做Overflow Page，有的叫做TOAST。数据多大的时候使用这样的Page，不同的DBMS的规定不一样。假如一个这样的Page还不够，那么可以从这个Page再伸出一个指针指向另一个Page。每当出现一个询问的时候，DBMS会把指针指向的内容全部取出作为输出。</p>
+<p>    有的DBMS允许一个指针通过文件路径指向 <strong>外部文件（External File）</strong>。但是DBMS不会允许对这样的文件的修改（但是可以直接修改）：它们不受DBMS保护。在读外部文件的时候，也一样会被读入内存。这种存储方式通常可以在视频网站看到：当一个用户上传了视频后，由于视频体积很大，所以通常不会把这样的文件直接存在硬件贵的DBMS中。</p>
+<p>    <strong>系统目录 (System Catalogs)</strong>: 每一个数据库都会储存关于自己的原数据。通常这一原数据也是以一个关系/表存在于数据库内部的。它通常记录着数据库中的关系，属性，indices，查看次数，用户权限，内部统计等等。DBMS会提供特殊的指令<code>INFORMATION_SCHEMA</code>来访问这个表。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="36-储存模型-storage-model">3.6 储存模型 Storage Model<a href="#36-储存模型-storage-model" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    SQL标准并没有规范一个DBMS应该如何储存它的数据。数据库中的数据在面对不同的应用场景/工作量的时候，不同的储存模型会有不同的效率。有三种主要的“工作量（Workload）”：</p>
+<ul>
+<li>
+<p><strong>联机事务处理（OLTP：On-line Transaction Processing）</strong>：OLTP的场景中，对于数据库的操作通常只涉及简单的对于其一小部分的读写。比如一个用户使用购物网站添加购物车：DBMS只会更新这个用户的部分数据，与其他信息相独立；</p>
+</li>
+<li>
+<p><strong>联机分析处理（OLAP：On-Line Analytical Processing）</strong>：OLAP的场景中，常常涉及对于整个数据库中大部分/所有数据的遍历，涉及很多join等；</p>
+</li>
+</ul>
+<p>-<strong>Hybrid transactional/analytical processing</strong>：是上述两者的中间：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/RPkaNiw.png" alt="" style="width:80%">
+</div>
+</figure>
+<p>    在之前的所有内容中，使用的实际上都是 <strong>N-ary storage model</strong>，也就是 <strong>Row storage</strong>：所有Tuple都是一行一行储存在Page中。这一模型对于OLTP是好的，因为使用者通常会使用问询来对某个个体进行多次插入操作，每次也只需要把目标所在的Page带到内存中（通过Index找到）。</p>
+<p>    但是假如在OLAP的场景中，所期望的是对整个表中的所有Tuple的某几个属性进行分析，而这个表又占用很多Page，在N-ary模型下这就意味着要把所有所涉及的Page全部放入内存。这显然是性能浪费：每个Tuple有很多属性，但是分析所使用的属性可能只有几个。</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/DK32P39.png" alt="" style="width:80%">
+</div>
+</figure>
+<p>    N-ary的优点：快速增删改查，适合用于对整个Tuple的信息都感兴趣的操作；缺点：不适合对于整个关系只涉及一部分属性的遍历。</p>
+<p>    为了解决N-ary模型的缺点，有 <strong>列式储存（DSM：Decomposition Storage Model/Column storage）</strong>。列存储中的每一个Page中储存的不是Tuple，而是每一个Tuple中某特定的属性。这样一来，假如要实现上面一样的遍历操作，只需要知道目标属性在哪个Page就可以了，不需要吧当前关系所有Page和所有属性都放入内存：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/NgL9J7L.png" alt="" style="width:80%">
+</div>
+</figure>
+<p>除了为了OLAP行为服务，这种储存方式也可以优化Page中的数据：一个Page中储存的都是一个属性，通常都是相似的数据，比如字符串，数字等，可以更好地压缩它们。</p>
+<p>    看起来在第二种储存模型中，似乎难以分辨出某个属性属于哪个Tuple，所以需要识别Tuple的方法。存在两种方法：</p>
+<ul>
+<li>
+<p><strong>定长偏移量（Fixed-length Offset）</strong>：每个属性的值的长度都一样，假设在Column A中找到了某个属性并且想找它所在的Tuple中的另一个属性B。由于知道了这个属性在A中的偏移量，可以使用这一偏移量*属性B的长度，找到目标属性在Column B中的位置。对于可变长度的变量，不同的DBMS有不同的解决，比如把它们压缩成定长，或者假设成最大长度；这个方法是主流；</p>
+</li>
+<li>
+<p><strong>内嵌Tuple ID</strong>：每一个Column中的数据都携带着一个Id，指示着它们所属的Tuple，直接通过Id就可以找到对应的Tuple的所有数据；没人用这个方法，因为要浪费空间存Id。</p>
+</li>
+</ul>
+<p>    DSM的优缺点和N-ary相反：它支持更好的大规模Tuple查看，更好的数据压缩，但是对于特定的Tuple的CRUD性能差</p>
 
 			</div>
 			<hr class="post-end">
 			<footer class="post-info">
-				<p><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-file-text"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>0 字</p>
+				<p><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-file-text"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>5099 字</p>
 				<p><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-calendar"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>2022-08-18 15:30 -0400</p>
 			</footer>
 		</article>
