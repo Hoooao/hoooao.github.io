@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="zh-hans">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta http-equiv="X-UA-Compatible" content="ie=edge">
+	<meta name="theme-color" content="#494f5c">
+	<meta name="msapplication-TileColor" content="#494f5c">
+<meta itemprop="name" content="Chap 4: 缓冲池 &amp; 哈希表 Buffer Pools &amp; Hash Tables">
+<meta itemprop="description" content="目录   缓冲池 Buffer Pool   导言：  4.1 缓冲池组成 Buffer Pool Organization  4.2 缓冲池优化 Buffer Pool Optimization  4.3 缓冲替换机制 Buffer Replacement Policies    哈希表 Hash Table   导言：  4.4 静态哈希表 Static Hash Table  4.5 动态哈希 Dynamic Hashing     缓冲池 Buffer Pool 导言：  上一章内容介绍了DBMS是如何把它的文件储存在磁盘上的，这一部分内容讨论DBMS是如何管理它在内存中的缓冲的文件以及如何把数据从内存放入磁盘。对于DB的管理涉及两个方面：
+   空间管理（Spatial Control）：把Page写入到哪里：目标为把通常会一起使用到Page储存在相邻的位置；
+  时间管理（Temporal Control）：什么时候把Page读入内存/写入磁盘：目标为尽可能减少磁盘与内存的互动。
+    4."><meta itemprop="datePublished" content="2022-08-25T10:32:43-04:00" />
+<meta itemprop="dateModified" content="2022-08-25T10:32:43-04:00" />
+<meta itemprop="wordCount" content="231">
+<meta itemprop="keywords" content="" /><meta property="og:title" content="Chap 4: 缓冲池 &amp; 哈希表 Buffer Pools &amp; Hash Tables" />
+<meta property="og:description" content="目录   缓冲池 Buffer Pool   导言：  4.1 缓冲池组成 Buffer Pool Organization  4.2 缓冲池优化 Buffer Pool Optimization  4.3 缓冲替换机制 Buffer Replacement Policies    哈希表 Hash Table   导言：  4.4 静态哈希表 Static Hash Table  4.5 动态哈希 Dynamic Hashing     缓冲池 Buffer Pool 导言：  上一章内容介绍了DBMS是如何把它的文件储存在磁盘上的，这一部分内容讨论DBMS是如何管理它在内存中的缓冲的文件以及如何把数据从内存放入磁盘。对于DB的管理涉及两个方面：
+   空间管理（Spatial Control）：把Page写入到哪里：目标为把通常会一起使用到Page储存在相邻的位置；
+  时间管理（Temporal Control）：什么时候把Page读入内存/写入磁盘：目标为尽可能减少磁盘与内存的互动。
+    4." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://hoooao.github.io/db/part4/" /><meta property="article:section" content="db" />
+<meta property="article:published_time" content="2022-08-25T10:32:43-04:00" />
+<meta property="article:modified_time" content="2022-08-25T10:32:43-04:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Chap 4: 缓冲池 &amp; 哈希表 Buffer Pools &amp; Hash Tables"/>
+<meta name="twitter:description" content="目录   缓冲池 Buffer Pool   导言：  4.1 缓冲池组成 Buffer Pool Organization  4.2 缓冲池优化 Buffer Pool Optimization  4.3 缓冲替换机制 Buffer Replacement Policies    哈希表 Hash Table   导言：  4.4 静态哈希表 Static Hash Table  4.5 动态哈希 Dynamic Hashing     缓冲池 Buffer Pool 导言：  上一章内容介绍了DBMS是如何把它的文件储存在磁盘上的，这一部分内容讨论DBMS是如何管理它在内存中的缓冲的文件以及如何把数据从内存放入磁盘。对于DB的管理涉及两个方面：
+   空间管理（Spatial Control）：把Page写入到哪里：目标为把通常会一起使用到Page储存在相邻的位置；
+  时间管理（Temporal Control）：什么时候把Page读入内存/写入磁盘：目标为尽可能减少磁盘与内存的互动。
+    4."/>
+
+	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+	<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+	<link rel="manifest" href="/site.webmanifest">
+	<link rel="mask-icon" href="/safari-pinned-tab.svg" color="">
+	<link rel="shortcut icon" href="/favicon.ico">
+
+	<title>Chap 4: 缓冲池 &amp; 哈希表 Buffer Pools &amp; Hash Tables</title>
+	<link rel="stylesheet" href="https://hoooao.github.io/css/style.min.6b1219507aa24bcc2a46f4f7071edbc5dc448ba85934d68c4af0ca0a7ad89dcd.css" integrity="sha256-axIZUHqiS8wqRvT3Bx7bxdxEi6hZNNaMSvDKCnrYnc0=" crossorigin="anonymous">
+	<style>.bg-img {background-image: url('https://images.unsplash.com/photo-1531265726475-52ad60219627?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=2691&q=80');}</style>
+</head>
+
+<body id="page">
+	
+	<header id="site-header" class="animated slideInUp">
+		<script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML" type="text/javascript"></script>
+		<script type="text/x-mathjax-config">
+			MathJax.Hub.Config({
+				tex2jax: {
+				skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+				inlineMath: [['$','$']]
+				}
+			});
+		</script>
+		<div class="hdr-wrapper section-inner">
+			<div class="hdr-left">
+				<div class="site-branding">
+					<a href="https://hoooao.github.io/">Hao的个人博客</a>
+				</div>
+				<nav class="site-nav hide-in-mobile">
+					
+				<a href="https://hoooao.github.io/db/">Database</a>
+				<a href="https://hoooao.github.io/os/">Operating System</a>
+				<a href="https://hoooao.github.io/about-hugo/">About</a>
+
+				</nav>
+			</div>
+			<div class="hdr-right hdr-icons">
+				<span class="hdr-social hide-in-mobile"><a href="https://i.imgur.com/gzAPv6g.jpeg" target="_blank" rel="noopener me" title="Wechat"><svg xmlns="http://www.w3.org/2000/svg" class="feather" width="24" height="24" viewBox="0 0 1000 1000" fill="#c8cdd3" stroke="currentColor" stroke-width="30" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M487.4,340.2c25.2,0,42-16.9,42-42c0-25.4-16.8-41.9-42-41.9c-25.2,0-50.6,16.4-50.6,41.9C436.9,323.4,462.2,340.2,487.4,340.2z M252.2,256.4c-25.2,0-50.7,16.4-50.7,41.9c0,25.1,25.5,42,50.7,42c25.1,0,41.9-16.9,41.9-42C294.1,272.8,277.3,256.4,252.2,256.4z M990,609.2c0-132.9-123.3-246.1-274.6-257.9c0.2-1.7,0.3-3.4-0.1-5.1C684.9,204.7,532.8,98,361.4,98C167.6,98,10,233.1,10,399.1c0,89.1,45.5,169.3,131.7,232.6l-30,90.3c-1.9,5.9-0.2,12.3,4.5,16.4c2.8,2.4,6.4,3.7,10,3.7c2.3,0,4.7-0.6,6.9-1.6l112.8-56.4l13.9,2.8c34.7,7.1,64.7,13.3,101.6,13.3c10.9,0,21.9-0.5,32.7-1.4c4.4-0.4,8.1-2.6,10.6-5.8c40.7,101.8,152.8,175.2,284.7,175.2c33.8,0,68-8.1,98.7-15.8l86.9,47.5c2.3,1.3,4.8,1.9,7.3,1.9c3.4,0,6.9-1.2,9.6-3.4c4.8-3.9,6.8-10.4,5-16.3l-22.2-73.8C949.2,749.6,990,679.2,990,609.2z M391.5,668.4c-10,0.9-20.1,1.3-30.1,1.3c-33.8,0-62.4-5.8-95.5-12.7l-19.2-3.9c-3.3-0.7-6.8-0.2-9.8,1.3l-84.5,42.3l22-66c2.1-6.5-0.2-13.5-5.8-17.4C83.7,554.2,40.6,482.1,40.6,399.1c0-149.1,143.9-270.5,320.7-270.5c156.3,0,294.8,95.1,323.3,221.6c-163.9,2.1-296.6,117.4-296.6,258.9c0,20.6,3.1,40.5,8.4,59.7C394.9,668.5,393.2,668.2,391.5,668.4z M847.8,790.5c-5.1,3.9-7.3,10.5-5.5,16.6l14.5,48.2l-59.4-32.5c-2.3-1.3-4.8-1.9-7.4-1.9c-1.3,0-2.5,0.2-3.7,0.5c-31.9,8.1-64.9,16.4-97,16.4c-149.2,0-270.6-102.5-270.6-228.5c0-126,121.4-228.5,270.6-228.5c146.4,0,270,104.6,270,228.5C959.4,672,919.8,736.4,847.8,790.5z M596.7,500c-16.8,0-33.6,16.9-33.6,33.7c0,16.9,16.8,33.6,33.6,33.6c25.3,0,42-16.7,42-33.6C638.6,516.9,621.9,500,596.7,500z M781.4,500c-16.6,0-33.4,16.9-33.4,33.7c0,16.9,16.8,33.6,33.4,33.6c25.2,0,42.2-16.7,42.2-33.6C823.6,516.9,806.6,500,781.4,500z"></path>
+    </svg></a><a href="https://github.com/Hoooao" target="_blank" rel="noopener me" title="Github"><svg xmlns="http://www.w3.org/2000/svg" class="feather" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg></a></span><button id="menu-btn" class="hdr-btn" title="菜单"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-menu"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button>
+			</div>
+		</div>
+	</header>
+	<div id="mobile-menu" class="animated fast">
+		<ul>
+			<li><a href="https://hoooao.github.io/db/">Database</a></li>
+			<li><a href="https://hoooao.github.io/os/">Operating System</a></li>
+			<li><a href="https://hoooao.github.io/about-hugo/">About</a></li>
+		</ul>
+	</div>
+
+
+	<div class="bg-img"></div>
+	<main class="site-main section-inner animated fadeIn faster">
+		<article class="thin">
+			<header class="post-header">
+				<div class="post-meta"><span>Aug 25, 2022</span></div>
+				<h1>Chap 4: 缓冲池 &amp; 哈希表 Buffer Pools &amp; Hash Tables</h1>
+			</header>
+			<div class="content">
+				<h2 id="目录">目录<a href="#目录" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<ul>
+<li> <a href="#%E7%BC%93%E5%86%B2%E6%B1%A0-buffer-pool">缓冲池 Buffer Pool</a>
+<ul>
+<li> <a href="#%E5%AF%BC%E8%A8%80">导言：</a></li>
+<li> <a href="#41-%E7%BC%93%E5%86%B2%E6%B1%A0%E7%BB%84%E6%88%90-buffer-pool-organization">4.1 缓冲池组成 Buffer Pool Organization</a></li>
+<li> <a href="#42-%E7%BC%93%E5%86%B2%E6%B1%A0%E4%BC%98%E5%8C%96-buffer-pool-optimization">4.2 缓冲池优化 Buffer Pool Optimization</a></li>
+<li> <a href="#43-%E7%BC%93%E5%86%B2%E6%9B%BF%E6%8D%A2%E6%9C%BA%E5%88%B6-buffer-replacement-policies">4.3 缓冲替换机制 Buffer Replacement Policies</a></li>
+</ul>
+</li>
+<li> <a href="#%E5%93%88%E5%B8%8C%E8%A1%A8-hash-table">哈希表 Hash Table</a>
+<ul>
+<li> <a href="#%E5%AF%BC%E8%A8%80-1">导言：</a></li>
+<li> <a href="#44-%E9%9D%99%E6%80%81%E5%93%88%E5%B8%8C%E8%A1%A8-static-hash-table">4.4 静态哈希表 Static Hash Table</a></li>
+<li> <a href="#45-%E5%8A%A8%E6%80%81%E5%93%88%E5%B8%8C-dynamic-hashing">4.5 动态哈希 Dynamic Hashing</a></li>
+</ul>
+</li>
+</ul>
+<br>
+<hr>
+<br>
+<h1 id="缓冲池-buffer-pool">缓冲池 Buffer Pool<a href="#缓冲池-buffer-pool" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h1>
+<br>
+<br>
+<h2 id="导言">导言：<a href="#导言" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>     上一章内容介绍了DBMS是如何把它的文件储存在磁盘上的，这一部分内容讨论DBMS是如何管理它在内存中的缓冲的文件以及如何把数据从内存放入磁盘。对于DB的管理涉及两个方面：</p>
+<blockquote>
+<ol>
+<li>
+<p><strong>空间管理（Spatial Control）</strong>：把Page写入到哪里：目标为把通常会一起使用到Page储存在相邻的位置；</p>
+</li>
+<li>
+<p><strong>时间管理（Temporal Control）</strong>：什么时候把Page读入内存/写入磁盘：目标为尽可能减少磁盘与内存的互动。</p>
+</li>
+</ol>
+</blockquote>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="41-缓冲池组成-buffer-pool-organization">4.1 缓冲池组成 Buffer Pool Organization<a href="#41-缓冲池组成-buffer-pool-organization" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    缓冲池是DBMS在内存中委会的一段区域，用来临时保存读入的pages在内存中修改/读取。</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/TY0q9ur.png" alt="" style="width:80%">
+</div>
+</figure>
+<p><strong>Frame</strong>指的是缓冲池中的“槽位”，用来放置读入的page。同时DBMS还会维护一个Page table，用来记录缓冲池中的Page的位置（指针），以及其他原数据，比如：</p>
+<blockquote>
+<p>Dirty bit：记录该Page在读入内存中后是否修改过；
+Pin：记录这个Page是否被Pin，如果被Pin，就不能被evict；
+Ref/Cnt：类似OS中内存中的文件系统维护的cnt，记录当前有几个线程/进程正在使用这个Page。</p>
+</blockquote>
+<p>     为了保护数据，DBMS会使用Lock和Latches：</p>
+<blockquote>
+<p><strong>Lock</strong>：这里的Lock并不是OS中锁，而是一种High-Level实现；它保护的是数据库中的内容：Tuples/Tables/DB，让它们在不会在一起交易中因其他交易而受到破坏；在交易期间，这个Lock都会存在；具有**复原（Rollback）**数据的能力：比如在数据传输过程中发生崩溃，需要能够让这个交易原子化；</p>
+<p><strong>Latches</strong>：它实际上更像OS中的锁，是一种Low-Level实现，其本质是一个 <strong>互斥锁（Mutex）</strong>；它保护的是DB中的数据结构，比如Page table；在其保护的数据结构被操作的期间都会存在，不要求有复原数据的能力。</p>
+</blockquote>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/jwBGyQV.png" alt="" style="width:80%">
+</div>
+</figure>
+<p>如上图所示，Page3被pin了，所以DB将无法把它Evict出去；并且PT也给其中一个槽位上了Latch：别的进程和线程就无法修改这个槽位了，当前进程可以把Page2的指针保存在这个槽位而不用担心并发问题。</p>
+<p>    需要区分 PT与Page目录：前者通过PageId记录着Page复制品在缓冲池里的位置，后者通过PageId记录着真实的Page在磁盘（DB文件）上的位置，任何对于它的修改都会被日志系统记录。</p>
+<p>    为缓冲池分配内存的规则分为两类：1.全局规则：为所有交易做一套规则；2.本地规则：为不同的交易规定不同的规则，但是可能并不是对全局来说更好的方案。后面的优化就是不同的数据采用不同的优化的例子。</p>
+<p>    虽然前一章说DBMS本质上是创建了自己的文件系统，独立于OS，但实际上DBMS的任何行为底层仍然必须<strong>依赖于OS的API</strong>。所以这就导致，当使用这些API的时候，OS并不知道这是来自DBMS的，它自己的文件系统的机制仍然会进行。其中最明显的就是文件系统的缓存机制。这就会导致在使用某系统调用之后，内存中可能保存着两份同一个文件，一个在缓冲池，一个在OS的缓存中。除了会导致浪费空间，更重要的是会因为不同的Eviction规则造成同步问题。所以大多数DBMS使用 **Direct I/O（O_DIRECT）**告诉OS在调用API的时候不要使用OS的任何机制。少数的DBMS会一定程度利用OS的缓存，但大多数一点也不用。</p>
+<h2 id="42-缓冲池优化-buffer-pool-optimization">4.2 缓冲池优化 Buffer Pool Optimization<a href="#42-缓冲池优化-buffer-pool-optimization" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    介绍：多缓冲池，预取，扫描共享，缓冲池绕过。</p>
+<br>
+<br>
+<p><strong>多缓冲池 Multiple Buffer Pools</strong>：</p>
+<p>    多个缓冲池通过多个PT实现，它有以下两个优点。</p>
+<ul>
+<li>
+<ol>
+<li>减少latch contention：当使用单个缓冲池时，多个进程使用同一个PT，假如这个PT的某个元素被上了锁扣，那就会导致但一个进程进入这个元素之后，后面所有想要访问这个元素的进程都会进入等待</li>
+</ol>
+</li>
+<li>
+<ol start="2">
+<li>可以为不同的缓冲池设置不同的本地规则。不同的数据/table有不同的行为模式，在此基础上可以有针对性地做出优化。</li>
+</ol>
+</li>
+</ul>
+<p>存在两种实现方式：1.在Page的原数据中加入一个Id，用来标识它属于哪一个缓冲池；2.直接对PageId进行哈希来分配缓冲池。注：同一个Page每次进入内存必须要在同一个缓冲池中。</p>
+<br>
+<br>
+<p><strong>预取 Pre-fetching</strong>：</p>
+<p>    当使用Sequential Scan是，会把连续的Page从磁盘上读入内存，假如读取Page1～5，如果当需要的时候再读入内存，会导致更高的延迟。DBMS（以及OS的mmap）实现了在特定情况下的预取：假如一个询问请求了Page1之后又请求了Page2，此时DBMS会认为这个询问也会请求接下来连续的N个Page，所以就会把它们预取到内存中。但是假如这个请求是：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">A</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">WHERE</span><span class="w"> </span><span class="n">val</span><span class="w"> </span><span class="k">BETWEEN</span><span class="w"> </span><span class="mi">100</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="mi">250</span><span class="w">
+</span></span></span></code></pre></div><p>它是基于属性的值来的，而不是Page的Sequential Scan。</p>
+<p>    上述情况叫做Index Scan：DBMS会把这个关系中的该属性的值划分入index pages：指示着去哪个Page可以找到目标数据：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/dleKLLs.png" alt="" style="width:80%">
+</div>
+</figure>
+最开始首先访问index-page0，然后访问index-page1，之后遍历叶子节点找到目标数据的对应的范围，发现目标数据存在3和5中，在该机制下，会把这两个Page放入缓冲池。假如是OS的mmap（使用上一种预取机制）的话，会在读取page0，1之后认为这是一个sequential scan，从而会把page2，3读入，显然不合适。
+<br>
+<br>
+<p><strong>扫描共享 Scan Sharing</strong>：</p>
+<p>    当一个询问先进行的时候，出现了一个高度重合或者完全重合目标Pages的第二个问询，那么此时可以使用优化共享来实现“同时”进行这两个问询想要做的扫描：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/VUa4SLj.jpg" alt="" style="width:80%">
+</div>
+</figure>
+<p>如上图所示，Q1首先从page0开始扫描，在扫描到page3的时候Q2被发出。此时Q2可以跟随着Q1做它们自己的聚合函数：即使Q2从Page3开始也没关系，因为顺序在关系模型中从来不重要。当两者扫描完page5之后，Q1完成了从0～5的扫描便停止，而Q2由于从page3才开始跟着Q1一起扫描，所以还会返回到page0继续扫描完0～2.这样可以有效的降低缓冲池于磁盘的交互。</p>
+<br>
+<br>
+<p><strong>缓冲池绕过 Buffer Pool Bypass</strong>：</p>
+<p>    假如这里有一个询问使用sequential scan扫描大量的磁盘Page到缓冲池中，但是它只会使用这些Page一次，比如计算平均值等，它会导致大量有用的Page被evict掉（根据替换规则）。解决方法就是不使用缓冲池装这些Page，而是单独为这个询问分配一个空间，在使用完了之后直接丢弃。</p>
+<h2 id="43-缓冲替换机制-buffer-replacement-policies">4.3 缓冲替换机制 Buffer Replacement Policies<a href="#43-缓冲替换机制-buffer-replacement-policies" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    当缓冲池满了，DBMS需要释放一些Frame给未来的Page使用：哪个缓冲池中的Page可以背Evict是个问题。在决定这一规则的时候，有几个目标：</p>
+<blockquote>
+<p>正确性：不Evict pinned page；
+精准性：Evict不太会再用的Page；
+速度：避免Latches冲突等；
+原数据成本：对Page的原数据的记录可以帮助决定哪个Page去vict，但是对于这些数据的记录不应当超过Page本身大小；</p>
+</blockquote>
+<p>    <strong>Least Recently Used (LRU)</strong>：Evict最久没有使用过的Page。通常会给每一个Page一个时间戳指明他们上次使用的时间，然后使用一个数据结构比如队列去给它们进行排序来减少搜索最老的时间戳所使用的时间。</p>
+<p>    <strong>CLOCK</strong>是一种近似的LRU的实现，它不需要给每一个Page都维护一个时间戳.它的规则是扫描每个Page的ref bit，如果是1，就设置为0，如果是0，就evict：
+：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/jwmS0BC.png" alt="" style="width:80%">
+</div>
+</figure>
+<p>假设此时有询问正在使用Page1，那么Page1的ref就会变成1（最多就是1，它不是一个counter）。当扫描到它的时候，发现ref!=0，那么就把它设置为0，然后扫描下一个Page2，发现它的是0，就Evict它然后读入新的Page。当再次扫描到Page1的时候，假如没有询问再次使用这个Page，就会发现它的ref=0，便Evict。之所以CLOCK是一种近似，是由于它无法真的找出LRU的Page，只能找到在某一时间区间之内有段时间没有用的Page。</p>
+<p>    LRU的问题：有时候最优的Evict的Page并不一定是最久没有使用的。比如在之前的例子中有一个询问执行了对于很多page的一次性的读入。由于这些Page再也不会被用到，实际上最理想的Evict的对象实际上是最近用过的Page。这种大量一次性Page的读入叫做 <strong>Sequential Flooding</strong>（因为它们通常是Sequential scan得到的），它污染了缓冲池。</p>
+<p>    <strong>LRU-K</strong>：不同于LRU希望evict最久没使用的Page，LRU-K会记录每一个Page每次被访问的时间间隔，通过这一时间间隔来预判这个Page下次被访问的时间。</p>
+<p>    <strong>Localization</strong>：另一种Replacement policy，类似多缓冲池的实现。每当一个询问开始的时候，为了防止上述的缓冲池污染，DBMS会分配一部分专用的缓冲池给这个询问，然后在这个“小缓冲池”中局部使用LRU，不影响其他的缓存的Page。</p>
+<p>    <strong>Priority hints</strong>：由于DBMS在一个询问执行期间是知道每个Page的内容的，它可以基于属性来维护一个数据结构（类似之前的Index Scan），通过判定哪些Page更不重要，来Evict哪些Page：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/PJJZjQy.png" alt="" style="width:80%">
+</div>
+</figure>
+<p>比如对于Q1来说，它每次都会插入更大的ID，而这个Index是通过id排序的树，所以实际上每次使用的只有最右侧的枝，换句话说，除了最右侧这部分，其他的Page都不重要；而对于Q2，由于要遍历这个数据结构，所以根节点永远是最重要的。</p>
+<p>    在所有替换规则中都需要考虑的另一个问题是 <strong>Diety pages</strong>。对于那些在放入内存中再也没有修改过的page，DBMS可以直接丢弃它们，无需同步到磁盘（因为没有修改），速度快。直接放弃这些clean page更快，但是这些Page并不一定是LRU的Page。当LRU的Page是Dirty page，在evict的同时也需要同步到磁盘。所以选择evict clean page还是LRU的dirty page也是一个权衡。</p>
+<p>    <strong>后台写入</strong>：DBMS可以周期性的检查所有缓冲池中的Page是否为dirty，并且写入Dirty pages到磁盘上。DBMS此时可以把这些已经被写入的Pages evict或者把它们的Dirty bit设置回0。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h1 id="哈希表-hash-table">哈希表 Hash Table<a href="#哈希表-hash-table" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h1>
+<br>
+<br>
+<h2 id="导言-1">导言：<a href="#导言-1" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    数据结构被广泛地运用在DBMS中，比如：</p>
+<blockquote>
+<p>内部原数据：保存缓冲池内的Pages的位置的Page Table可以用哈希表实现，每个PageId在哈希之后就可以到其在Page table中的位置；</p>
+<p>核心数据储存：指的是对于数据的存储，比如对于Tuple的组织可以用树；</p>
+<p>临时数据结构：在一个询问执行的过程中，可以使用临时的空间保存这个询问的数据；</p>
+<p>Table Index：通过index直接找到希望找到数据，从而不需要sequential遍历。</p>
+</blockquote>
+<p>对于数据库的设计有两个问题：1.如何在内存和Page中组织数据，让数据的访问高效；2.如何允许并发/多线程访问（目前假设单线程）。这部分内容介绍哈希表相关的知识，一定程度上独立于数据库的话题。</p>
+<p>    **哈希表（Hash Table）**是一种无序的键值对映射，使用哈希函数计算一个Key对应的哈希值，使用哈希值来找到对应的数据。空间复杂度：$O(n)$, 时间复杂度：平均：$O(1)$，最差：$O(n)$。</p>
+<p>    对于哈希表的设计主要有两个方面：</p>
+<blockquote>
+<ol>
+<li>
+<p>哈希函数：如何把值域很大的Key映射到很小的范围内（类似离散化）；如何做好速度与冲突之间的平衡：一个复杂的哈希函数可能会降低冲突的概率但是运行会慢；</p>
+</li>
+<li>
+<p>哈希规则：在发生冲突后如何解决；这里又涉及使用一个很大的哈希表来减少冲突和使用更多的代码来设计冲突发生后的行为之间的取舍。</p>
+</li>
+</ol>
+</blockquote>
+<p>    现在最好的哈希函数是<strong>XXHash</strong>。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="44-静态哈希表-static-hash-table">4.4 静态哈希表 Static Hash Table<a href="#44-静态哈希表-static-hash-table" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    <strong>静态哈希表</strong>是一个固定长度的数组，使用哈希函数计算一个Key所对应的Value应当存放在哪，最后把Value的指针存在该位置。一个简单的哈希函数就是把Key直取数据的个数的模。但是这里实际上存在三个假设：1.我们事先知道要存多少数据；2.每一个Key都是独一无二的；3.完美的哈希函数：不同的Key一定会产出不同的哈希值。但是在现实中，这些假设不存在，可能会导致哈希值重复造成的冲突，以及性能降低。</p>
+<p>    对于处理冲突的讨论实际上是对于hashing schemes的讨论，这里介绍三种解决方法：</p>
+<blockquote>
+<ol>
+<li>Linear Probe Hashing</li>
+<li>Robin Hood Hashing</li>
+<li>Cuckoo Hashing</li>
+</ol>
+</blockquote>
+<p>    <strong>Linear Probe Hashing</strong>：<strong>添加</strong>： 假设有左侧的Key：Value正在等待哈希并插入右侧的空间：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/Fcq8r2v.png" alt="" style="width:80%">
+</div>
+</figure>
+（这里保存Value的地方也会保存对应的Key，方便搜索的时候知道当前指向的元素是不是目标元素）
+<p>A和B都被放入了右侧，但是在哈希C的时候，它得到了与A一样的哈希值：在线性探测的机制之下，它会向下移动，知道找到可以插入的地方。之后对剩下的元素做一样的插入：这里假设C，D，E，F都得到了一样的哈希值。由于右侧是一个循环列表，所以最终可能会循环并且指向B下面的空位。显然这里有效率问题：如果很多元素的哈希值都一样的话，遍历这些元素需要时间。</p>
+<p>    <strong>删除</strong>：假如要删除C：同样把C经过哈希函数得到哈希值，然后查表，找到A的位置发现不是C，向下遍历直到找到C，最后删除。但是在删除后可能发生问题，比如希望找D：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/VRuMGqV.png" alt="" style="width:80%">
+</div>
+</figure>
+<p>在哈希到A的位置之后向下遍历，会扫描到原来C的位置，但是现在是空位了，导致认为D似乎不存在。解决方法：</p>
+<ul>
+<li>
+<ol>
+<li>Tombstone：立一个“墓碑”，当元素被删除之后把其对应的位置设置成墓碑，当这个位置被扫描的时候就跳过；缺点：浪费空间，不过很多时候实际上不会在意这一点浪费，所以立墓碑<strong>是最常用的</strong>方法</li>
+</ol>
+</li>
+<li>
+<ol start="2">
+<li>移动：即把之后的所有元素全部向上移动；缺点：在上述例子中，由于列表是一个循环数组，可能导致后面的元素全部移动之后，B移动到了数组的末端，导致下次会找到不到这个元素（因为哈希值并不会变，还会去最上面找B）。</li>
+</ol>
+</li>
+</ul>
+<p>    解决<strong>非唯一Key</strong>的情况有两种方法：1.当出现重复key的时候，把一样的Key的Value映射到一个区域中；2. 冗余Key：直接放入，不做处理，虽然浪费空间，但是主流。下图是两者对应的图像：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/SbOsyHk.png" alt="" style="width:80%">
+</div>
+</figure>
+<br>
+<br>
+<p>    <strong>Robin Hood Hashing</strong>：这实际上是线性探测的一种变体，它一定程度上减轻了线性探测哈希冲突的遍历问题。仍然使用之前的例子，不同的是每一个值同时还记录着它离自己本应映射到的位置的距离：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/pLZWJ0s.png" alt="" style="width:80%">
+</div>
+</figure>
+<p>可以看到A，B都在他们本应在的位置上所以这个数字都是0.但是当C哈希之后与A重复，便向下放入，并且把这一距离增加为1，表达它与它本应该哈希到的位置相距1.之后插入D，由于它和C重复，所以当它移动到C的位置上的时候，这个距离是0，由于小于C的距离，就再次向下放入，标记距离为1。但是放入E的时候：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/g1OGrtn.png" alt="" style="width:80%">
+</div>
+</figure>
+<p>E和A冲突，此时E的距离也是0，所向下下移动，同理遇到C后向下移动。但是移动到D的时候，发现D的距离是1，但是自己的距离是2了，就交换两者：两者最后都变成了2.虽然总的偏移没有减小，但是平均值降低了。虽然一定程度上减轻了便所需要的时间，但是由于发生冲突后会造成更多写入（比如上面插入E需要写入E和移动D）。</p>
+<br>
+<br>
+<p>    <strong>Cuckoo Hashing</strong>：使用不同的哈希函数，把元素放入不同的哈希表中，来减少冲突。它的哈希和插入的过程比较复杂，但是之后的查询和删除都是$O(1)$. 考虑例子：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/usmlcWM.png" alt="" style="width:80%">
+</div>
+</figure>
+<p>插入A的时候，A会被哈希两次，分别得到两个哈希表中对应的哈希值。由于两边都是空的，A可以随便选一边插入，这里插入了左边。</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/pyk1hyK.png" alt="" style="width:80%">
+</div>
+</figure>
+<p>之后插入B，同样哈希两次，由于其左侧哈希表对应的位置被A使用了，所以进入右侧哈希表对应的位置。</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/Uyk6nnj.png" alt="" style="width:80%">
+</div>
+</figure>
+之后插入C，结果两个哈希值都有冲突，此时C任意选一个替换，这里选择了B。
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/xoRQK2e.png" alt="" style="width:80%">
+</div>
+</figure>
+<p>显然不能让B消失，使用第一个哈希函数哈希B，得到其在左侧的位置，与A冲突，将其替换。对A做一样的调换，最终冲突不存在了。这种哈希方式很明显，需要进行多次写入，而且假设上述例子中A第二次哈希的位置也有元素了，那么可能会导致死循环。解决死循环的方法就是，当一个元素发现自己要替换的目的地是之前它呆过的地方，那么就重新构建哈希表为两个更大尺寸的。两个哈希表+两个哈希函数的组合造成死循环冲突的概率很小，当发生的时候，可以推断两个哈希表中有很多数据了。</p>
+<br>
+<br>
+<p>    上述的三个方法仍然需要DBMS去事先知道将会存储的元素的个数，不然就会在元素数量大于可用的slot数量之后重构哈希表（在某些情况也可能想要缩小哈希表），这个操作十分耗时。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="45-动态哈希-dynamic-hashing">4.5 动态哈希 Dynamic Hashing<a href="#45-动态哈希-dynamic-hashing" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    动态哈希解决了需要重构哈希表的情况，因为它可以动态地分配空间。有三种动态哈希的设计：</p>
+<blockquote>
+<ol>
+<li>
+<p>Chained Hashing;</p>
+</li>
+<li>
+<p>Extensible Hashong;</p>
+</li>
+<li>
+<p>Linear Hashing.</p>
+</li>
+</ol>
+</blockquote>
+<br>
+<br>
+<p>    <strong>Chained Hashing</strong>：是一种类似邻接表的实现：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/3nLD876.png" alt="" style="width:80%">
+</div>
+</figure>
+<p>当一个元素添加的时候，假如发生了哈希冲突，它就会被加入到这个哈希值所对应的链表中，只不过这些链表是由Bucket/Page组成，元素会被放入有剩余空间的Page中。当查询/删除时，得到目标链表之后，会遍历链表上的每一个Page中的每一个元素知道找到对应的Key。</p>
+<br>
+<br>
+<p>     <strong>Extensible Hashing</strong>：给予Chained-Hashing，但是优化了链表的增长，也便优化了对其的遍历。在这种机制之中，多个哈希表的slot可以指向同一个Bucket：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/CZbZbz3.png" alt="" style="width:80%">
+</div>
+</figure>
+<p>global计数器记录着“使用哈希值的前n位来分配slot”，local计数器记录着“如果想要找到当前Bucket需要查看一个哈希值的前n为”，后者在分配位置的过程中没用。在上面的例子中，假如现在要插入一个新元素，在哈希之后的得到哈希值，使用前两位决定分配到哪一个slot指向的Bucket中：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/tG67TTl.png" alt="" style="width:80%">
+</div>
+</figure>
+<p>由于这里的A哈希之后得到01，就根据前两位被分配到了01槽位（这里不用关心00和01共享一个Bucket，Bucket这部分对于哈希来说是透明的）。同理插入B，C，若此时冲突发生：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/J13ZjVe.png" alt="" style="width:80%">
+</div>
+</figure>
+<p>并不会在第二个Bucket后面增加一个Bucket，而是会把这个Bucket分裂：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/Qozsy7t.png" alt="" style="width:80%">
+</div>
+</figure>
+这里会把哈希表重新建构，重新建构的哈希表实际上就是之前的哈希表的每个槽位代表的哈希值后面分别增加1/0，所以会导致槽位格数*2，global计数器++。增加0/1后的哈希表的slot仍然指向之前微增加0/1时指向的Bucket，所以000，010，001，011都指向第一个Bucket。然后没有空位造成分裂的那个Bucket会被分裂成2个，其中的元素会再次被哈希，来决定它们属于分离后的Bucket的哪个（不用担心其他元素，因为它们的位置肯定不会变），最后插入目标元素。并且，分裂之后的Bucket的local计数器也会增加。虽然需要重构哈希表，但是由于这个哈希表（不同于之前的哈希表）相比于原数据的量很少，所以不算成本大。
+<br>
+<br>
+<p>    <strong>Linear Hashing</strong>：使用一个指针指向“下一个待分裂的Bucket”，分裂的是指针指向的，而非overflow的：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/3AhwW8J.png" alt="" style="width:80%">
+</div>
+</figure>
+<p>此时再添加17的时候，哈希表中发生了溢出，此时会分裂指针指向的slot，也就是0。做法是：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/kL0QQSH.png" alt="" style="width:80%">
+</div>
+</figure>
+<p>首先增加创建一个新的slot和一个新的哈希函数，也就是hash2。使用hash2来重新哈希指针所指向的Bucket中的数据，这里会把20重新分配到新的Bucket中。17仍然会被添加到溢出的位置，但是此时分裂指针指向了它所在的slot，这意味着，下次溢出发生时，它将会被分裂，达成平衡。当接下来添加或查询元素的时候，假如使用第一个哈希函数得到了已经被分裂指针遍历过的slot，那么就使用第二个哈希函数再次分配这个Key。当所有slot都被遍历之后，指针返回开头，弃用第一个哈希函数，以此往复。<strong>注</strong>：创建新的哈希函数之后，这个函数可以用到新建slot到总数为2n时，但那个时候第二个哈希函数会代替第一个哈希函数成为第一个哈希函数，然后迎来第三个哈希函数（但是同一时刻最多有两个哈希函数）。线性哈希也支持删除：是添加的完全相反的步骤，删除最新增的slot和哈希函数（但是由于下一次添加可能又导致溢出，执行重复的操作，DBMS可能并不会直接弃用之前新增的slot）。</p>
+
+			</div>
+			<hr class="post-end">
+			<footer class="post-info">
+				<p><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-file-text"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>6035 字</p>
+				<p><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-calendar"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>2022-08-25 10:32 -0400</p>
+			</footer>
+		</article>
+		<div class="post-nav thin">
+			<a class="prev-post" href="https://hoooao.github.io/db/part3/">
+				<span class="post-nav-label">下一篇&nbsp;<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-arrow-right"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></span><br><span>Chap 3: 数据库存储 DB Storage</span>
+			</a>
+		</div>
+		<div id="comments" class="thin">
+</div>
+	</main>
+
+	<footer id="site-footer" class="section-inner thin animated fadeIn faster">
+		<p>&copy; 2022 <a href="https://hoooao.github.io/">Xiyu Hao</a> &#183; <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" rel="noopener">CC BY-NC 4.0</a></p>
+		<p>
+			Made with <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> &#183; Theme <a href="https://github.com/Track3/hermit" target="_blank" rel="noopener">Hermit</a> &#183; <a href="https://hoooao.github.io/posts/index.xml" target="_blank" title="rss"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-rss"><path d="M4 11a9 9 0 0 1 9 9"></path><path d="M4 4a16 16 0 0 1 16 16"></path><circle cx="5" cy="19" r="1"></circle></svg></a>
+		</p>
+	</footer>
+
+
+
+	<script src="https://hoooao.github.io/js/bundle.min.5a42c67b729ee2fa1059251688235399704707e04edb4e28c42c6f6dfa49d1d9.js" integrity="sha256-WkLGe3Ke4voQWSUWiCNTmXBHB+BO204oxCxvbfpJ0dk=" crossorigin="anonymous"></script>
+	
+
+</body>
+
+</html>

@@ -12,7 +12,7 @@
  3.1 物理储存&amp;接口概述 Overview of Physical Storage Media&amp;Interface  缓存（Cache）：缓存是最快的存储，但缓存不是数据库的重点。
  主内存（Main Memory）：通常来说，只有储存在内存的数据可以被直接修改。相对于DB，内存太小，并且“volatile”，即在断电后数据被清除。"><meta itemprop="datePublished" content="2022-08-18T15:30:08-04:00" />
 <meta itemprop="dateModified" content="2022-08-18T15:30:08-04:00" />
-<meta itemprop="wordCount" content="283">
+<meta itemprop="wordCount" content="295">
 <meta itemprop="keywords" content="" /><meta property="og:title" content="Chap 3: 数据库存储 DB Storage" />
 <meta property="og:description" content="目录   导言  3.1 物理储存&amp;接口概述 Overview of Physical Storage Media&amp;Interface  3.2 磁盘 Magnetic Disks  3.3 文件组成 File Organization   3.3.1 属性在Record中的存储  3.3.2 Block布局：Tuple-oriented  3.3.3 Block布局：Log-structured    3.4 文件中的Records的组织 Organization of Records in Files  3.5 数据表示 Data Representation  3.6 储存模型 Storage Model   导言：  本章的主要内容包括文件是如何储存在磁盘上的，以及对于如何构建可靠的储存结构的讨论。
  3.1 物理储存&amp;接口概述 Overview of Physical Storage Media&amp;Interface  缓存（Cache）：缓存是最快的存储，但缓存不是数据库的重点。
@@ -151,10 +151,10 @@
 <img src="https://i.imgur.com/d7g2N1R.png" alt="" style="width:80%">
 </div>
 </figure>
-<p>    每一层 <strong>盘（Platter）</strong> 都有两面，被有磁性的物质覆盖着，信息被记录在他们的表面。当磁盘被使用的时候，Drive motor会驱动中心的轴，所有盘同时开始运动。**读写头（R/W head）**会被放置在盘的表面。形式上每个表面都被分为了不同的 <strong>轨道（Track）</strong>，而这些轨道又再次被分为 <strong>扇区（Sectors）</strong>。扇区就是磁盘读写的最小单位。每一个扇区通常512Bytes，通常一整个磁盘有20～240亿个扇区。</p>
-<p>    读写头可以通过磁力来改变盘表面上的磁的方向，从而修改数据。一个磁盘通畅有多个盘组成，也就会有多个读写头。这些读写头被一个disk arm操控，所以它们的运动是一样的：当第一个头运动到了第i个track的时候，其他所有头也都运动到了对应表面的第i个track，这些track在形式上右组成了第i个“<strong>圆柱体（Cylinder）</strong>”。</p>
-<p>    Disk Controller是OS与磁盘硬件之间的接口。现在磁盘系统中，这个控制器是驱动的一部分。它可以监测数据是否成功读写，并且也可以标记坏掉的sector，让系统不再使用这个sector。</p>
-<p>     **访问时间（Access time）**指的是从数据请求到数据发送开始之间的过程。为了访问一个数据arm需要运动到指定的轨道上。调整arm的时间叫做 <strong>Sek time</strong>。之后，磁盘会旋转，让目标扇区在读写头之下，这一过程的时间叫做 <strong>Rotational Latency Time</strong>。平均旋转时间是磁盘旋转一圈时间的一半。**数据传输速率（data-transfer rate）**是数据读写的时间。</p>
+<p>    每一层 <strong>盘（Platter）</strong> 都有两面，被有磁性的物质覆盖着，信息被记录在他们的表面。当磁盘被使用的时候，Drive motor会驱动中心的轴，所有盘同时开始运动。<strong>读写头（R/W head）</strong> 会被放置在盘的表面。形式上每个表面都被分为了不同的 <strong>轨道（Track）</strong>，而这些轨道又再次被分为 <strong>扇区（Sectors）</strong>。扇区就是磁盘读写的最小单位。每一个扇区通常512Bytes，通常一整个磁盘有20～240亿个扇区。</p>
+<p>    读写头可以通过磁力来改变盘表面上的磁的方向，从而修改数据。一个磁盘通常有多个盘组成，也就会有多个读写头。这些读写头被一个disk arm操控，所以它们的运动是一样的：当第一个头运动到了第i个track的时候，其他所有头也都运动到了对应表面的第i个track，这些track在形式上又组成了第i个“<strong>圆柱体（Cylinder）</strong>”。</p>
+<p>    Disk Controller是OS与磁盘硬件之间的接口。现代磁盘系统中，这个控制器是驱动的一部分。它可以监测数据是否成功读写，并且也可以标记坏掉的sector，让系统不再使用这个sector。</p>
+<p>     <strong>访问时间（Access time）</strong> 指的是从数据请求到数据发送开始之间的过程。为了访问一个数据arm需要运动到指定的轨道上。调整arm的时间叫做 <strong>Seek time</strong>。之后，磁盘会旋转，让目标扇区在读写头之下，这一过程的时间叫做 <strong>Rotational Latency Time</strong>。平均旋转时间是磁盘旋转一圈时间的一半。<strong>数据传输速率（data-transfer rate）</strong> 是数据读写的时间。</p>
 <p>     <strong>Block number</strong>是操作系统在形式上给磁盘的部分设置的“地址”。一个block通常是4-16KB。有时候会和Page混用。对block的访问可以被看作 <strong>Sequential access</strong>，访问是对连续的block number进行的，只需要seek一次。与此对比的是随机访问，也就是对不同的block number的访问，需要seek多次。</p>
 <p>    计算机中的Page：</p>
 <blockquote>
@@ -165,7 +165,7 @@
 </ol>
 </blockquote>
 <p>当DB page和前两者不同步的时候，可能导致写入非原子化（比如当DBpage为16KB，而硬件只保证4KB的原子写入）。</p>
-<p>    **失效中位时间（MTTF：Mean time to failure）**是磁盘可靠性的指标。</p>
+<p>    <strong>失效中位时间（MTTF：Mean time to failure）</strong> 是磁盘可靠性的指标。</p>
 <br>
 <br>
 <br>
@@ -181,17 +181,17 @@
 </div>
 </figure>
 <p>上图描述了一个执行引擎（一个可以理解DBMS语言的程序）获取信息的过程：它首先把SQL语句解析为对Page#2的请求发送到内存。通过查询Buffer Pool中的目录得到Page#2在磁盘上的位置，把它从磁盘读入内存，最后把其内存指针返回给引擎。</p>
-<p>    一个数据库被映射为一个被底层操作系统维护着的多个文件。一个文件在形式上是对一系列的 <strong>record</strong>的储存。这些信息/record又映射到对应的disk block上。一个block中可能储存着多个record。通常来说，一个记录/Tuple不会比block大，所以可以假设没有记录比block大。并且被一个记录必须完整地存在于一个block中：不能不同的部分在不同的block中。这个限制简化并加速了对数据的取用。record实际上是之前所提到的关系中的tuple在硬盘上的真实的表达。Block通常需要以下特点：</p>
+<p>    一个数据库被映射为一个被底层操作系统维护着的多个文件。一个文件在形式上是对一系列的 <strong>record</strong>的储存。这些信息/record又映射到对应的disk block上。一个block中可能储存着多个record。通常来说，一个记录/Tuple不会比block大，所以可以假设没有记录比block大。并且一个记录必须完整地存在于一个block中：不能不同的部分在不同的block中。这个限制简化并加速了对数据的取用。record实际上是之前所提到的关系中的tuple在硬盘上的真实的表达。Block通常需要以下特点：</p>
 <blockquote>
 <ol>
 <li>
-<p>可以储存任何内容：tuples，原数据，indecies, log等；</p>
+<p>可以储存任何内容：tuples，元数据，indecies, log等；</p>
 </li>
 <li>
-<p>通常内容不会混在一个block中；</p>
+<p>通常不同种类内容不会混在一个block中；</p>
 </li>
 <li>
-<p>一些系统要求block是 “self-contained”，也就是说一个block需要保存着自己的原数据。如何解读一个block的内容的方法应当储存在block自身，这个解读包括数据的原数据，比如属性和schema等。这一要求可以用来数据恢复。假如原数据只存在于某一个block中，那么这个block的损坏可能造成无法解读其位于其他block上的数据。</p>
+<p>一些系统要求block是 “self-contained”，也就是说一个block需要保存着自己的元数据。如何解读一个block的内容的方法应当储存在block自身，这个解读包括数据的元数据，比如属性和schema等。这一要求可以用来数据恢复。假如元数据只存在于某一个block中，那么这个block的损坏可能造成无法解读其位于其他block上的数据。</p>
 </li>
 </ol>
 </blockquote>
@@ -295,7 +295,7 @@
 <br>
 <h2 id="34-文件中的records的组织-organization-of-records-in-files">3.4 文件中的Records的组织 Organization of Records in Files<a href="#34-文件中的records的组织-organization-of-records-in-files" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
 <p>    上述内容解决了Record内部和Block内部的组成。更高一层的单位是文件。对于文件组织结构的设计有很多，它们规划一个文件的Pages在磁盘上的布局。这里主要介绍 <strong>堆文件组织（Heap File Organization）</strong>。</p>
-<p>    Head file是一个无序的Pages的集合。在这种结构中，records的排列没有顺序：即使在一个关系中某个tuple比另一个tuple靠前，但实际上的磁盘上的顺序不一定是这样的（它们所在的Page的顺序不是它们在关系中的顺序）。需要原数据来追踪哪些Page存在，并且哪些有可以使用的空间。</p>
+<p>    Head file是一个无序的Pages的集合。在这种结构中，records的排列没有顺序：即使在一个关系中某个tuple比另一个tuple靠前，但实际上的磁盘上的顺序不一定是这样的（它们所在的Page的顺序不是它们在关系中的顺序）。需要元数据来追踪哪些Page存在，并且哪些有可以使用的空间。</p>
 <p>    Heap File有两种实现方式：Linked List 和 Page Directory。</p>
 <p>    <strong>Linked List</strong>（双向链表）：现在没有人使用这种实现。在文件的开头，存在一个header page，保存着两个指针：1. 可用Page的Page list的头节点；2.满了的Page的Page list的头节点</p>
 <figure>
@@ -310,7 +310,7 @@
 <img src="https://i.imgur.com/Js9RcWD.png" alt="" style="width:80%">
 </div>
 </figure>
-<p>它记录着每一个Page的位置以及对应的Page中剩余的空间。DBMS需要确保目录中记录的数据和对应的Data Page的真实信息同步：假设对某个Page进行了使用，其剩余容量减少，此时崩溃发生；如果Dir中的原数据先更新，Page可能实际上并没有被写入，实际容量也没有减少；如果成功写入但是没有更新Dir，也一样。</p>
+<p>它记录着每一个Page的位置以及对应的Page中剩余的空间。DBMS需要确保目录中记录的数据和对应的Data Page的真实信息同步：假设对某个Page进行了使用，其剩余容量减少，此时崩溃发生；如果Dir中的元数据先更新，Page可能实际上并没有被写入，实际容量也没有减少；如果成功写入但是没有更新Dir，也一样。</p>
 <br>
 <br>
 <br>
@@ -328,7 +328,7 @@
 <p>Float/Real：使用IEEE-754标准，前者双精度，后者单精度，用来表达浮点小数。但是它们，由于是计算机与安生的数据类型，无法保证精度过高时的数据的准确性，可能造成rounding errors；</p>
 </li>
 <li>
-<p>Numeric/Decimal：同样是浮点数，但是是DBMS自定义的数据类型，前者接受准确的数字长度（scale）和精度，后者只接受准确的长度，精度会大于等于传入的精度。底层是结构体和C++程序，类似varchar，储存的是人类可以阅读的数字/字符串，然后通过原数据来指示小数点在哪里。由于它底层并不直接是机器而是一堆程序，导致相对于上述类型，执行速度较慢；这就是一个Numeric的表示：</p>
+<p>Numeric/Decimal：同样是浮点数，但是是DBMS自定义的数据类型，前者接受准确的数字长度（scale）和精度，后者只接受准确的长度，精度会大于等于传入的精度。底层是结构体和C++程序，类似varchar，储存的是人类可以阅读的数字/字符串，然后通过元数据来指示小数点在哪里。由于它底层并不直接是机器而是一堆程序，导致相对于上述类型，执行速度较慢；这就是一个Numeric的表示：</p>
 </li>
 </ul>
 <figure>
@@ -346,7 +346,7 @@
 </figure>
 <p>如图所示，储存在Tuple中的实际上是一个指针，这个指针指向该数据真正储存的位置。对于这个Page，有的DBMS叫做Overflow Page，有的叫做TOAST。数据多大的时候使用这样的Page，不同的DBMS的规定不一样。假如一个这样的Page还不够，那么可以从这个Page再伸出一个指针指向另一个Page。每当出现一个询问的时候，DBMS会把指针指向的内容全部取出作为输出。</p>
 <p>    有的DBMS允许一个指针通过文件路径指向 <strong>外部文件（External File）</strong>。但是DBMS不会允许对这样的文件的修改（但是可以直接修改）：它们不受DBMS保护。在读外部文件的时候，也一样会被读入内存。这种存储方式通常可以在视频网站看到：当一个用户上传了视频后，由于视频体积很大，所以通常不会把这样的文件直接存在硬件贵的DBMS中。</p>
-<p>    <strong>系统目录 (System Catalogs)</strong>: 每一个数据库都会储存关于自己的原数据。通常这一原数据也是以一个关系/表存在于数据库内部的。它通常记录着数据库中的关系，属性，indices，查看次数，用户权限，内部统计等等。DBMS会提供特殊的指令<code>INFORMATION_SCHEMA</code>来访问这个表。</p>
+<p>    <strong>系统目录 (System Catalogs)</strong>: 每一个数据库都会储存关于自己的元数据。通常这一元数据也是以一个关系/表存在于数据库内部的。它通常记录着数据库中的关系，属性，indices，查看次数，用户权限，内部统计等等。DBMS会提供特殊的指令<code>INFORMATION_SCHEMA</code>来访问这个表。</p>
 <br>
 <br>
 <br>
@@ -395,6 +395,13 @@
 </li>
 </ul>
 <p>    DSM的优缺点和N-ary相反：它支持更好的大规模Tuple查看，更好的数据压缩，但是对于特定的Tuple的CRUD性能差</p>
+<p>    采用 <strong>分支环境（Bifurcated Enviroment）</strong>：在前端进行OLTP，实现交易，然后通过 <strong>Extract Transformation Load</strong> 把数据转移到OLAP数据仓库中进行数据分析，最后把数据分析的结果返回到前端：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/TY0q9ur.png" alt="" style="width:80%">
+</div>
+</figure>
+<p>但是同时也存在分支环境会把交易和分析的处理全部在前端完成（HTAP），然后把数据放入更大的数据仓库中储存。</p>
 
 			</div>
 			<hr class="post-end">
@@ -404,6 +411,9 @@
 			</footer>
 		</article>
 		<div class="post-nav thin">
+			<a class="next-post" href="https://hoooao.github.io/db/part4/">
+				<span class="post-nav-label"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-arrow-left"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>&nbsp;上一篇</span><br><span>Chap 4: 缓冲池 &amp; 哈希表 Buffer Pools &amp; Hash Tables</span>
+			</a>
 			<a class="prev-post" href="https://hoooao.github.io/db/part2/">
 				<span class="post-nav-label">下一篇&nbsp;<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-arrow-right"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></span><br><span>Chap 2: SQL进阶 Modern SQL</span>
 			</a>

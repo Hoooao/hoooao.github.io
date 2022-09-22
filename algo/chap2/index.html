@@ -15,7 +15,7 @@
 需求：
   在头部添加元素：给e[idx]赋值，让ne[idx]指向head所指向的节点（原头节点）并且让head等于idx，让它成为头节点。 在k节点的后面添加节点。这里的k是节点idx的值。类似添加头节点，只不过把head换成了某个节点 删除节点k后面的节点：实际上就是让k的ne[k]跳过下一个节点，即等于下一个节点的ne。   #include &lt;iostream&gt;using namespace std; #define N 100010 int m,head,idx; int e[N],ne[N]; //初始化链表，用-1代表null，即尾部 void init(){ head=-1; //idx从0开始分配，代表着共有几个节点被创建  idx=0; } void remove (int k){ //跳过下一个点  ne[k]=ne[ne[k]]; } void addH(int x){ //这里可以合并成一行写，是用逗号分隔  e[idx]=x, ne[idx]=head, head=idx&#43;&#43;; } void add(int k, int x){ e[idx]=x, ne[idx]=ne[k], ne[k]=idx&#43;&#43;; } int main() { char a; int b,c; init(); //a是输入的指令  cin&gt;&gt;a; if(a==&#39;H&#39;){ cin&gt;&gt;b; addH(b); } if(a==&#39;D&#39;){ cin&gt;&gt;b; if(!"><meta itemprop="datePublished" content="2022-07-22T16:06:12-04:00" />
 <meta itemprop="dateModified" content="2022-07-22T16:06:12-04:00" />
-<meta itemprop="wordCount" content="1792">
+<meta itemprop="wordCount" content="1797">
 <meta itemprop="keywords" content="" /><meta property="og:title" content="Chap2: 数据结构" />
 <meta property="og:description" content="目录  导言：  本章主要介绍一些常用的数据结构的实现，包括单链表，双链表，栈，队列，单调栈，单调队列，KMP，Trie，并查集，堆，哈希表等内容。注：本章着重于数据结构模拟，即用数组模拟上述数据结构：数组模拟的数据结构比STL快。
  2.1 链表  链表的实现有两种，第一种是通过结构体保存当前节点的数据和指向下一个/上一节点的指针，第二种是通过数组模拟链表，即用多个数组分别代表第 idx 个节点的数据，上下节点（静态链表）。
@@ -178,9 +178,10 @@
 </span></span><span class="line"><span class="cl">    <span class="p">}</span>
 </span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">a</span><span class="o">==</span><span class="sc">&#39;I&#39;</span><span class="p">){</span>
 </span></span><span class="line"><span class="cl">        <span class="n">cin</span><span class="o">&gt;&gt;</span><span class="n">b</span><span class="o">&gt;&gt;</span><span class="n">c</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">        <span class="n">add</span><span class="p">(</span><span class="n">b</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="n">c</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">//-1是因为idx从0开始
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="n">add</span><span class="p">(</span><span class="n">b</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="n">c</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="p">}</span>
-</span></span><span class="line"><span class="cl">    <span class="c1">//遍历需要通过寻找下一个即诶单完成而不是i+1，因为idx不连续
+</span></span><span class="line"><span class="cl">    <span class="c1">//遍历需要通过寻找下一个节点完成而不是i+1，因为idx不连续
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="n">head</span><span class="p">;</span> <span class="n">i</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span> <span class="n">i</span> <span class="o">=</span> <span class="n">ne</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="n">e</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">&lt;&lt;</span> <span class="sc">&#39; &#39;</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl"><span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
@@ -296,7 +297,7 @@
 </span></span></code></pre></div><br>
 <br>
 <p><strong>普通队列</strong>：FIFO：first in first out</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C++" data-lang="C++"><span class="line"><span class="cl"><span class="c1">// q表示这个队列，hh表示队头，tt表示队尾（从0开始）
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C++" data-lang="C++"><span class="line"><span class="cl"><span class="c1">// q表示这个队列，hh表示队头，tt表示队尾（从-1开始，tt-hh=-1代表没有元素，=0代表有一个）
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kt">int</span> <span class="n">q</span><span class="p">[</span><span class="n">N</span><span class="p">],</span> <span class="n">hh</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">tt</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl"><span class="c1">// 向队尾插入一个数
@@ -333,7 +334,7 @@
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">if</span> <span class="p">(</span><span class="n">hh</span> <span class="o">!=</span> <span class="n">tt</span><span class="p">)</span>
 </span></span></code></pre></div><br>
 <br>
-<p><strong>单调栈</strong>：本质上就是一个栈，栈内元素单调</p>
+<p><strong>单调栈</strong>：本质上就是一个栈，维护栈内元素保持单调，使用单调性优化问题。</p>
 <p>例题：给定一个长度为 $N$ 的整数数列，输出每个数左边第一个比它小的数，如果不存在则输出 −1。</p>
 <p>输入格式:</p>
 <p>  第一行包含整数 N，表示数列长度。</p>
@@ -430,14 +431,20 @@
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p>    在暴力解法中，如果字符串 $p$ 某个位置与$s$ 不匹配，那么就把$p$从头和 $s$ 的下一位对比。这样时间复杂度会很高，$\Theta(n^2)$。</p>
 <p>    KMP的基本思想就是类似动态规划的思想为了不做重复的计算（比较），事先会把每个字符位置上对应的最优解（最少的移动量）记录。</p>
-<p>比如上图中上面是字符串$s$，下面是$p$，它们在第六个元素上不一样。暴力做法会让p的第一个A和s的第2个元素重新比较。KMP算法指出一点：假如字符串p中有公共前后缀，那么可以直接把前缀移动到后缀的位置，就可以节省很多步骤。公共前后缀的定义：如上图中两个白框所示，她俩就是一对公共前后缀：前缀以第一个元素开始，后缀以最后一个元素结尾的一模一样的两个子串。在移动之后就会变成这样：</p>
+<p>比如下图中上面是字符串$s$，下面是$p$，它们在第六个元素上不一样。暴力做法会让p的第一个A和s的第2个元素重新比较。KMP算法指出一点：假如字符串p中有公共前后缀，那么可以直接把前缀移动到后缀的位置，就可以节省很多步骤。公共前后缀的定义：如上图中两个白框所示，他俩就是一对公共前后缀：前缀以第一个元素开始，后缀以最后一个元素结尾的一模一样的两个子串。在移动之后就会变成这样：</p>
 <figure>
 <div style="text-align:center">
 <img src="https://i.imgur.com/8obuIS1.png" alt="" style="width:100%; background: rgba(255, 255, 255, .5)">
 <figcaption><b>Fig.3 KMP移动后</b></figcaption>
 </div>
 </figure>
-<p><strong>注</strong>：前后缀的长度不可以等于p的长度，因为这样是没有意义的（即移动0次）。前后缀可以重叠，比如<code>BABABC</code>中，最长的前缀是<code>p[1~3]</code>，后缀是<code>p[3~5]</code>。这样就可以保证公共前后缀最长。而保证其最长（移动距离最短）的目的是不要跳过任何一个公共子串。</p>
+<p><strong>注</strong>：前后缀的长度不可以等于p的长度，因为这样是没有意义的（即移动0次）。前后缀可以重叠，比如<code>BABABC</code>中，最长的前缀是<code>p[1~3]</code>，后缀是<code>p[3~5]</code>。这样就可以保证公共前后缀最长。而保证其最长（移动距离最短）的目的是不要跳过任何一个公共子串：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/BiSPzaK.png" alt="" style="width:100%; background: rgba(255, 255, 255, .5)">
+<figcaption><b>Fig.4[5] 最长公共前后缀</b></figcaption>
+</div>
+</figure>
 <p>KMP的时间复杂度是$\mathcal{O}(2m)$，因为i共增加m次，导致j最多增加m次，而这一事实导致j最多减少m次。</p>
 <br>
 <br>
@@ -450,14 +457,14 @@
 <p>    Trie树是一种高效的存储/查找字符串集合的数据结构。它不是二叉树。</p>
 <figure>
 <div style="text-align:center">
-<img src="http://www.cppblog.com/images/cppblog_com/julyrina/%E5%AD%97%E5%85%B8%E6%A0%9101.png" alt="" style="width:100%; background: rgba(255, 255, 255, .5)">
-<figcaption><b>Fig.4[3] Trie树</b></figcaption>
+<img src="https://i.imgur.com/E2USEdi.png" alt="" style="width:50%; background: rgba(255, 255, 255, .5)">
+<figcaption><b>Fig.5[3] Trie树</b></figcaption>
 </div>
 </figure>
 <p>比如上面的图中，通过二叉树储存了6个字符串。每当插入一个字符串时，从根部的子节点开始插入第一个字符。如果字符存在，就顺着存在的节点往下走并继续插入。当某个字符不存在，则创建新子节点。有可能会出现一个字符串是另一个已经存放的字符串的前缀子串，那么会在某个子节点的位置（非叶节点）终止。</p>
 <figure>
 <div style="text-align:center">
-<img src="https://i.imgur.com/FIOXwtX.png" alt="" style="width:100%; background: rgba(255, 255, 255, .5)">
+<img src="https://i.imgur.com/FIOXwtX.png" alt="" style="width:50%; background: rgba(255, 255, 255, .5)">
 </div>
 </figure>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C++" data-lang="C++"><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;iostream&gt;</span><span class="cp">
@@ -944,7 +951,7 @@ h[4]= ABCD: 1234
 <div style="text-align:center">
 <img src="https://cdn.acwing.com/media/article/image/2022/05/02/187016_09135a6cc9-%E5%AD%97%E7%AC%A6%E4%B8%B2%E5%93%88%E5%B8%8C%E6%80%9D%E8%B7%AF.png
 " alt="" style="width:100%; background: rgba(255, 255, 255, .5)">
-<figcaption><b>Fig.5[4] 哈希字符串</b></figcaption>
+<figcaption><b>Fig.6[4] 哈希字符串</b></figcaption>
 </div>
 </figure>
 <p>比如上图我们希望求出 $L~R$ 之间的字符串子串的哈希值，我们需要先知道L与R的哈希值。在之前的例子中，我们可以通过 <code>ABCD</code>和<code>AB</code>计算出<code>CD</code>的哈希值。在这个场景中，<code>ABCD=1234</code>，<code>AB=12</code>，所以<code>CD=ABCD-AB00=1234-12*10^2=34</code>。可以把这个思路推广成一个公式: <code>ans=h[R]-h[L-1]*p[R-L+1]</code>，其中R与L分别是目标子串的左右端点，p数组是预处理出的“P进制下，把L左移R-L+1所需的数字”。注：这个例子数据小，不存在取模造成的数据丢失，所以可以判断出<code>CD=34</code>，但是一旦有模存在，这种对应关系不存在。</p>
@@ -1115,6 +1122,9 @@ flip(k) 把第k位取反
 <p>    [2] KMP：https://www.bilibili.com/video/BV1jb411V78H</p>
 <p>    [3] Trie树：http://www.cppblog.com/images/cppblog_com/julyrina/%E5%AD%97%E5%85%B8%E6%A0%9101.png</p>
 <p>    [4] 哈希字符串：https://www.acwing.com/file_system/file/content/whole/index/content/5550915/</p>
+</blockquote>
+<blockquote>
+<p>    [5] 最长公共前后缀：https://cloud.tencent.com/developer/article/1706128</p>
 </blockquote>
 
 			</div>

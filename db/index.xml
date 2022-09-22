@@ -7,7 +7,19 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>zh-hans</language>
     <copyright>This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.</copyright>
-    <lastBuildDate>Thu, 18 Aug 2022 15:30:08 -0400</lastBuildDate><atom:link href="https://hoooao.github.io/db/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Thu, 25 Aug 2022 10:32:43 -0400</lastBuildDate><atom:link href="https://hoooao.github.io/db/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Chap 4: 缓冲池 &amp; 哈希表 Buffer Pools &amp; Hash Tables</title>
+      <link>https://hoooao.github.io/db/part4/</link>
+      <pubDate>Thu, 25 Aug 2022 10:32:43 -0400</pubDate>
+      
+      <guid>https://hoooao.github.io/db/part4/</guid>
+      <description>目录   缓冲池 Buffer Pool   导言：  4.1 缓冲池组成 Buffer Pool Organization  4.2 缓冲池优化 Buffer Pool Optimization  4.3 缓冲替换机制 Buffer Replacement Policies    哈希表 Hash Table   导言：  4.4 静态哈希表 Static Hash Table  4.5 动态哈希 Dynamic Hashing     缓冲池 Buffer Pool 导言：  上一章内容介绍了DBMS是如何把它的文件储存在磁盘上的，这一部分内容讨论DBMS是如何管理它在内存中的缓冲的文件以及如何把数据从内存放入磁盘。对于DB的管理涉及两个方面：
+   空间管理（Spatial Control）：把Page写入到哪里：目标为把通常会一起使用到Page储存在相邻的位置；
+  时间管理（Temporal Control）：什么时候把Page读入内存/写入磁盘：目标为尽可能减少磁盘与内存的互动。
+    4.</description>
+    </item>
+    
     <item>
       <title>Chap 3: 数据库存储 DB Storage</title>
       <link>https://hoooao.github.io/db/part3/</link>
@@ -25,7 +37,7 @@
       <pubDate>Wed, 13 Jul 2022 19:11:24 -0400</pubDate>
       
       <guid>https://hoooao.github.io/db/part2/</guid>
-      <description>目录  SQL进阶 Advanced SQL  导言： 2.1 SQL作为数据定义语言 SQL&amp;amp;Data Definition Language 2.2 SQL查询基础结构 Basic Structure of SQL Queries  2.2.1 单关系查询 Queries on a Single Relation 2.2.2 多关系查询 Queries on a Multiple Relations   2.3 基础操作 Basic Operations 2.4 集合操作 Set Operations 2.5 Null值 Null Values 2.6 聚合函数 Aggregate Functions  2.6.1 基础聚合 Basic Aggregation 2.6.2 分组聚合 Aggregation with Grouping 2.6.3 Having 语句/从句   2.7 嵌套子查询 Nested Subqueries  2.</description>
+      <description>目录   SQL进阶 Advanced SQL   导言  2.1 SQL作为数据定义语言 SQL&amp;amp;Data Definition Language  2.2 SQL查询基础结构 Basic Structure of SQL Queries   2.2.1 单关系查询 Queries on a Single Relation  2.2.2 多关系查询 Queries on a Multiple Relations    2.3 基础操作 Basic Operations  2.4 集合操作 Set Operations  2.5 Null值 Null Values  2.6 聚合函数 Aggregate Functions   2.6.1 基础聚合 Basic Aggregation  2.6.2 分组聚合 Aggregation with Grouping  2.</description>
     </item>
     
     <item>
