@@ -7,36 +7,19 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>zh-hans</language>
     <copyright>This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.</copyright>
-    <lastBuildDate>Sun, 14 Aug 2022 10:13:45 -0400</lastBuildDate><atom:link href="https://hoooao.github.io/algo/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Thu, 11 Aug 2022 13:20:14 -0400</lastBuildDate><atom:link href="https://hoooao.github.io/algo/index.xml" rel="self" type="application/rss+xml" />
     <item>
-      <title>Chap4</title>
-      <link>https://hoooao.github.io/algo/chap4/</link>
-      <pubDate>Sun, 14 Aug 2022 10:13:45 -0400</pubDate>
-      
-      <guid>https://hoooao.github.io/algo/chap4/</guid>
-      <description>目录  导言：  本章介绍数学知识，包括质数，约数，欧拉函数，快速幂，扩展欧几里得算法，中国剩余定理，高斯消元，求组合数，容斥原理，博弈论等内容。
-br&amp;gt;  4.1 数论  质数，约数。
-4.1.1 质数  </description>
-    </item>
-    
-    <item>
-      <title>Chap3</title>
+      <title>Chap3: 图论 Graph Theory</title>
       <link>https://hoooao.github.io/algo/chap3/</link>
       <pubDate>Thu, 11 Aug 2022 13:20:14 -0400</pubDate>
       
       <guid>https://hoooao.github.io/algo/chap3/</guid>
-      <description>目录  导言： 本章着重于图论的介绍，包括DFS，BFS，树与图的深度优先遍历，树与图的广度优先遍历，拓扑排序，Dijkstra，bellman-ford，spfa，Floyd，Prim，Kruskal，染色法判定二分图，匈牙利算法等内容。
- 3.1 深度优先  DFS每次会搜索到叶节点再回溯。DFS使用stack，空间复杂度为$\mathcal{O}(h)$，也就是说大小和高度成正比。不具有最短性。DFS中最重要的两个概念：回溯，剪枝。
- 例题：排列数字：给定一个整数 n，将数字 1∼n 排成一排，将会有很多种排列方法。现在，请你按照字典序将所有的排列方法输出。
- 输入格式：
- 共一行，包含一个整数 n。
- 输出格式： 按字典序输出所有排列方案，每个方案占一行。
- 数据范围：$1\leq n \leq 7$.
-int path[N]; int n; void DFS(int u, int state){ //如果遍历到最后一个元素了，说明可以位数足够输出了  if(u==n){ for (int i = 0; i &amp;lt; n; i ++ )printf(&amp;#34;%d &amp;#34;,path[i]); puts(&amp;#34;&amp;#34;); } //遍历每一个数字  for (int i = 0; i &amp;lt; n; i ++ ){ //检查state第i个bit的值，如果是0证明对应的数字（i+1）还没有被使用  if(!(state&amp;gt;&amp;gt;i&amp;amp;1)){ //+1得到对应的数字  path[u]=i+1; //递归path下一位，设置state对应位置为“被使用”  //这里不用担心在下次递归的时候state对应位置会出问题，因为由于传入形参作为局部变量存在，不会对着一层的state造成影响  DFS(u+1,state+(1&amp;lt;&amp;lt;i)); } } } int main(){ cin&amp;gt;&amp;gt;n; //从根节点开始，对应着遍历的最左侧的数字  //第二个0代表state，使用压位，每一位代表一个元素的状态  DFS(0,0); }</description>
+      <description>目录   导言  3.1 深度优先  3.2 广度优先  3.3 图  3.3 拓扑排序  3.4 最短路   3.4.1 朴素Dijkstra  3.4.2 堆优化Dijkstra  3.4.3 Bellman-Ford 算法  3.4.4 SPFA算法  3.4.5 Floyd算法    3.5 最小生成树   3.5.1 朴素版普里姆  3.5.2 Kruskal    3.6 二分图   3.6.1 染色法  3.6.2 匈牙利算法      导言： 本章着重于图论的介绍，包括DFS，BFS，树与图的深度优先遍历，树与图的广度优先遍历，拓扑排序，Dijkstra，bellman-ford，spfa，Floyd，Prim，Kruskal，染色法判定二分图，匈牙利算法等内容。
+ 3.1 深度优先  DFS每次会搜索到叶节点再回溯。DFS使用stack，空间复杂度为$\mathcal{O}(h)$，也就是说大小和高度成正比。不具有最短性。DFS中最重要的两个概念：回溯，剪枝。</description>
     </item>
     
     <item>
-      <title>Chap1: 基础算法</title>
+      <title>Chap1: 基础算法 Basics</title>
       <link>https://hoooao.github.io/algo/chap1/</link>
       <pubDate>Sun, 31 Jul 2022 10:51:16 -0400</pubDate>
       
@@ -45,17 +28,30 @@ int path[N]; int n; void DFS(int u, int state){ //如果遍历到最后一个元
     </item>
     
     <item>
-      <title>Chap2: 数据结构</title>
+      <title>Chap6: 贪心算法 Greedy Algorithm</title>
+      <link>https://hoooao.github.io/algo/chap6/</link>
+      <pubDate>Wed, 27 Jul 2022 14:18:50 -0400</pubDate>
+      
+      <guid>https://hoooao.github.io/algo/chap6/</guid>
+      <description>目录   导言  6.1 区间问题   6.1.1 区间选点  6.1.2 最大不相交区间数量  6.1.3 区间分组  6.1.3 区间覆盖    6.2 Huffman树  6.3 排列不等式  6.4 绝对值不等式  6.5 推公式    导言：  本章着重于贪心算法/思想的介绍和正确性证明。贪心算法不同于DP，没有具体的套路，这导致贪使用贪心思想解决问题可能导致大部分“贪心“都是没有正确性的，而有正确性的贪心又很难证明。
+ 6.1 区间问题  区间问题是贪心算法的一大类。虽然贪心没什么套路，但是可以尝试全照左右端点排序来实验。
+6.1.1 区间选点  需求：
+给定 $N$ 个闭区间 $[a_i,b_i]$，请你在数轴上选择尽量少的点，使得每个区间内至少包含一个选出的点。输出选择的点的最小数量。位于区间端点上的点也算作区间内。
+输入格式:
+第一行包含整数 $N$，表示区间数。
+接下来 $N$ 行，每行包含两个整数 $a_i,b_i$，表示一个区间的两个端点。
+输出格式： 输出一个整数，表示所需的点的最小数量。
+#define N 100010  //使用一个结构体储存一个区间，保存左右两个端点 struct Range{ int l,r; //重载运算符，供sort使用  bool operator&amp;lt;(const Range &amp;amp;w) const{ return r&amp;lt;w.</description>
+    </item>
+    
+    <item>
+      <title>Chap2: 数据结构 Data Structures</title>
       <link>https://hoooao.github.io/algo/chap2/</link>
       <pubDate>Fri, 22 Jul 2022 16:06:12 -0400</pubDate>
       
       <guid>https://hoooao.github.io/algo/chap2/</guid>
-      <description>目录  导言：  本章主要介绍一些常用的数据结构的实现，包括单链表，双链表，栈，队列，单调栈，单调队列，KMP，Trie，并查集，堆，哈希表等内容。注：本章着重于数据结构模拟，即用数组模拟上述数据结构：数组模拟的数据结构比STL快。
- 2.1 链表  链表的实现有两种，第一种是通过结构体保存当前节点的数据和指向下一个/上一节点的指针，第二种是通过数组模拟链表，即用多个数组分别代表第 idx 个节点的数据，上下节点（静态链表）。
-2.1.1 单链表  单链表只保存下一个节点的“指针”。模拟方式：通过一个数组记录节点的值（e），一个数组记录下一个节点的指针(ne)。
- Fig.1 DP   如上图所示，它代表着一个由数组模拟的链表。Head可以理解为一个角标，它的值是第一个节点的idx，形式上是“指向”头节点。头节点的值为10，idx为0，它的下一个节点的idx为1。第二个节点则指向idx为5的元素，后者是尾节点。连续的节点的idx不一定连续，因为可能存在删除的操作。在数组模拟中，删除的节点实际上是直接被其上一个节点的ne跳过了，但实际上仍然存在于这个数组之中。虽然会造成空间的浪费，但是当节点数据特别多的时候，数组模拟创建速度比创建struct快得多，且后者能做的事情前者全能做。
-需求：
-  在头部添加元素：给e[idx]赋值，让ne[idx]指向head所指向的节点（原头节点）并且让head等于idx，让它成为头节点。 在k节点的后面添加节点。这里的k是节点idx的值。类似添加头节点，只不过把head换成了某个节点 删除节点k后面的节点：实际上就是让k的ne[k]跳过下一个节点，即等于下一个节点的ne。   #include &amp;lt;iostream&amp;gt;using namespace std; #define N 100010 int m,head,idx; int e[N],ne[N]; //初始化链表，用-1代表null，即尾部 void init(){ head=-1; //idx从0开始分配，代表着共有几个节点被创建  idx=0; } void remove (int k){ //跳过下一个点  ne[k]=ne[ne[k]]; } void addH(int x){ //这里可以合并成一行写，是用逗号分隔  e[idx]=x, ne[idx]=head, head=idx++; } void add(int k, int x){ e[idx]=x, ne[idx]=ne[k], ne[k]=idx++; } int main() { char a; int b,c; init(); //a是输入的指令  cin&amp;gt;&amp;gt;a; if(a==&amp;#39;H&amp;#39;){ cin&amp;gt;&amp;gt;b; addH(b); } if(a==&amp;#39;D&amp;#39;){ cin&amp;gt;&amp;gt;b; if(!</description>
+      <description>目录   导言  2.1 链表   2.1.1 单链表  2.1.2 双链表    2.2 栈和队列  2.3 KMP  2.4 Trie树  2.5 并查集   2.5.1 合并集合  2.5.2 连通块中点的数量    2.5 堆  2.5.1 堆排序  2.5.2 模拟堆  2.6 哈希表   2.6.1 哈希方法  2.6.2 字符串哈希    2.6 STL使用   导言：  本章主要介绍一些常用的数据结构的实现，包括单链表，双链表，栈，队列，单调栈，单调队列，KMP，Trie，并查集，堆，哈希表等内容。注：本章着重于数据结构模拟，即用数组模拟上述数据结构：数组模拟的数据结构比STL快。
+ 2.1 链表  链表的实现有两种，第一种是通过结构体保存当前节点的数据和指向下一个/上一节点的指针，第二种是通过数组模拟链表，即用多个数组分别代表第 idx 个节点的数据，上下节点（静态链表）。</description>
     </item>
     
     <item>
@@ -64,12 +60,7 @@ int path[N]; int n; void DFS(int u, int state){ //如果遍历到最后一个元
       <pubDate>Sun, 17 Jul 2022 11:20:21 -0400</pubDate>
       
       <guid>https://hoooao.github.io/algo/chap5/</guid>
-      <description>MathJax.Hub.Config({ tex2jax: { skipTags: [&#39;script&#39;, &#39;noscript&#39;, &#39;style&#39;, &#39;textarea&#39;, &#39;pre&#39;], inlineMath: [[&#39;$&#39;,&#39;$&#39;]] } });   目录  导言：  本章介绍动态规划中的背包问题，区间DP，线性DP，计数DP，数位统计DP，状态压缩DP，树形DP，和记忆化搜索。 动态规划的思考方式：通过集合的思想
- Fig.1 DP   状态表示：思考整个问题需要用几维来表述，每一个状态的含义是什么，每一种状态都是一个集合；集合：状态表示的集合是什么；属性：集合的目标属性是什么（Min,Max,Num），在矩阵里实际上就是值；状态计算：如何一步一步把每个元素算出来，对应的是集合的划分：集合的划分的目的是“考虑如何把当前的集合，划分成若干更小的子集，使得这些子集我们都可以算出来/可以从前面的更小的状态中直接使用”：
- Fig.2 集合划分   以背包问题为例，集合 $f(i,j)$ （矩阵坐标）可以被看作 “物品个数$\leq i$，背包容积$\geq j$ ” 的情况下的集合，而它的值（属性）为最大值，也就是 “物品个数$= i$，背包容积$= j$ ”时背包中价值最大值。通过Fig.2 可得 最大值 $= max(f(i-1,j), f(i-1,j-v[i])+w[i])$，其中 $v,w$ 分别为代表物品体积和价值的数组。上图中把一个“当前集合”划分成了两个子集，即不考虑当前物品i，以及考虑当前物品i。先然后两个子集的并集是当前集合。右侧子集实际上也使用了更小的子集：即不考虑物品i再加上物品的i价值=包含物品i的集合
- DP问题的优化通常是对代码或者方程做一个等价变形，考虑的时候从最简单的来，然后再优化；在遍历中如果使用i-1这样的角标，那么i最好从1开始，并且给i=1设置边界值；DP的复杂度计算通常是 状态*状态转移次数
- 5.1 背包问题  背包问题中，给定一个容积为 $V$ 的背包与 $n$ 件价值 $w$ 不同，体积 $v$不同的物品。 背包问题分成几大类：
-  0/1背包：每个物品只能最多装入一次 完全背包：假设每个物品有无限个复制，可以无限添加1个物品 多重背包：同一个物品个数有限，在个数上限之中可随意添加 分组背包：所有物品被分配到 $a$ 个分组中，只能添加每个分组中的某一个物品   5.</description>
+      <description>MathJax.Hub.Config({ tex2jax: { skipTags: [&#39;script&#39;, &#39;noscript&#39;, &#39;style&#39;, &#39;textarea&#39;, &#39;pre&#39;], inlineMath: [[&#39;$&#39;,&#39;$&#39;]] } });   目录   导言  5.1 背包问题   5.1.1 0/1背包  5.1.2 完全背包问题  5.1.3 多重背包问题  5.1.4 分组背包问题    5.2 线性DP   5.2.1 数字三角形  5.2.2 最长上升子序列  5.2.3 最长公共子序列    5.3 计数类DP  5.4 数位统计DP  5.5 状态压缩DP  5.6 树形DP  5.7 记忆化搜索   导言：  本章介绍动态规划中的背包问题，区间DP，线性DP，计数DP，数位统计DP，状态压缩DP，树形DP，和记忆化搜索。 动态规划的思考方式：通过集合的思想</description>
     </item>
     
   </channel>

@@ -7,41 +7,23 @@
 	<meta http-equiv="X-UA-Compatible" content="ie=edge">
 	<meta name="theme-color" content="#494f5c">
 	<meta name="msapplication-TileColor" content="#494f5c">
-<meta itemprop="name" content="Chap3">
-<meta itemprop="description" content="目录  导言： 本章着重于图论的介绍，包括DFS，BFS，树与图的深度优先遍历，树与图的广度优先遍历，拓扑排序，Dijkstra，bellman-ford，spfa，Floyd，Prim，Kruskal，染色法判定二分图，匈牙利算法等内容。
- 3.1 深度优先  DFS每次会搜索到叶节点再回溯。DFS使用stack，空间复杂度为$\mathcal{O}(h)$，也就是说大小和高度成正比。不具有最短性。DFS中最重要的两个概念：回溯，剪枝。
- 例题：排列数字：给定一个整数 n，将数字 1∼n 排成一排，将会有很多种排列方法。现在，请你按照字典序将所有的排列方法输出。
- 输入格式：
- 共一行，包含一个整数 n。
- 输出格式： 按字典序输出所有排列方案，每个方案占一行。
- 数据范围：$1\leq n \leq 7$.
-int path[N]; int n; void DFS(int u, int state){ //如果遍历到最后一个元素了，说明可以位数足够输出了  if(u==n){ for (int i = 0; i &lt; n; i &#43;&#43; )printf(&#34;%d &#34;,path[i]); puts(&#34;&#34;); } //遍历每一个数字  for (int i = 0; i &lt; n; i &#43;&#43; ){ //检查state第i个bit的值，如果是0证明对应的数字（i&#43;1）还没有被使用  if(!(state&gt;&gt;i&amp;1)){ //&#43;1得到对应的数字  path[u]=i&#43;1; //递归path下一位，设置state对应位置为“被使用”  //这里不用担心在下次递归的时候state对应位置会出问题，因为由于传入形参作为局部变量存在，不会对着一层的state造成影响  DFS(u&#43;1,state&#43;(1&lt;&lt;i)); } } } int main(){ cin&gt;&gt;n; //从根节点开始，对应着遍历的最左侧的数字  //第二个0代表state，使用压位，每一位代表一个元素的状态  DFS(0,0); }"><meta itemprop="datePublished" content="2022-08-11T13:20:14-04:00" />
+<meta itemprop="name" content="Chap3: 图论 Graph Theory">
+<meta itemprop="description" content="目录   导言  3.1 深度优先  3.2 广度优先  3.3 图  3.3 拓扑排序  3.4 最短路   3.4.1 朴素Dijkstra  3.4.2 堆优化Dijkstra  3.4.3 Bellman-Ford 算法  3.4.4 SPFA算法  3.4.5 Floyd算法    3.5 最小生成树   3.5.1 朴素版普里姆  3.5.2 Kruskal    3.6 二分图   3.6.1 染色法  3.6.2 匈牙利算法      导言： 本章着重于图论的介绍，包括DFS，BFS，树与图的深度优先遍历，树与图的广度优先遍历，拓扑排序，Dijkstra，bellman-ford，spfa，Floyd，Prim，Kruskal，染色法判定二分图，匈牙利算法等内容。
+ 3.1 深度优先  DFS每次会搜索到叶节点再回溯。DFS使用stack，空间复杂度为$\mathcal{O}(h)$，也就是说大小和高度成正比。不具有最短性。DFS中最重要的两个概念：回溯，剪枝。"><meta itemprop="datePublished" content="2022-08-11T13:20:14-04:00" />
 <meta itemprop="dateModified" content="2022-08-11T13:20:14-04:00" />
-<meta itemprop="wordCount" content="1952">
-<meta itemprop="keywords" content="" /><meta property="og:title" content="Chap3" />
-<meta property="og:description" content="目录  导言： 本章着重于图论的介绍，包括DFS，BFS，树与图的深度优先遍历，树与图的广度优先遍历，拓扑排序，Dijkstra，bellman-ford，spfa，Floyd，Prim，Kruskal，染色法判定二分图，匈牙利算法等内容。
- 3.1 深度优先  DFS每次会搜索到叶节点再回溯。DFS使用stack，空间复杂度为$\mathcal{O}(h)$，也就是说大小和高度成正比。不具有最短性。DFS中最重要的两个概念：回溯，剪枝。
- 例题：排列数字：给定一个整数 n，将数字 1∼n 排成一排，将会有很多种排列方法。现在，请你按照字典序将所有的排列方法输出。
- 输入格式：
- 共一行，包含一个整数 n。
- 输出格式： 按字典序输出所有排列方案，每个方案占一行。
- 数据范围：$1\leq n \leq 7$.
-int path[N]; int n; void DFS(int u, int state){ //如果遍历到最后一个元素了，说明可以位数足够输出了  if(u==n){ for (int i = 0; i &lt; n; i &#43;&#43; )printf(&#34;%d &#34;,path[i]); puts(&#34;&#34;); } //遍历每一个数字  for (int i = 0; i &lt; n; i &#43;&#43; ){ //检查state第i个bit的值，如果是0证明对应的数字（i&#43;1）还没有被使用  if(!(state&gt;&gt;i&amp;1)){ //&#43;1得到对应的数字  path[u]=i&#43;1; //递归path下一位，设置state对应位置为“被使用”  //这里不用担心在下次递归的时候state对应位置会出问题，因为由于传入形参作为局部变量存在，不会对着一层的state造成影响  DFS(u&#43;1,state&#43;(1&lt;&lt;i)); } } } int main(){ cin&gt;&gt;n; //从根节点开始，对应着遍历的最左侧的数字  //第二个0代表state，使用压位，每一位代表一个元素的状态  DFS(0,0); }" />
+<meta itemprop="wordCount" content="1986">
+<meta itemprop="keywords" content="" /><meta property="og:title" content="Chap3: 图论 Graph Theory" />
+<meta property="og:description" content="目录   导言  3.1 深度优先  3.2 广度优先  3.3 图  3.3 拓扑排序  3.4 最短路   3.4.1 朴素Dijkstra  3.4.2 堆优化Dijkstra  3.4.3 Bellman-Ford 算法  3.4.4 SPFA算法  3.4.5 Floyd算法    3.5 最小生成树   3.5.1 朴素版普里姆  3.5.2 Kruskal    3.6 二分图   3.6.1 染色法  3.6.2 匈牙利算法      导言： 本章着重于图论的介绍，包括DFS，BFS，树与图的深度优先遍历，树与图的广度优先遍历，拓扑排序，Dijkstra，bellman-ford，spfa，Floyd，Prim，Kruskal，染色法判定二分图，匈牙利算法等内容。
+ 3.1 深度优先  DFS每次会搜索到叶节点再回溯。DFS使用stack，空间复杂度为$\mathcal{O}(h)$，也就是说大小和高度成正比。不具有最短性。DFS中最重要的两个概念：回溯，剪枝。" />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://hoooao.github.io/algo/chap3/" /><meta property="article:section" content="algo" />
 <meta property="article:published_time" content="2022-08-11T13:20:14-04:00" />
 <meta property="article:modified_time" content="2022-08-11T13:20:14-04:00" />
 
 <meta name="twitter:card" content="summary"/>
-<meta name="twitter:title" content="Chap3"/>
-<meta name="twitter:description" content="目录  导言： 本章着重于图论的介绍，包括DFS，BFS，树与图的深度优先遍历，树与图的广度优先遍历，拓扑排序，Dijkstra，bellman-ford，spfa，Floyd，Prim，Kruskal，染色法判定二分图，匈牙利算法等内容。
- 3.1 深度优先  DFS每次会搜索到叶节点再回溯。DFS使用stack，空间复杂度为$\mathcal{O}(h)$，也就是说大小和高度成正比。不具有最短性。DFS中最重要的两个概念：回溯，剪枝。
- 例题：排列数字：给定一个整数 n，将数字 1∼n 排成一排，将会有很多种排列方法。现在，请你按照字典序将所有的排列方法输出。
- 输入格式：
- 共一行，包含一个整数 n。
- 输出格式： 按字典序输出所有排列方案，每个方案占一行。
- 数据范围：$1\leq n \leq 7$.
-int path[N]; int n; void DFS(int u, int state){ //如果遍历到最后一个元素了，说明可以位数足够输出了  if(u==n){ for (int i = 0; i &lt; n; i &#43;&#43; )printf(&#34;%d &#34;,path[i]); puts(&#34;&#34;); } //遍历每一个数字  for (int i = 0; i &lt; n; i &#43;&#43; ){ //检查state第i个bit的值，如果是0证明对应的数字（i&#43;1）还没有被使用  if(!(state&gt;&gt;i&amp;1)){ //&#43;1得到对应的数字  path[u]=i&#43;1; //递归path下一位，设置state对应位置为“被使用”  //这里不用担心在下次递归的时候state对应位置会出问题，因为由于传入形参作为局部变量存在，不会对着一层的state造成影响  DFS(u&#43;1,state&#43;(1&lt;&lt;i)); } } } int main(){ cin&gt;&gt;n; //从根节点开始，对应着遍历的最左侧的数字  //第二个0代表state，使用压位，每一位代表一个元素的状态  DFS(0,0); }"/>
+<meta name="twitter:title" content="Chap3: 图论 Graph Theory"/>
+<meta name="twitter:description" content="目录   导言  3.1 深度优先  3.2 广度优先  3.3 图  3.3 拓扑排序  3.4 最短路   3.4.1 朴素Dijkstra  3.4.2 堆优化Dijkstra  3.4.3 Bellman-Ford 算法  3.4.4 SPFA算法  3.4.5 Floyd算法    3.5 最小生成树   3.5.1 朴素版普里姆  3.5.2 Kruskal    3.6 二分图   3.6.1 染色法  3.6.2 匈牙利算法      导言： 本章着重于图论的介绍，包括DFS，BFS，树与图的深度优先遍历，树与图的广度优先遍历，拓扑排序，Dijkstra，bellman-ford，spfa，Floyd，Prim，Kruskal，染色法判定二分图，匈牙利算法等内容。
+ 3.1 深度优先  DFS每次会搜索到叶节点再回溯。DFS使用stack，空间复杂度为$\mathcal{O}(h)$，也就是说大小和高度成正比。不具有最短性。DFS中最重要的两个概念：回溯，剪枝。"/>
 
 	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -50,7 +32,7 @@ int path[N]; int n; void DFS(int u, int state){ //如果遍历到最后一个元
 	<link rel="mask-icon" href="/safari-pinned-tab.svg" color="">
 	<link rel="shortcut icon" href="/favicon.ico">
 
-	<title>Chap3</title>
+	<title>Chap3: 图论 Graph Theory</title>
 	<link rel="stylesheet" href="https://hoooao.github.io/css/style.min.6b1219507aa24bcc2a46f4f7071edbc5dc448ba85934d68c4af0ca0a7ad89dcd.css" integrity="sha256-axIZUHqiS8wqRvT3Bx7bxdxEi6hZNNaMSvDKCnrYnc0=" crossorigin="anonymous">
 	<style>.bg-img {background-image: url('https://images.unsplash.com/photo-1531265726475-52ad60219627?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=2691&q=80');}</style>
 </head>
@@ -76,6 +58,7 @@ int path[N]; int n; void DFS(int u, int state){ //如果遍历到最后一个元
 					
 				<a href="https://hoooao.github.io/db/">Database</a>
 				<a href="https://hoooao.github.io/os/">Operating System</a>
+				<a href="https://hoooao.github.io/algo/">Algoes</a>
 				<a href="https://hoooao.github.io/about-hugo/">About</a>
 
 				</nav>
@@ -91,6 +74,7 @@ int path[N]; int n; void DFS(int u, int state){ //如果遍历到最后一个元
 		<ul>
 			<li><a href="https://hoooao.github.io/db/">Database</a></li>
 			<li><a href="https://hoooao.github.io/os/">Operating System</a></li>
+			<li><a href="https://hoooao.github.io/algo/">Algoes</a></li>
 			<li><a href="https://hoooao.github.io/about-hugo/">About</a></li>
 		</ul>
 	</div>
@@ -101,11 +85,39 @@ int path[N]; int n; void DFS(int u, int state){ //如果遍历到最后一个元
 		<article class="thin">
 			<header class="post-header">
 				<div class="post-meta"><span>Aug 11, 2022</span></div>
-				<h1>Chap3</h1>
+				<h1>Chap3: 图论 Graph Theory</h1>
 			</header>
 			<div class="content">
 				<h2 id="目录">目录<a href="#目录" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
-<br>
+<ul>
+<li> <a href="#%E5%AF%BC%E8%A8%80">导言</a></li>
+<li> <a href="#31-%E6%B7%B1%E5%BA%A6%E4%BC%98%E5%85%88">3.1 深度优先</a></li>
+<li> <a href="#32-%E5%B9%BF%E5%BA%A6%E4%BC%98%E5%85%88">3.2 广度优先</a></li>
+<li> <a href="#33-%E5%9B%BE">3.3 图</a></li>
+<li> <a href="#33-%E6%8B%93%E6%89%91%E6%8E%92%E5%BA%8F">3.3 拓扑排序</a></li>
+<li> <a href="#34-%E6%9C%80%E7%9F%AD%E8%B7%AF">3.4 最短路</a>
+<ul>
+<li> <a href="#341-%E6%9C%B4%E7%B4%A0dijkstra">3.4.1 朴素Dijkstra</a></li>
+<li> <a href="#342-%E5%A0%86%E4%BC%98%E5%8C%96dijkstra">3.4.2 堆优化Dijkstra</a></li>
+<li> <a href="#343-bellman-ford-%E7%AE%97%E6%B3%95">3.4.3 Bellman-Ford 算法</a></li>
+<li> <a href="#344-spfa%E7%AE%97%E6%B3%95">3.4.4 SPFA算法</a></li>
+<li> <a href="#345-floyd%E7%AE%97%E6%B3%95">3.4.5 Floyd算法</a></li>
+</ul>
+</li>
+<li> <a href="#35-%E6%9C%80%E5%B0%8F%E7%94%9F%E6%88%90%E6%A0%91">3.5 最小生成树</a>
+<ul>
+<li> <a href="#351-%E6%9C%B4%E7%B4%A0%E7%89%88%E6%99%AE%E9%87%8C%E5%A7%86">3.5.1 朴素版普里姆</a></li>
+<li> <a href="#352-kruskal">3.5.2 Kruskal</a></li>
+</ul>
+</li>
+<li> <a href="#36-%E4%BA%8C%E5%88%86%E5%9B%BE">3.6 二分图</a>
+<ul>
+<li> <a href="#361-%E6%9F%93%E8%89%B2%E6%B3%95">3.6.1 染色法</a></li>
+<li> <a href="#362-%E5%8C%88%E7%89%99%E5%88%A9%E7%AE%97%E6%B3%95">3.6.2 匈牙利算法</a>
+<br></li>
+</ul>
+</li>
+</ul>
 <hr>
 <br>
 <h2 id="导言">导言：<a href="#导言" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
@@ -1106,11 +1118,8 @@ int path[N]; int n; void DFS(int u, int state){ //如果遍历到最后一个元
 			</footer>
 		</article>
 		<div class="post-nav thin">
-			<a class="next-post" href="https://hoooao.github.io/algo/chap4/">
-				<span class="post-nav-label"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-arrow-left"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>&nbsp;上一篇</span><br><span>Chap4</span>
-			</a>
 			<a class="prev-post" href="https://hoooao.github.io/algo/chap1/">
-				<span class="post-nav-label">下一篇&nbsp;<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-arrow-right"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></span><br><span>Chap1: 基础算法</span>
+				<span class="post-nav-label">下一篇&nbsp;<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-arrow-right"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></span><br><span>Chap1: 基础算法 Basics</span>
 			</a>
 		</div>
 		<div id="comments" class="thin">
