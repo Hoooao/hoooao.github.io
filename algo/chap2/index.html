@@ -11,7 +11,7 @@
 <meta itemprop="description" content="目录   导言  2.1 链表   2.1.1 单链表  2.1.2 双链表    2.2 栈和队列  2.3 KMP  2.4 Trie树  2.5 并查集   2.5.1 合并集合  2.5.2 连通块中点的数量    2.5 堆  2.5.1 堆排序  2.5.2 模拟堆  2.6 哈希表   2.6.1 哈希方法  2.6.2 字符串哈希    2.6 STL使用   导言：  本章主要介绍一些常用的数据结构的实现，包括单链表，双链表，栈，队列，单调栈，单调队列，KMP，Trie，并查集，堆，哈希表等内容。注：本章着重于数据结构模拟，即用数组模拟上述数据结构：数组模拟的数据结构比STL快。
  2.1 链表  链表的实现有两种，第一种是通过结构体保存当前节点的数据和指向下一个/上一节点的指针，第二种是通过数组模拟链表，即用多个数组分别代表第 idx 个节点的数据，上下节点（静态链表）。"><meta itemprop="datePublished" content="2022-07-22T16:06:12-04:00" />
 <meta itemprop="dateModified" content="2022-07-22T16:06:12-04:00" />
-<meta itemprop="wordCount" content="1830">
+<meta itemprop="wordCount" content="1832">
 <meta itemprop="keywords" content="" /><meta property="og:title" content="Chap2: 数据结构 Data Structures" />
 <meta property="og:description" content="目录   导言  2.1 链表   2.1.1 单链表  2.1.2 双链表    2.2 栈和队列  2.3 KMP  2.4 Trie树  2.5 并查集   2.5.1 合并集合  2.5.2 连通块中点的数量    2.5 堆  2.5.1 堆排序  2.5.2 模拟堆  2.6 哈希表   2.6.1 哈希方法  2.6.2 字符串哈希    2.6 STL使用   导言：  本章主要介绍一些常用的数据结构的实现，包括单链表，双链表，栈，队列，单调栈，单调队列，KMP，Trie，并查集，堆，哈希表等内容。注：本章着重于数据结构模拟，即用数组模拟上述数据结构：数组模拟的数据结构比STL快。
  2.1 链表  链表的实现有两种，第一种是通过结构体保存当前节点的数据和指向下一个/上一节点的指针，第二种是通过数组模拟链表，即用多个数组分别代表第 idx 个节点的数据，上下节点（静态链表）。" />
@@ -519,9 +519,9 @@
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
 </span></span><span class="line"><span class="cl">    <span class="n">cin</span><span class="o">&gt;&gt;</span><span class="n">n</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">    <span class="k">while</span> <span class="p">(</span><span class="n">n</span> <span class="o">--</span> <span class="p">){</span>
-</span></span><span class="line"><span class="cl">        <span class="c1">//使用字符数组，更保险
+</span></span><span class="line"><span class="cl">        <span class="c1">//使用字符数组，更保险,因为它可以忽略输入中的空格/回撤之类的无意义字符
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="kt">char</span> <span class="n">op</span><span class="p">[</span><span class="mi">2</span><span class="p">];</span>
-</span></span><span class="line"><span class="cl">        <span class="n">scanf</span><span class="p">(</span><span class="s">&#34;%s%s&#34;</span><span class="p">,</span> <span class="n">op</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">str</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="n">scanf</span><span class="p">(</span><span class="s">&#34;%s%s&#34;</span><span class="p">,</span> <span class="n">op</span><span class="p">,</span> <span class="n">str</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">        <span class="k">if</span><span class="p">(</span><span class="o">*</span><span class="n">op</span><span class="o">==</span><span class="sc">&#39;I&#39;</span><span class="p">){</span>
 </span></span><span class="line"><span class="cl">            <span class="n">insert</span><span class="p">(</span><span class="n">str</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">        <span class="p">}</span><span class="k">else</span><span class="p">{</span>
@@ -545,11 +545,11 @@
 <li>询问两个元素是否在一个集合中</li>
 </ol>
 </blockquote>
-<p>     每一个集合用一颗树来表示，树根的编号就是整个集合的编号。每个节点存储他的父节点<code>p[x]</code>。</p>
+<p>     每一个集合用一颗树来表示，树根的编号就是整个集合的编号。每个节点x存储它的父节点<code>p[x]</code>。</p>
 <blockquote>
-<p>如何判断树根：如果是树根：<code>p[x]==x</code>
-如何得到x的集合编号: <code>while(p[x]!=x)x=p[x];</code> 这里需要$\mathbb{O}(n)$，通过路径压缩为<strong>几乎</strong> $\mathbb{O}(1)$
-如何合并集合：直接<code>p[x]=y</code>，把根节点嫁接到另一个集合的结点上，作为子节点存在。</p>
+<p>如何判断树根：如果是树根：<code>p[x]==x</code></p>
+<p>如何得到x的集合编号: <code>while(p[x]!=x)x=p[x];</code> 这里需要$\mathbb{O}(n)$，通过路径压缩为<strong>几乎</strong> $\mathbb{O}(1)$</p>
+<p>如何合并集合：直接<code>p[x]=y</code>，把根节点嫁接到另一个集合的结点上，作为子节点存在。</p>
 </blockquote>
 <br>
 <br>
@@ -623,7 +623,7 @@ Yes
 <p>对于每个询问指令 <code>Q2 a</code>，输出一个整数表示点 <code>a</code> 所在连通块中点的数量</p>
 <p>每个结果占一行。</p>
 <p>数据范围
-$1\eq n,m\leq 10^5$</p>
+$1 \leq n,m\leq 10^5$</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C++" data-lang="C++"><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;iostream&gt;</span><span class="cp">
 </span></span></span><span class="line"><span class="cl"><span class="cp">#define N 100010
 </span></span></span><span class="line"><span class="cl"><span class="cp"></span><span class="k">using</span> <span class="k">namespace</span> <span class="n">std</span><span class="p">;</span>
@@ -716,10 +716,11 @@ $1\eq n,m\leq 10^5$</p>
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
 </span></span><span class="line"><span class="cl">    <span class="n">scanf</span><span class="p">(</span><span class="s">&#34;%d%d&#34;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">n</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">m</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="c1">//先把输入插入堆中
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">//把1看作根节点，因为0*2还是0
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;=</span> <span class="n">n</span><span class="p">;</span> <span class="n">i</span> <span class="o">++</span> <span class="p">)</span> <span class="n">scanf</span><span class="p">(</span><span class="s">&#34;%d&#34;</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">h</span><span class="p">[</span><span class="n">i</span><span class="p">]);</span>
 </span></span><span class="line"><span class="cl">    <span class="n">cnt</span> <span class="o">=</span> <span class="n">n</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">    <span class="c1">//从n/2开始调用down，一直调用到跟节点，实现小根堆建构
+</span></span><span class="line"><span class="cl">    <span class="c1">//从n/2开始调用down，一直调用到根节点，实现小根堆建构
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="n">n</span> <span class="o">/</span> <span class="mi">2</span><span class="p">;</span> <span class="n">i</span><span class="p">;</span> <span class="n">i</span> <span class="o">--</span> <span class="p">)</span> <span class="n">down</span><span class="p">(</span><span class="n">i</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">    <span class="k">while</span> <span class="p">(</span><span class="n">m</span> <span class="o">--</span> <span class="p">)</span>
@@ -873,9 +874,9 @@ C k x，修改第 k 个插入的数，将其变为 x；</p>
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kt">int</span> <span class="n">h</span><span class="p">[</span><span class="n">N</span><span class="p">],</span><span class="n">e</span><span class="p">[</span><span class="n">N</span><span class="p">],</span><span class="n">ne</span><span class="p">[</span><span class="n">N</span><span class="p">],</span><span class="n">k</span><span class="p">,</span><span class="n">idx</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">insert</span><span class="p">(</span><span class="kt">int</span> <span class="n">v</span><span class="p">){</span>
-</span></span><span class="line"><span class="cl">    <span class="c1">//在C++中，附属取模是负数，通过这样的变换变成真正的整数模
+</span></span><span class="line"><span class="cl">    <span class="c1">//在C++中，负数取模是负数，通过这样的变换变成真正的整数模
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">k</span><span class="o">=</span> <span class="p">(</span><span class="n">v</span><span class="o">%</span><span class="n">N</span><span class="o">+</span><span class="n">N</span><span class="p">)</span><span class="o">%</span><span class="n">N</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">    <span class="c1">//头插法：把新数据差在指定的映射后数组的头部
+</span></span><span class="line"><span class="cl">    <span class="c1">//头插法：把新数据插在指定的映射后数组的头部
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">e</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="o">=</span><span class="n">v</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">    <span class="n">ne</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="o">=</span><span class="n">h</span><span class="p">[</span><span class="n">k</span><span class="p">];</span>
 </span></span><span class="line"><span class="cl">    <span class="n">h</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">=</span><span class="n">idx</span><span class="o">++</span><span class="p">;</span>
@@ -911,7 +912,7 @@ C k x，修改第 k 个插入的数，将其变为 x；</p>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p>    开放寻址法。开放寻址法类似停车场中找停车位：假设有一个只有一排的的停车场，通过函数决定新进来的车的目标编号，然后把车停到目标的停车位。由于还想函数会生成一样的编号，每当冲突的时候这个车就需要从其目标编号开始向后寻找可用的停车位。为了减少冲突，我们开数据量的两到三倍的值（经验值）作为停车场中停车位的数量（同样最好是质数）。 同样地，开放寻址法也不去关心真正的删除，只会把目标元素改成一个非法的值或者用其他方法标记。</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C++" data-lang="C++"><span class="line"><span class="cl"><span class="k">using</span> <span class="k">namespace</span> <span class="n">std</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl"><span class="c1">//去数据范围的2-3倍
+</span></span><span class="line"><span class="cl"><span class="c1">//取数据范围的2-3倍
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="cp">#define N 200003
 </span></span></span><span class="line"><span class="cl"><span class="cp"></span><span class="c1">//0x3f3f3f3f是最大值（大于10^9，考虑为最大值）
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="cp">#define null 0x3f3f3f3f
@@ -964,7 +965,7 @@ h[3]= ABC: 123
 h[4]= ABCD: 1234
 &hellip;&hellip;</p>
 </blockquote>
-<p>通常来说，这个$P$ 是 $131$ 或者 $13331$ （上面的例子中使用10进制，但实际上10进制不能用）。这是一个经验值，认为这两个值可以达到最小的冲突概率。而$Q$通常是$2^64$，这个值可以直接通过转换为<code>unsigned long long </code>来直接取成模。</p>
+<p>通常来说，这个$P$ 是 $131$ 或者 $13331$ （上面的例子中使用10进制，但实际上10进制不能用）。这是一个经验值，认为这两个值可以达到最小的冲突概率。而$Q$通常是$2^{64}$，这个值可以直接通过转换为<code>unsigned long long </code>来直接取成模。</p>
 <figure>
 <div style="text-align:center">
 <img src="https://cdn.acwing.com/media/article/image/2022/05/02/187016_09135a6cc9-%E5%AD%97%E7%AC%A6%E4%B8%B2%E5%93%88%E5%B8%8C%E6%80%9D%E8%B7%AF.png

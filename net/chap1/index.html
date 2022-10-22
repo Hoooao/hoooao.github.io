@@ -8,27 +8,15 @@
 	<meta name="theme-color" content="#494f5c">
 	<meta name="msapplication-TileColor" content="#494f5c">
 <meta itemprop="name" content="Chap 1: 计算机网络和互联网 Computer Networks and the Internet">
-<meta itemprop="description" content="目录  导言：  第一章是对于计算机网络的概述，主要介绍术语和概念，以及组成网络的软硬件。本博客完全基于 《计算机网络：自顶向下方法 (Computer Networking: A Top-Down Approach)》 以及中科大郑烇、杨坚全套视频讲解。
+<meta itemprop="description" content="目录   导言  1.1 什么是网络   1.1.1 软硬件组成角度  1.1.2 分布式程序服务角度  1.1.3 协议    1.2 网络结构   1.2.1 网络边缘 Edge  1.2.2 网络核心 Core  1.2.3 网络核心关键功能 Core’s functions  1.2.4 接入层和物理媒体 Access &amp; Physical Media     导言：  第一章是对于计算机网络的概述，主要介绍术语和概念，以及组成网络的软硬件。本博客完全基于 《计算机网络：自顶向下方法 (Computer Networking: A Top-Down Approach)》 以及中科大郑烇、杨坚全套视频讲解。
  1.1 什么是网络  本书将围绕公网讨论计算机网络以及协议。互联网不是一个网络，而是由很多网络连接在一起的存在，即网络的网络。有两个理解计算机网络途径：
-  考虑网络的软硬件组成; 把网络看作响分布式应用提供服务的基建。   1.1.1 软硬件组成角度  虽然叫做计算机网络，看起来只包含传统的桌面端计算机，Linux工作站以及服务器等，但是实际上现在的设备已经不止计算机了，比如很多移动设备，电视等等也被包含在了“计算机网络”。所有的设备都叫做主机(Host)或者端系统(End system)，同时在网络中表示为主机节点。
- 每个系统都被通信链路（Communication links）以及 信息包交换机/分组交换（Packet switches）连接着。前者通常是物理介质，比如铜线，光线，电磁波等。不同的链路有不同的传输速率（Transmission rate），单位为bit/second。发送信息的中断系统会为信息打包为 封包（packet），并传输给接收端，这些封包会被接收端重新组装。信息包交换机是信息传输的中转站，也可以叫做数据交换节点，它会把它从输入链路的数据从它的输出链路转发出去。交换机主要分为两种：路由器（Router），链路层交换机（Link-layer switches。前者通常用在网络内核（Internet core） 中使用,后者通常用在访问网络中。一段信息从发出被接受，经过链路和交换器这段路叫做路由（route/path）。主机到互联网之间的连接叫做接入网链路，服务器之间的连接叫做主干链路。
- 数据传输的过程可以类比高速路，交叉口，和卡车：信息会被在起始点的“仓库”被打包放入卡车中，卡车会驶过高速路，在交叉口转弯，最终抵达目标仓库重新组装信息。packet类比卡车，link类比高速路，而switches类比交叉口。
- 端系统通过互联网服务供应商 (ISPs：Internet service providers)访问互联网。存在不同的服务商：住宅ISPs比如本地线缆，座机公司等，还有企业/大学ISPs等等。每一个ISP都是一个分组交换和链路的网络（networl）。ISP同时也提供可访问内容提供者的互联网：互联网完全只关于端系统之间的连接，所以ISP之间也互相连接。每一个ISP是独立运行的，但都遵循着IP协议。协议控制着互联网信息的收发。最重要的两个协议就是TCP，IP。IP规范了封包的格式。互联网主要的协议被叫做TPC/IP，这些协议也是本书的主要内容。协议需要标准，互联网工程任务组（IETF：Internet Engineering Task Force设计了互联网标准，被叫做请求意见稿（RFCs：Request for Comments）。这一文档规范了很多协议，比如TCP，IP，HTTP，SMTP等。其他的机构，如IEEE推出了对于以太网和WiFi的标准。
-1.1.2 分布式程序服务角度  另一种理解计算机网络的方式是把它看作 分布式程序（Distributed applications） 的基础设施，为这些程序提供服务。分布式程序的意思是这个程序让多个终端设备互相交流交换数据，并且运行于端系统之上。在端上的程序如何驱动互联网让它为程序发送/接受信息？每一个连接到互联网的设备都会提供 网络接口（Socket interface），告诉一个程序如何在这个设备上让互联网基建去发送信息给另一端的程序。这一接口本质上也是一个规范。除了这最基本的发送信息的服务，互联网还有很多其他服务，将在第二章展开。
-1.1.3 协议  就像人与人之间的交流遵守的基本准则一般，协议（Protocol） 是终端的交流的范式。
- Fig.1 协议   当一个人打招呼的时候开启了一个会话，对方的回应侧面确认了对方听到了，标志着两者的链接。前者便可继续发问。当然后者也可以用不同的回应来回复前者的打招呼，来象征不同的状态。"><meta itemprop="datePublished" content="2022-08-17T10:59:26-04:00" />
+  考虑网络的软硬件组成; 把网络看作响分布式应用提供服务的基建。   1.1.1 软硬件组成角度  虽然叫做计算机网络，看起来只包含传统的桌面端计算机，Linux工作站以及服务器等，但是实际上现在的设备已经不止计算机了，比如很多移动设备，电视等等也被包含在了“计算机网络”。所有的设备都叫做主机(Host)或者端系统(End system)，同时在网络中表示为主机节点。"><meta itemprop="datePublished" content="2022-08-17T10:59:26-04:00" />
 <meta itemprop="dateModified" content="2022-08-17T10:59:26-04:00" />
-<meta itemprop="wordCount" content="190">
+<meta itemprop="wordCount" content="233">
 <meta itemprop="keywords" content="" /><meta property="og:title" content="Chap 1: 计算机网络和互联网 Computer Networks and the Internet" />
-<meta property="og:description" content="目录  导言：  第一章是对于计算机网络的概述，主要介绍术语和概念，以及组成网络的软硬件。本博客完全基于 《计算机网络：自顶向下方法 (Computer Networking: A Top-Down Approach)》 以及中科大郑烇、杨坚全套视频讲解。
+<meta property="og:description" content="目录   导言  1.1 什么是网络   1.1.1 软硬件组成角度  1.1.2 分布式程序服务角度  1.1.3 协议    1.2 网络结构   1.2.1 网络边缘 Edge  1.2.2 网络核心 Core  1.2.3 网络核心关键功能 Core’s functions  1.2.4 接入层和物理媒体 Access &amp; Physical Media     导言：  第一章是对于计算机网络的概述，主要介绍术语和概念，以及组成网络的软硬件。本博客完全基于 《计算机网络：自顶向下方法 (Computer Networking: A Top-Down Approach)》 以及中科大郑烇、杨坚全套视频讲解。
  1.1 什么是网络  本书将围绕公网讨论计算机网络以及协议。互联网不是一个网络，而是由很多网络连接在一起的存在，即网络的网络。有两个理解计算机网络途径：
-  考虑网络的软硬件组成; 把网络看作响分布式应用提供服务的基建。   1.1.1 软硬件组成角度  虽然叫做计算机网络，看起来只包含传统的桌面端计算机，Linux工作站以及服务器等，但是实际上现在的设备已经不止计算机了，比如很多移动设备，电视等等也被包含在了“计算机网络”。所有的设备都叫做主机(Host)或者端系统(End system)，同时在网络中表示为主机节点。
- 每个系统都被通信链路（Communication links）以及 信息包交换机/分组交换（Packet switches）连接着。前者通常是物理介质，比如铜线，光线，电磁波等。不同的链路有不同的传输速率（Transmission rate），单位为bit/second。发送信息的中断系统会为信息打包为 封包（packet），并传输给接收端，这些封包会被接收端重新组装。信息包交换机是信息传输的中转站，也可以叫做数据交换节点，它会把它从输入链路的数据从它的输出链路转发出去。交换机主要分为两种：路由器（Router），链路层交换机（Link-layer switches。前者通常用在网络内核（Internet core） 中使用,后者通常用在访问网络中。一段信息从发出被接受，经过链路和交换器这段路叫做路由（route/path）。主机到互联网之间的连接叫做接入网链路，服务器之间的连接叫做主干链路。
- 数据传输的过程可以类比高速路，交叉口，和卡车：信息会被在起始点的“仓库”被打包放入卡车中，卡车会驶过高速路，在交叉口转弯，最终抵达目标仓库重新组装信息。packet类比卡车，link类比高速路，而switches类比交叉口。
- 端系统通过互联网服务供应商 (ISPs：Internet service providers)访问互联网。存在不同的服务商：住宅ISPs比如本地线缆，座机公司等，还有企业/大学ISPs等等。每一个ISP都是一个分组交换和链路的网络（networl）。ISP同时也提供可访问内容提供者的互联网：互联网完全只关于端系统之间的连接，所以ISP之间也互相连接。每一个ISP是独立运行的，但都遵循着IP协议。协议控制着互联网信息的收发。最重要的两个协议就是TCP，IP。IP规范了封包的格式。互联网主要的协议被叫做TPC/IP，这些协议也是本书的主要内容。协议需要标准，互联网工程任务组（IETF：Internet Engineering Task Force设计了互联网标准，被叫做请求意见稿（RFCs：Request for Comments）。这一文档规范了很多协议，比如TCP，IP，HTTP，SMTP等。其他的机构，如IEEE推出了对于以太网和WiFi的标准。
-1.1.2 分布式程序服务角度  另一种理解计算机网络的方式是把它看作 分布式程序（Distributed applications） 的基础设施，为这些程序提供服务。分布式程序的意思是这个程序让多个终端设备互相交流交换数据，并且运行于端系统之上。在端上的程序如何驱动互联网让它为程序发送/接受信息？每一个连接到互联网的设备都会提供 网络接口（Socket interface），告诉一个程序如何在这个设备上让互联网基建去发送信息给另一端的程序。这一接口本质上也是一个规范。除了这最基本的发送信息的服务，互联网还有很多其他服务，将在第二章展开。
-1.1.3 协议  就像人与人之间的交流遵守的基本准则一般，协议（Protocol） 是终端的交流的范式。
- Fig.1 协议   当一个人打招呼的时候开启了一个会话，对方的回应侧面确认了对方听到了，标志着两者的链接。前者便可继续发问。当然后者也可以用不同的回应来回复前者的打招呼，来象征不同的状态。" />
+  考虑网络的软硬件组成; 把网络看作响分布式应用提供服务的基建。   1.1.1 软硬件组成角度  虽然叫做计算机网络，看起来只包含传统的桌面端计算机，Linux工作站以及服务器等，但是实际上现在的设备已经不止计算机了，比如很多移动设备，电视等等也被包含在了“计算机网络”。所有的设备都叫做主机(Host)或者端系统(End system)，同时在网络中表示为主机节点。" />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://hoooao.github.io/net/chap1/" /><meta property="article:section" content="net" />
 <meta property="article:published_time" content="2022-08-17T10:59:26-04:00" />
@@ -36,15 +24,9 @@
 
 <meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="Chap 1: 计算机网络和互联网 Computer Networks and the Internet"/>
-<meta name="twitter:description" content="目录  导言：  第一章是对于计算机网络的概述，主要介绍术语和概念，以及组成网络的软硬件。本博客完全基于 《计算机网络：自顶向下方法 (Computer Networking: A Top-Down Approach)》 以及中科大郑烇、杨坚全套视频讲解。
+<meta name="twitter:description" content="目录   导言  1.1 什么是网络   1.1.1 软硬件组成角度  1.1.2 分布式程序服务角度  1.1.3 协议    1.2 网络结构   1.2.1 网络边缘 Edge  1.2.2 网络核心 Core  1.2.3 网络核心关键功能 Core’s functions  1.2.4 接入层和物理媒体 Access &amp; Physical Media     导言：  第一章是对于计算机网络的概述，主要介绍术语和概念，以及组成网络的软硬件。本博客完全基于 《计算机网络：自顶向下方法 (Computer Networking: A Top-Down Approach)》 以及中科大郑烇、杨坚全套视频讲解。
  1.1 什么是网络  本书将围绕公网讨论计算机网络以及协议。互联网不是一个网络，而是由很多网络连接在一起的存在，即网络的网络。有两个理解计算机网络途径：
-  考虑网络的软硬件组成; 把网络看作响分布式应用提供服务的基建。   1.1.1 软硬件组成角度  虽然叫做计算机网络，看起来只包含传统的桌面端计算机，Linux工作站以及服务器等，但是实际上现在的设备已经不止计算机了，比如很多移动设备，电视等等也被包含在了“计算机网络”。所有的设备都叫做主机(Host)或者端系统(End system)，同时在网络中表示为主机节点。
- 每个系统都被通信链路（Communication links）以及 信息包交换机/分组交换（Packet switches）连接着。前者通常是物理介质，比如铜线，光线，电磁波等。不同的链路有不同的传输速率（Transmission rate），单位为bit/second。发送信息的中断系统会为信息打包为 封包（packet），并传输给接收端，这些封包会被接收端重新组装。信息包交换机是信息传输的中转站，也可以叫做数据交换节点，它会把它从输入链路的数据从它的输出链路转发出去。交换机主要分为两种：路由器（Router），链路层交换机（Link-layer switches。前者通常用在网络内核（Internet core） 中使用,后者通常用在访问网络中。一段信息从发出被接受，经过链路和交换器这段路叫做路由（route/path）。主机到互联网之间的连接叫做接入网链路，服务器之间的连接叫做主干链路。
- 数据传输的过程可以类比高速路，交叉口，和卡车：信息会被在起始点的“仓库”被打包放入卡车中，卡车会驶过高速路，在交叉口转弯，最终抵达目标仓库重新组装信息。packet类比卡车，link类比高速路，而switches类比交叉口。
- 端系统通过互联网服务供应商 (ISPs：Internet service providers)访问互联网。存在不同的服务商：住宅ISPs比如本地线缆，座机公司等，还有企业/大学ISPs等等。每一个ISP都是一个分组交换和链路的网络（networl）。ISP同时也提供可访问内容提供者的互联网：互联网完全只关于端系统之间的连接，所以ISP之间也互相连接。每一个ISP是独立运行的，但都遵循着IP协议。协议控制着互联网信息的收发。最重要的两个协议就是TCP，IP。IP规范了封包的格式。互联网主要的协议被叫做TPC/IP，这些协议也是本书的主要内容。协议需要标准，互联网工程任务组（IETF：Internet Engineering Task Force设计了互联网标准，被叫做请求意见稿（RFCs：Request for Comments）。这一文档规范了很多协议，比如TCP，IP，HTTP，SMTP等。其他的机构，如IEEE推出了对于以太网和WiFi的标准。
-1.1.2 分布式程序服务角度  另一种理解计算机网络的方式是把它看作 分布式程序（Distributed applications） 的基础设施，为这些程序提供服务。分布式程序的意思是这个程序让多个终端设备互相交流交换数据，并且运行于端系统之上。在端上的程序如何驱动互联网让它为程序发送/接受信息？每一个连接到互联网的设备都会提供 网络接口（Socket interface），告诉一个程序如何在这个设备上让互联网基建去发送信息给另一端的程序。这一接口本质上也是一个规范。除了这最基本的发送信息的服务，互联网还有很多其他服务，将在第二章展开。
-1.1.3 协议  就像人与人之间的交流遵守的基本准则一般，协议（Protocol） 是终端的交流的范式。
- Fig.1 协议   当一个人打招呼的时候开启了一个会话，对方的回应侧面确认了对方听到了，标志着两者的链接。前者便可继续发问。当然后者也可以用不同的回应来回复前者的打招呼，来象征不同的状态。"/>
+  考虑网络的软硬件组成; 把网络看作响分布式应用提供服务的基建。   1.1.1 软硬件组成角度  虽然叫做计算机网络，看起来只包含传统的桌面端计算机，Linux工作站以及服务器等，但是实际上现在的设备已经不止计算机了，比如很多移动设备，电视等等也被包含在了“计算机网络”。所有的设备都叫做主机(Host)或者端系统(End system)，同时在网络中表示为主机节点。"/>
 
 	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -110,6 +92,24 @@
 			</header>
 			<div class="content">
 				<h2 id="目录">目录<a href="#目录" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<ul>
+<li> <a href="#%E5%AF%BC%E8%A8%80">导言</a></li>
+<li> <a href="#11-%E4%BB%80%E4%B9%88%E6%98%AF%E7%BD%91%E7%BB%9C">1.1 什么是网络</a>
+<ul>
+<li> <a href="#111-%E8%BD%AF%E7%A1%AC%E4%BB%B6%E7%BB%84%E6%88%90%E8%A7%92%E5%BA%A6">1.1.1 软硬件组成角度</a></li>
+<li> <a href="#112-%E5%88%86%E5%B8%83%E5%BC%8F%E7%A8%8B%E5%BA%8F%E6%9C%8D%E5%8A%A1%E8%A7%92%E5%BA%A6">1.1.2 分布式程序服务角度</a></li>
+<li> <a href="#113-%E5%8D%8F%E8%AE%AE">1.1.3 协议</a></li>
+</ul>
+</li>
+<li> <a href="#12-%E7%BD%91%E7%BB%9C%E7%BB%93%E6%9E%84">1.2 网络结构</a>
+<ul>
+<li> <a href="#121-%E7%BD%91%E7%BB%9C%E8%BE%B9%E7%BC%98-edge">1.2.1 网络边缘 Edge</a></li>
+<li> <a href="#122-%E7%BD%91%E7%BB%9C%E6%A0%B8%E5%BF%83-core">1.2.2 网络核心 Core</a></li>
+<li> <a href="#123-%E7%BD%91%E7%BB%9C%E6%A0%B8%E5%BF%83%E5%85%B3%E9%94%AE%E5%8A%9F%E8%83%BD-cores-functions">1.2.3 网络核心关键功能 Core’s functions</a></li>
+<li> <a href="#124-%E6%8E%A5%E5%85%A5%E5%B1%82%E5%92%8C%E7%89%A9%E7%90%86%E5%AA%92%E4%BD%93-access--physical-media">1.2.4 接入层和物理媒体 Access &amp; Physical Media</a></li>
+</ul>
+</li>
+</ul>
 <br>
 <hr>
 <br>
@@ -136,11 +136,11 @@
 <p>    虽然叫做计算机网络，看起来只包含传统的桌面端计算机，Linux工作站以及服务器等，但是实际上现在的设备已经不止计算机了，比如很多移动设备，电视等等也被包含在了“计算机网络”。所有的设备都叫做<strong>主机(Host)<strong>或者</strong>端系统(End system)</strong>，同时在网络中表示为主机节点。</p>
 <p>    每个系统都被<strong>通信链路（Communication links）<strong>以及 <strong>信息包交换机/分组交换（Packet switches）<strong>连接着。前者通常是物理介质，比如铜线，光线，电磁波等。不同的链路有不同的</strong>传输速率（Transmission rate）</strong>，单位为</strong>bit/second</strong>。发送信息的中断系统会为信息打包为 <strong>封包（packet）</strong>，并传输给接收端，这些封包会被接收端重新组装。信息包交换机是信息传输的中转站，也可以叫做<strong>数据交换节点</strong>，它会把它从输入链路的数据从它的输出链路转发出去。交换机主要分为两种：<strong>路由器（Router）</strong>，<strong>链路层交换机（Link-layer switches</strong>。前者通常用在<strong>网络内核（Internet core）</strong> 中使用,后者通常用在访问网络中。一段信息从发出被接受，经过链路和交换器这段路叫做<strong>路由（route/path）</strong>。主机到互联网之间的连接叫做<strong>接入网链路</strong>，服务器之间的连接叫做<strong>主干链路</strong>。</p>
 <p>    数据传输的过程可以类比高速路，交叉口，和卡车：信息会被在起始点的“仓库”被打包放入卡车中，卡车会驶过高速路，在交叉口转弯，最终抵达目标仓库重新组装信息。packet类比卡车，link类比高速路，而switches类比交叉口。</p>
-<p>    端系统通过<strong>互联网服务供应商 (ISPs：Internet service providers)<strong>访问互联网。存在不同的服务商：住宅ISPs比如本地线缆，座机公司等，还有企业/大学ISPs等等。每一个ISP都是一个分组交换和链路的网络（networl）。ISP同时也提供可访问内容提供者的互联网：互联网完全只关于端系统之间的连接，所以ISP之间也互相连接。每一个ISP是独立运行的，但都遵循着IP协议。协议控制着互联网信息的收发。最重要的两个协议就是</strong>TCP，IP</strong>。IP规范了封包的格式。互联网主要的协议被叫做TPC/IP，这些协议也是本书的主要内容。协议需要标准，<strong>互联网工程任务组（IETF：Internet Engineering Task Force</strong>设计了互联网标准，被叫做<strong>请求意见稿（RFCs：Request for Comments）</strong>。这一文档规范了很多协议，比如TCP，IP，HTTP，SMTP等。其他的机构，如<strong>IEEE</strong>推出了对于以太网和WiFi的标准。</p>
+<p>    端系统通过<strong>互联网服务供应商 (ISPs：Internet service providers)<strong>访问互联网。存在不同的服务商：住宅ISPs比如本地线缆，座机公司等，还有企业/大学ISPs等等。每一个ISP都是一个分组交换和链路的网络（networl）。ISP同时也提供可访问内容提供者的互联网：互联网完全只关于端系统之间的连接，所以ISP之间也互相连接。每一个ISP是独立运行的，但都遵循着IP协议。协议控制着互联网信息的收发。最重要的两个协议就是</strong>TCP，IP</strong>。IP规范了封包的格式。互联网主要的协议被叫做TPC/IP，这些协议也是本书的主要内容。协议需要标准，<strong>互联网工程任务组（IETF：Internet Engineering Task Force</strong>设计了互联网标准，被叫做<strong>请求意见稿（RFCs：Request for Comments）</strong> ；人们也可以想IETF提交标准。这一文档规范了很多协议，比如TCP，IP，HTTP，SMTP等。其他的机构，如<strong>IEEE</strong>推出了对于以太网和WiFi的标准。</p>
 <br>
 <br>
 <h3 id="112-分布式程序服务角度">1.1.2 分布式程序服务角度<a href="#112-分布式程序服务角度" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h3>
-<p>    另一种理解计算机网络的方式是把它看作 <strong>分布式程序（Distributed applications）</strong> 的基础设施，为这些程序提供服务。分布式程序的意思是这个程序让多个终端设备互相交流交换数据，并且运行于端系统之上。在端上的程序如何驱动互联网让它为程序发送/接受信息？每一个连接到互联网的设备都会提供 <strong>网络接口（Socket interface）</strong>，告诉一个程序如何在这个设备上让互联网基建去发送信息给另一端的程序。这一接口本质上也是一个规范。除了这最基本的发送信息的服务，互联网还有很多其他服务，将在第二章展开。</p>
+<p>    另一种理解计算机网络的方式是把它看作 <strong>分布式程序（Distributed applications）</strong> 和为这些程序提供服务的 <strong>基础设施</strong>。分布式程序的意思是这个程序让多个终端设备互相交流交换数据，并且运行于端系统之上。在端上的程序如何驱动互联网让它为程序发送/接受信息？每一个连接到互联网的设备都会提供 <strong>网络接口（Socket interface）</strong>，告诉一个程序如何在这个设备上让互联网基建去发送信息给另一端的程序。这一接口本质上也是一个规范。除了这最基本的发送信息的服务，互联网还有很多其他服务，将在第二章展开。</p>
 <br>
 <br>
 <h3 id="113-协议">1.1.3 协议<a href="#113-协议" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h3>
@@ -166,8 +166,8 @@
 <blockquote>
 <ol>
 <li><strong>网络边缘(Networ Edge)</strong>：主机，应用程序；</li>
-<li><strong>(Core)</strong>：路由器，网络的网络；</li>
-<li><strong>(Access)</strong>：有线无线的链路。</li>
+<li><strong>网络核心(Core)</strong>：路由器，网络的网络：<strong>路由器把不同的网络相连接</strong>；</li>
+<li><strong>接入网(Access)</strong>：有线无线的链路，把边缘接入核心。</li>
 </ol>
 </blockquote>
 <br>
@@ -176,31 +176,30 @@
 <p>    网络边缘实际上指的是网络的接入层。每一个端设备被叫做“主机”是因为它运行着程序，比如浏览器程序，电子邮件客户端等：这些主机和应用程序组成了网络边缘。</p>
 <p>    存在两种模式：</p>
 <ul>
-<li><strong>客户端服务器模式（Client/Server Mode）</strong>：客户端和服务器都是主机设备。</li>
-<li></li>
-<li><strong>对等模式（P2：PPeer-to-peer）</strong>：每一个分布式进程之间相互传输数据：它们既是客户端，又是服务器；比如迅雷。</li>
+<li>
+<p><strong>客户端服务器模式（Client/Server Mode）</strong>：客户端和服务器都是主机设备。</p>
+</li>
+<li>
+<p><strong>对等模式（P2：PPeer-to-peer）</strong>：每一个分布式进程之间相互传输数据：它们既是客户端，又是服务器；比如迅雷。</p>
+</li>
 </ul>
 <p>    网络边缘为了在端系统之间传输数据采用两种服务：</p>
-<ul>
-<li>
-<p>面向连接服务：</p>
-<ul>
-<li>存在<strong>握手</strong>：在数据传输之前做好准备；</li>
-<li>TCP传输控制协议：实现可靠的，保序的数据传输；可以<em>控制流量</em>：发送方不会淹没接收方；实现<em>拥塞控制</em>：当网络链路拥塞时，发送方降低发送频率，防止丢包。</li>
-</ul>
-</li>
-<li>
-<p>无连接服务：</p>
-<ul>
-<li>不存在握手；</li>
-<li>UDP用户数据报协议：不存上述安全措施；常用于流媒体等不关心丢包的情景。</li>
-</ul>
-</li>
-</ul>
+<pre><code>- 面向连接服务：
+  - 存在握手：在数据传输之前做好准备；
+  - TCP传输控制协议：实现可靠的，保序的数据传输；可以控制流量：发送方不会淹没接收方；实现拥塞控制：当网络链路拥塞时，发送方降低发送频率，防止丢包。
+  - 连接状态保存在通讯的主机之中：之间的链路不会知道她们之间的连接关系
+  
+- 无连接服务：
+  - 不存在握手；
+  - UDP用户数据报协议：不存上述安全措施，速度会快；常用于流媒体等不关心丢包的情景。
+
+- 有链接服务：
+  - 连接状态保存在链路之间：两个端系统之间的连接会被维护
+</code></pre>
 <br>
 <br>
 <h3 id="122-网络核心-core">1.2.2 网络核心 Core<a href="#122-网络核心-core" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h3>
-<p>    网络核心是有路由器组成的网络，负责数据的传输。这种传输可以分为两类：1. <strong>电路交换（Circuit Switching）</strong>；2.<strong>分组交换（Packet Switching）</strong>。</p>
+<p>    网络核心是有路由器组成的网络，负责数据的传输，整个核心可以看作一个巨大的交换器。这种传输可以分为两类：1. <strong>电路交换（Circuit Switching）</strong>；2.<strong>分组交换（Packet Switching）</strong>。</p>
 <p>    <strong>电路交换</strong>：通常被用于传统的电话通信中。每次 <strong>呼叫（Call）</strong>，端到端的资源便会被分配。这里的“资源”就是路线。在电路交换中，一条链路可以被分为多个<strong>路线（Piece）</strong>，也就是说一条链路做多支持24个通话。每个线路之间不共享资源，一旦建立了会话，性能可以得到保障。但是可能会浪费性能：比如两个通话的人都没有说话，这部分资源仍然会被占用。
 <strong>注</strong>：一旦一个路径被确定，就不会改变了。这要求建立呼叫连接。</p>
 <figure>
@@ -229,7 +228,7 @@
 <figcaption><b>Fig.3 多路复用</b></figcaption>
 </div>
 </figure>
-<p>    例题：假设一个电路交换的通话被建立起来，之间的所有链路传输<strong>带宽</strong>是 <code>1.536Mbps</code>，并且采用TDM切分为了24段线路，端到端的通话建立话费500ms，求：传输640000bits的时间。由于带宽是1.536Mbps且被分为了24段，所以分到每一个用户头上的速率就是<code>1.536/24=64kbps</code>，又可得<code>640kb/64kbs=10s</code>，所以最终是<code>10+0.5=10.5s</code>（这里忽略光速和传输距离）。<strong>注</strong>：由于每条路线的速度是64kbps，所以可以得到每秒会发出<code>1/64kbps</code>个bits。</p>
+<p>    例题：假设一个电路交换的通话被建立起来，之间的所有链路传输<strong>带宽</strong>是 <code>1.536Mbps</code>，并且采用TDM切分为了24段线路，端到端的通话建立花费500ms，求：传输640000bits的时间。由于带宽是1.536Mbps且被分为了24段，所以分到每一个用户头上的速率就是<code>1.536/24=64kbps</code>，又可得<code>640kb/64kbs=10s</code>，所以最终是<code>10+0.5=10.5s</code>（这里忽略光速和传输距离）。<strong>注</strong>：由于每条路线的速度是64kbps，所以1个bit需要花<code>1/64kbps</code>s 来 <strong>发出</strong>。</p>
 <p>    电路交换的特性显然不适合互联网通信：1. 它要求的端-端建立时间过长；2. 计算机之间的网络通信具有突发性，并且无数据传输的情况也很常见，如果使用电路交换会导致多次建立或者对路线的闲置浪费；3. 可靠性可能相对较低：在建立会话之后，其中一个交换节点故障的话，整个连接断开。</p>
 <p>    <strong>分组交换</strong>：更适合计算机网络通信：</p>
 <figure>
@@ -239,12 +238,12 @@
 </div>
 </figure>
 <p>分组交换中最重要的概念就是 分组（packet）。在这种交换中，一个链路不会被切分：每一次传输使用的都是整个带宽。每次传输的单位是packet。当一个端发送出一个packet之后，会在下一个交换节点全部被保存下来，然后再 <strong>转发</strong> 出去到下一个节点，这种位置的移动也叫做 <strong>一跳（Hop）</strong>。需要把整个分组在交换节点全部存下来的原因是为了实现对于一个链路的共享：一个链路上可以存在多个Packet，如果不重组再转发，会导致不同的packet的数据零散地在链路上，无法区分开来。这也导致了其缺点：延迟较大，因为每一次转发之前都要等待一个packet全部保存下来。第二个缺点是可能会导致排队：当交换节点的 <code>到达速率 &gt; 输出速率</code>，可能导致发出1个包却收到了2个包，那么后来的包就需要等待前面的包发送之后才能再发送，在此之前它们会被保存在<strong>队列</strong>之中。假如把输入的包的数量超过了队列上限，会导致<strong>丢包</strong>。</p>
-<p>    例题：假设两个端之间存在两个交换节点（三个链路），链路速率为<code>R=1.5Mbps</code>，分组大小为 <code>L=7.5Mbits</code>，求三次储存转发的延时。数据的发送和接收是几乎同步的：当一个分组被发出之后，它胡子爱下一个交换节点很快开始被保存，所以发送时间=接收时间，也就是延时。所以可得总共的延时= <code>L/R * 3 = 15s</code>。</p>
+<p>    例题：假设两个端之间存在两个交换节点（三个链路），链路速率为<code>R=1.5Mbps</code>，分组大小为 <code>L=7.5Mbits</code>，求三次储存转发的延时。这里的“链路速率”可以理解为路由器储存一个分组的速度。数据的发送和接收是几乎同步的：当一个分组被发出之后，它会在下一个交换节点很快开始被保存，所以假设发送时间=接收时间，也就是延时。所以可得总共的延时= <code>L/R * 3 = 15s</code>。</p>
 <p>    分组交换中采用<strong>统计多路复用（STDM）</strong>：指动态地按需分配共用信道的时隙，只将需要传送数据的终端接入共用信道，以提高信道利用率。</p>
 <p>    两种交换对比：</p>
 <ul>
 <li>
-<p>假设有35个用户使用一个1Mbps链路，每个用户有10%的概率在使用链路，且每个用户的需求为100kbps。在电路交换中，只支持<code>1Mbps/100kbps=10</code>个用户。分组交换支持35个用户，因为同时使用的人数&gt;=10的概率为 $$1- \sum_{i=0}^{9} {35\choose n} p^n (1-p)^{35-n}=0.0004$$所以只有$0.4%$ 可能造成超出带宽，但这一概率又会被队列的措施抵消掉。这里不取到10是因为此时流量强度过大，而这时应该避免的；</p>
+<p>假设有35个用户使用一个1Mbps链路，每个用户有10%的概率在使用链路，且每个用户的需求为100kbps。在电路交换中，只支持<code>1Mbps/100kbps=10</code>个用户。分组交换支持35个用户，因为同时使用的人数&gt;=10的概率为 $$1- \sum_{i=0}^{9} {35\choose n} p^n (1-p)^{35-n}=0.0004$$所以只有0.4% 可能造成超出带宽，但这一概率又会被队列的措施抵消掉。这里不取到10是因为此时流量强度过大，而这是应该避免的；</p>
 </li>
 <li>
 <p>分组交换不需要建立呼叫，也就是说不需要向电路交换一样维护一条端到端的路径；</p>
@@ -294,7 +293,7 @@
 <figcaption><b>Fig.6 虚电路原理</b></figcaption>
 </div>
 </figure>
-<p>如上图所示，每一个路由器都有一张虚电路表。比如虚电路表A：左侧是输入节点及VCId，右侧是输出节点及VCId。当H1想要发送信息给H4的时候，路径建立为ABCD。H1发送一个分组，那么这个分组的输入节点就是H，且其VCId为0.A会查表，找到“输入节点为H，VCId为0”的分组所对应的下一跳的位置，可以得到“以VCId为2，跳转到B节点”。</p>
+<p>如上图所示，每一个路由器都有一张虚电路表。比如虚电路表A：左侧是输入节点及VCId，右侧是输出节点及VCId。当H1想要发送信息给H4的时候，同这样的方式建立路径为ABCD：H1发送一个分组，那么这个分组最先会到A，其的输入节点是H，且其VCId为0。A之后会查表，找到“输入节点为H，VCId为0”的分组所对应的下一跳的位置，可以得到“以VCId为2，跳转到B节点”&hellip;最终达到H4。由于这期间并不是真正直接建立起了一个既定的线路，但线路仍不会改变，所以是“虚电路”</p>
 <p>    <strong>注</strong>：这里的“有链接”区别于TCP的“面向连接”：前者指维护着一条端到端的路径，后者指两个端需要握手/建立连接，而没有一条既定的路径。</p>
 <br>
 <br>
@@ -362,7 +361,7 @@
 			</div>
 			<hr class="post-end">
 			<footer class="post-info">
-				<p><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-file-text"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>0 字</p>
+				<p><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-file-text"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>4704 字</p>
 				<p><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-calendar"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>2022-08-17 10:59 -0400</p>
 			</footer>
 		</article>

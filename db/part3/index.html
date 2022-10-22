@@ -12,7 +12,7 @@
  3.1 物理储存&amp;接口概述 Overview of Physical Storage Media&amp;Interface  缓存（Cache）：缓存是最快的存储，但缓存不是数据库的重点。
  主内存（Main Memory）：通常来说，只有储存在内存的数据可以被直接修改。相对于DB，内存太小，并且“volatile”，即在断电后数据被清除。"><meta itemprop="datePublished" content="2022-08-18T15:30:08-04:00" />
 <meta itemprop="dateModified" content="2022-08-18T15:30:08-04:00" />
-<meta itemprop="wordCount" content="295">
+<meta itemprop="wordCount" content="296">
 <meta itemprop="keywords" content="" /><meta property="og:title" content="Chap 3: 数据库存储 DB Storage" />
 <meta property="og:description" content="目录   导言  3.1 物理储存&amp;接口概述 Overview of Physical Storage Media&amp;Interface  3.2 磁盘 Magnetic Disks  3.3 文件组成 File Organization   3.3.1 属性在Record中的存储  3.3.2 Block布局：Tuple-oriented  3.3.3 Block布局：Log-structured    3.4 文件中的Records的组织 Organization of Records in Files  3.5 数据表示 Data Representation  3.6 储存模型 Storage Model   导言：  本章的主要内容包括文件是如何储存在磁盘上的，以及对于如何构建可靠的储存结构的讨论。
  3.1 物理储存&amp;接口概述 Overview of Physical Storage Media&amp;Interface  缓存（Cache）：缓存是最快的存储，但缓存不是数据库的重点。
@@ -220,11 +220,11 @@
 </li>
 <li>
 <p>不方便删除；
-解决方法：当删除一个record的时候，可以把其后面的所有record1都往前移1单位，完成删除，或者直接把最后一个record一种到前者的位置，这样就不需要移动目标位置后面的所有元素了。</p>
+解决方法：当删除一个record的时候，可以把其后面的所有record1都往前移1单位，完成删除，或者直接把最后一个record替换到前者的位置，这样就不需要移动目标位置后面的所有元素了。</p>
 </li>
 </ol>
 </blockquote>
-<p>但是对于删除，实际上由于删除操作远比添加操作少，我们可以直接把那个位置标记为不使用即可。对此的实现方式是 <strong>文件头（File header）</strong>。文件头中保存着关于此文件很多信息，比如checksum，DB版本，压缩信息，可视性（权限）等。在当前语境下，我们只关心record的删除，可以假设文件头中之储存着第一个被删除的record，而后者种储存着第二个被删除的record，以此往复：他们形成了一个自由表。每当有添加操作时，文件头指向的位置可以被重新利用，然后让文件头指向原先的第二个被删除的record。</p>
+<p>但是对于删除，实际上由于删除操作远比添加操作少，我们可以直接把那个位置标记为不使用即可。对此的实现方式是 <strong>文件头（File header）</strong>。文件头中保存着关于此文件很多信息，比如checksum，DB版本，压缩信息，可视性（权限）等。在当前语境下，我们只关心record的删除，可以假设文件头中之储存着第一个被删除的record，而后者中储存着第二个被删除的record，以此往复：它们形成了一个自由表。每当有添加操作时，文件头指向的位置可以被重新利用，然后让文件头指向原先的第二个被删除的record。</p>
 <figure>
 <div style="text-align:center">
 <img src="https://i.imgur.com/CGGISww.png" alt="" style="width:80%">
@@ -248,6 +248,7 @@
 </div>
 </figure>
 <p>同样地，Tuple也有header，它储存着这个Tuple的可见性（为并发服务）以及Null bitmap，指示null值位置。Tuple通常不需要self-contained。数据的排列通常和定义的顺序一样，不考虑对齐。</p>
+<p>下面介绍两种Block布局：</p>
 <blockquote>
 <ol>
 <li>
@@ -275,7 +276,7 @@
 <li>一个储存着每个recode的位置（偏移量）和大小的数组（也就是Slot数组，可以单独看作一部分）。</li>
 </ol>
 </blockquote>
-<p>所有的record都在这个block中连续的储存着。Slot数组从前向后增加，而record/tuple<strong>从后向前</strong> 增加：也就是说，第一个record实际上是在block的末尾被创建，每当一个新的record被插入，就会在free space的末尾分配空间。如果一个record被删除了，那么它的空间会被释放，它在header中也会变成-1。同时，在这这个record之前的records会被移动，让所有可用的空间再次集中在free space这一段空间内（实际上有的时候还是会有空隙，比如为了align；空隙是否被压缩取决于DBMS），然后更新header中保存的指向free space末尾的指针。</p>
+<p>所有的record都在这个block中连续的储存着。Slot数组从前向后增加，而record/tuple<strong>从后向前</strong> 增加：也就是说，第一个record实际上是在block的末尾被创建，每当一个新的record被插入，就会在free space的末尾分配空间。如果一个record被删除了，那么它的空间会被释放，它在header中也会变成-1。同时，在这个record之前的records会被移动，让所有可用的空间再次集中在free space这一段空间内（实际上有的时候还是会有空隙，比如为了align；空隙是否被压缩取决于DBMS），然后更新header中保存的指向free space末尾的指针。</p>
 <p>    每个tuple/record都有独一无二的<code>record_id=page_id+offset/slot</code>（这个组成大致是这样，DBMS之间不同，有的有file_id），类似PTE的组成。但是这个id是可能变化的，比如有写入删除，compaction等（取决于DBMS）。这样的indirection让 <strong>在Page内部的Tuple</strong> 位置变化只影响一层indirection，即每个Slot中储存的指针。这种Indirection在DBMS的Directory中也有使用：系统不用时刻知道某个page在哪里，它只需要能在目录中找到就行，记录Page准确位置是目录的任务。假设一个<code>Tuple_id=1+3</code>，那么系统就会去目录中先找到Page_id为1的Page的位置（第一层Indirection），找到Page后通过Slot数组找到slot为3的Tuple的指针/off（第二层Indirection）。</p>
 <p>    <strong>注</strong>：这里的Page指的是DBMS定义的Page，而不是磁盘上的Page；所以Page_id也是DBMS定义的。</p>
 <br>
