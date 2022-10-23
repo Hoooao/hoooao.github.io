@@ -12,7 +12,7 @@
  1.1 什么是网络  本书将围绕公网讨论计算机网络以及协议。互联网不是一个网络，而是由很多网络连接在一起的存在，即网络的网络。有两个理解计算机网络途径：
   考虑网络的软硬件组成; 把网络看作响分布式应用提供服务的基建。   1.1.1 软硬件组成角度  虽然叫做计算机网络，看起来只包含传统的桌面端计算机，Linux工作站以及服务器等，但是实际上现在的设备已经不止计算机了，比如很多移动设备，电视等等也被包含在了“计算机网络”。所有的设备都叫做主机(Host)或者端系统(End system)，同时在网络中表示为主机节点。"><meta itemprop="datePublished" content="2022-08-17T10:59:26-04:00" />
 <meta itemprop="dateModified" content="2022-08-17T10:59:26-04:00" />
-<meta itemprop="wordCount" content="233">
+<meta itemprop="wordCount" content="266">
 <meta itemprop="keywords" content="" /><meta property="og:title" content="Chap 1: 计算机网络和互联网 Computer Networks and the Internet" />
 <meta property="og:description" content="目录   导言  1.1 什么是网络   1.1.1 软硬件组成角度  1.1.2 分布式程序服务角度  1.1.3 协议    1.2 网络结构   1.2.1 网络边缘 Edge  1.2.2 网络核心 Core  1.2.3 网络核心关键功能 Core’s functions  1.2.4 接入层和物理媒体 Access &amp; Physical Media     导言：  第一章是对于计算机网络的概述，主要介绍术语和概念，以及组成网络的软硬件。本博客完全基于 《计算机网络：自顶向下方法 (Computer Networking: A Top-Down Approach)》 以及中科大郑烇、杨坚全套视频讲解。
  1.1 什么是网络  本书将围绕公网讨论计算机网络以及协议。互联网不是一个网络，而是由很多网络连接在一起的存在，即网络的网络。有两个理解计算机网络途径：
@@ -238,6 +238,45 @@
 </div>
 </figure>
 <p>分组交换中最重要的概念就是 分组（packet）。在这种交换中，一个链路不会被切分：每一次传输使用的都是整个带宽。每次传输的单位是packet。当一个端发送出一个packet之后，会在下一个交换节点全部被保存下来，然后再 <strong>转发</strong> 出去到下一个节点，这种位置的移动也叫做 <strong>一跳（Hop）</strong>。需要把整个分组在交换节点全部存下来的原因是为了实现对于一个链路的共享：一个链路上可以存在多个Packet，如果不重组再转发，会导致不同的packet的数据零散地在链路上，无法区分开来。这也导致了其缺点：延迟较大，因为每一次转发之前都要等待一个packet全部保存下来。第二个缺点是可能会导致排队：当交换节点的 <code>到达速率 &gt; 输出速率</code>，可能导致发出1个包却收到了2个包，那么后来的包就需要等待前面的包发送之后才能再发送，在此之前它们会被保存在<strong>队列</strong>之中。假如把输入的包的数量超过了队列上限，会导致<strong>丢包</strong>。</p>
+<br>
+<br>
+<h3 id="123-分组延时丢失和吞吐量-delay-lost-and-throughput">1.2.3 分组延时，丢失，和吞吐量 Delay, Lost, and Throughput<a href="#123-分组延时丢失和吞吐量-delay-lost-and-throughput" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h3>
+<p>    如 <strong>Fig.4</strong> 所示，当分组进入节点之后，他们并不会直接被发送到下一个节点，而是被暂时缓冲在一个队列之中，等待前面的分组完全传输（一条链路上最多有1个分组），这就造成了<strong>节点延时</strong>。</p>
+<p><strong>四种分组延迟</strong>：</p>
+<blockquote>
+<ol>
+<li>
+<p>Nodal Transmittion: R=链路带宽(bps)，L=分组长度(bits)，L/R=把一个分组完全发射到链路上所需的时间；在节点内部发生；</p>
+</li>
+<li>
+<p>Nodal Processing: 检查bit级别的差错并决定下一跳的目的地；</p>
+</li>
+<li>
+<p>Queueing: 节点中会缓冲分组来降低丢包率，在被传输之前会在queue中等待；</p>
+</li>
+<li>
+<p>Propagation: 即在物理链路上传输所花费的时间，在节点外部；d=物理链路长度，s=在媒介上的传输速度（低于光速），d/s=传播延时；</p>
+</li>
+</ol>
+<p>节点延时：上面四种延时的和。</p>
+</blockquote>
+<p>     <strong>流量强度（Intensity）</strong>：R=链路带宽(bps)，L=分组长度（bits），a=单位时间内通过的分组数量。流量强度=La/R。流量强度的增长会导致节点中的Queueing指数上升，所以流量强度需要被控制。</p>
+<p>     <strong>互联网控制消息协议（ICMP）</strong>：这个协议可以测出发送方与某个节点之间的延迟，对于目的地之间的每个节点都会进行三次测试：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/JYBaMUW.png" alt="" style="width:100%; background: rgba(255, 255, 255, .5)">
+</div>
+</figure>
+<p>其工作原理为：该协议给IP的header中会设置一个 <strong>Time-To-Live(TTL)</strong> 数字，每经过一个节点，这个数字就会-1。等它等于0的时候，相当于到达了距离发送方n跳的那个路由器，这个路由器会给发送方自己的位置，并且得到到达当前路由器的时间。之后发送方的ICMP会给下一个分组的TTL加一，让它能够存活到上一个路由器的下一跳的位置。最终发送方会传输一个具有足够大的TTL的分组到达目标Host的无效端口，导致报错后让发送方知道分组到达且计时完毕。</p>
+<p>     <strong>分组丢失</strong>：由于节点的队列大小有限，当流量强度过大的时候，会导致丢包。此时这个包可以备上一个节点或者发送方重传或者根本不重传。</p>
+<p>    <strong>吞吐量（Throughput）</strong>：吞吐量是源端与目标端之间的传输速率（数据量/单位时间）。分为 <em>瞬间吞吐量</em>：某一个时间点的吞吐量，和 <em>平均吞吐量</em>：在长时间内的均值。<strong>链路瓶颈</strong>：吞吐量受到短板效应存在瓶颈：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/EyG3kWP.png" alt="" style="width:100%; background: rgba(255, 255, 255, .5)">
+</div>
+</figure>
+<p>在这个链路中，吞吐量的平均值就是最小的R。 互联网场景：</p>
+<p>在这个场景中存在10个连接，网络核心的带宽被分为了10份（每个连接使用其1/10的流量），假设中间这个链路的带宽是R，那么每个连接使用R/10，而R/10可能就是造成瓶颈那一段。每个连接的吞吐量为min(Rc,Rs,R/10)。</p>
 <p>    例题：假设两个端之间存在两个交换节点（三个链路），链路速率为<code>R=1.5Mbps</code>，分组大小为 <code>L=7.5Mbits</code>，求三次储存转发的延时。这里的“链路速率”可以理解为路由器储存一个分组的速度。数据的发送和接收是几乎同步的：当一个分组被发出之后，它会在下一个交换节点很快开始被保存，所以假设发送时间=接收时间，也就是延时。所以可得总共的延时= <code>L/R * 3 = 15s</code>。</p>
 <p>    分组交换中采用<strong>统计多路复用（STDM）</strong>：指动态地按需分配共用信道的时隙，只将需要传送数据的终端接入共用信道，以提高信道利用率。</p>
 <p>    两种交换对比：</p>
@@ -254,7 +293,7 @@
 </ul>
 <br>
 <br>
-<h3 id="123-网络核心关键功能-cores-functions">1.2.3 网络核心关键功能 Core’s functions<a href="#123-网络核心关键功能-cores-functions" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h3>
+<h3 id="124-网络核心关键功能-cores-functions">1.2.4 网络核心关键功能 Core’s functions<a href="#124-网络核心关键功能-cores-functions" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h3>
 <p>    分组交换下的网络核心中两大功能为：</p>
 <blockquote>
 <ol>
@@ -297,7 +336,7 @@
 <p>    <strong>注</strong>：这里的“有链接”区别于TCP的“面向连接”：前者指维护着一条端到端的路径，后者指两个端需要握手/建立连接，而没有一条既定的路径。</p>
 <br>
 <br>
-<h3 id="124-接入层和物理媒体-access--physical-media">1.2.4 接入层和物理媒体 Access &amp; Physical Media<a href="#124-接入层和物理媒体-access--physical-media" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h3>
+<h3 id="125-接入层和物理媒体-access--physical-media">1.2.5 接入层和物理媒体 Access &amp; Physical Media<a href="#125-接入层和物理媒体-access--physical-media" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h3>
 <p>    存在不同的接入方式：住宅接入，企业接入，无线接入。</p>
 <p>    住宅接入：</p>
 <ul>
