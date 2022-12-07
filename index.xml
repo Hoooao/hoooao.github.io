@@ -7,17 +7,36 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>zh-hans</language>
     <copyright>This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.</copyright>
-    <lastBuildDate>Thu, 25 Aug 2022 10:32:43 -0400</lastBuildDate><atom:link href="https://hoooao.github.io/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Tue, 25 Oct 2022 09:59:59 -0400</lastBuildDate><atom:link href="https://hoooao.github.io/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Chap 2: 应用层 Application Layer</title>
+      <link>https://hoooao.github.io/net/chap2/</link>
+      <pubDate>Tue, 25 Oct 2022 09:59:59 -0400</pubDate>
+      
+      <guid>https://hoooao.github.io/net/chap2/</guid>
+      <description>目录 导言： 1.1 1.1.1 </description>
+    </item>
+    
     <item>
       <title>Chap 4: 缓冲池 &amp; 哈希表 Buffer Pools &amp; Hash Tables</title>
       <link>https://hoooao.github.io/db/part4/</link>
       <pubDate>Thu, 25 Aug 2022 10:32:43 -0400</pubDate>
       
       <guid>https://hoooao.github.io/db/part4/</guid>
-      <description>目录   缓冲池 Buffer Pool   导言：  4.1 缓冲池组成 Buffer Pool Organization  4.2 缓冲池优化 Buffer Pool Optimization  4.3 缓冲替换机制 Buffer Replacement Policies    哈希表 Hash Table   导言：  4.4 静态哈希表 Static Hash Table  4.5 动态哈希 Dynamic Hashing     缓冲池 Buffer Pool 导言：  上一章内容介绍了DBMS是如何把它的文件储存在磁盘上的，这一部分内容讨论DBMS是如何管理它在内存中的缓冲的文件以及如何把数据从内存放入磁盘。对于DB的管理涉及两个方面：
-   空间管理（Spatial Control）：把Page写入到哪里：目标为把通常会一起使用到Page储存在相邻的位置；
-  时间管理（Temporal Control）：什么时候把Page读入内存/写入磁盘：目标为尽可能减少磁盘与内存的互动。
-    4.</description>
+      <description>目录 缓冲池 Buffer Pool 导言： 4.1 缓冲池组成 Buffer Pool Organization 4.2 缓冲池优化 Buffer Pool Optimization 4.3 缓冲替换机制 Buffer Replacement Policies 哈希表 Hash Table 导言： 4.4 静态哈希表 Static Hash Table 4.5 动态哈希 Dynamic Hashing 缓冲池 Buffer Pool 导言： 上一章内容介绍了DBMS是如何把它的文件储存在磁盘上的，这一部分内容讨论DBMS是如何管理它在内存中的缓冲的文件以及如何把数据从内存放入磁盘。对于DB的管理涉及两个方面：
+空间管理（Spatial Control）：把Page写入到哪里：目标为把通常会一起使用到Page储存在相邻的位置；
+时间管理（Temporal Control）：什么时候把Page读入内存/写入磁盘：目标为尽可能减少磁盘与内存的互动。
+4.1 缓冲池组成 Buffer Pool Organization 缓冲池是DBMS在内存中委会的一段区域，用来临时保存读入的pages在内存中修改/读取。
+Frame指的是缓冲池中的“槽位”，用来放置读入的page。同时DBMS还会维护一个Page table，用来记录缓冲池中的Page的位置（指针），以及其他原数据，比如：
+Dirty bit：记录该Page在读入内存中后是否修改过； Pin：记录这个Page是否被Pin，如果被Pin，就不能被evict； Ref/Cnt：类似OS中内存中的文件系统维护的cnt，记录当前有几个线程/进程正在使用这个Page。
+为了保护数据，DBMS会使用Lock和Latches：
+Lock：这里的Lock并不是OS中锁，而是一种High-Level实现；它保护的是数据库中的内容：Tuples/Tables/DB，让它们在不会在一起交易中因其他交易而受到破坏；在交易期间，这个Lock都会存在；具有**复原（Rollback）**数据的能力：比如在数据传输过程中发生崩溃，需要能够让这个交易原子化；
+Latches：它实际上更像OS中的锁，是一种Low-Level实现，其本质是一个 互斥锁（Mutex）；它保护的是DB中的数据结构，比如Page table；在其保护的数据结构被操作的期间都会存在，不要求有复原数据的能力。
+如上图所示，Page3被pin了，所以DB将无法把它Evict出去；并且PT也给其中一个槽位上了Latch：别的进程和线程就无法修改这个槽位了，当前进程可以把Page2的指针保存在这个槽位而不用担心并发问题。
+需要区分 PT与Page目录：前者通过PageId记录着Page复制品在缓冲池里的位置，后者通过PageId记录着真实的Page在磁盘（DB文件）上的位置，任何对于它的修改都会被日志系统记录。
+为缓冲池分配内存的规则分为两类：1.全局规则：为所有交易做一套规则；2.本地规则：为不同的交易规定不同的规则，但是可能并不是对全局来说更好的方案。后面的优化就是不同的数据采用不同的优化的例子。
+虽然前一章说DBMS本质上是创建了自己的文件系统，独立于OS，但实际上DBMS的任何行为底层仍然必须依赖于OS的API。所以这就导致，当使用这些API的时候，OS并不知道这是来自DBMS的，它自己的文件系统的机制仍然会进行。其中最明显的就是文件系统的缓存机制。这就会导致在使用某系统调用之后，内存中可能保存着两份同一个文件，一个在缓冲池，一个在OS的缓存中。除了会导致浪费空间，更重要的是会因为不同的Eviction规则造成同步问题。所以大多数DBMS使用 **Direct I/O（O_DIRECT）**告诉OS在调用API的时候不要使用OS的任何机制。少数的DBMS会一定程度利用OS的缓存，但大多数一点也不用。
+4.2 缓冲池优化 Buffer Pool Optimization 介绍：多缓冲池，预取，扫描共享，缓冲池绕过。</description>
     </item>
     
     <item>
@@ -26,9 +45,15 @@
       <pubDate>Thu, 18 Aug 2022 15:30:08 -0400</pubDate>
       
       <guid>https://hoooao.github.io/db/part3/</guid>
-      <description>目录   导言  3.1 物理储存&amp;amp;接口概述 Overview of Physical Storage Media&amp;amp;Interface  3.2 磁盘 Magnetic Disks  3.3 文件组成 File Organization   3.3.1 属性在Record中的存储  3.3.2 Block布局：Tuple-oriented  3.3.3 Block布局：Log-structured    3.4 文件中的Records的组织 Organization of Records in Files  3.5 数据表示 Data Representation  3.6 储存模型 Storage Model   导言：  本章的主要内容包括文件是如何储存在磁盘上的，以及对于如何构建可靠的储存结构的讨论。
- 3.1 物理储存&amp;amp;接口概述 Overview of Physical Storage Media&amp;amp;Interface  缓存（Cache）：缓存是最快的存储，但缓存不是数据库的重点。
- 主内存（Main Memory）：通常来说，只有储存在内存的数据可以被直接修改。相对于DB，内存太小，并且“volatile”，即在断电后数据被清除。</description>
+      <description>目录 导言 3.1 物理储存&amp;amp;接口概述 Overview of Physical Storage Media&amp;amp;Interface 3.2 磁盘 Magnetic Disks 3.3 文件组成 File Organization 3.3.1 属性在Record中的存储 3.3.2 Block布局：Tuple-oriented 3.3.3 Block布局：Log-structured 3.4 文件中的Records的组织 Organization of Records in Files 3.5 数据表示 Data Representation 3.6 储存模型 Storage Model 导言： 本章的主要内容包括文件是如何储存在磁盘上的，以及对于如何构建可靠的储存结构的讨论。
+3.1 物理储存&amp;amp;接口概述 Overview of Physical Storage Media&amp;amp;Interface 缓存（Cache）：缓存是最快的存储，但缓存不是数据库的重点。
+主内存（Main Memory）：通常来说，只有储存在内存的数据可以被直接修改。相对于DB，内存太小，并且“volatile”，即在断电后数据被清除。
+闪存（Flash memory）：闪存是“non-volatile”的，SSD就在内部使用了闪存，但是提供了类似磁盘的接口，正在逐渐代替磁盘。
+磁盘（Magnetic-disk storage）：也被叫做硬盘HDD。系统为了访问磁盘上的数据，必须先把磁盘上的数据放入内存。在内存中修改之后再写回磁盘。
+磁带（Tape storage）：通常被用来做永久备份，最慢。
+上图前两个被叫做 Primary Storage，之后两个被叫做 Secondary/online Storage，最后两个被叫做 Tertiary/oﬄine Storage。Volatile的储存设备支持快随机访问，并且能精确的访问特定的Byte。但是Non-volatile设备，除了SSD，不支持随机访问，只支持顺序访问，并且访问的最小单位是block/page/sector。
+HDD和SSD都通过接口与计算机相连。常见的接口：
+Serial ATA (SATA)/Serial Attached SCSI (SAS)：它们通常使用在服务器中； Non-Volatile Memory Express (NVMe)：似一种逻辑接口，帮助 PCIe接口实现更好的 Storage area network (SAN)：这是一种架构，在这种架构中，磁盘可以组成阵列，被称为独立磁盘冗余阵列（RAID： Redundant arrays of independent disks）。Network attached storage (NAS) 与此类似，但是使用在云储存中。</description>
     </item>
     
     <item>
@@ -37,9 +62,12 @@
       <pubDate>Wed, 17 Aug 2022 10:59:26 -0400</pubDate>
       
       <guid>https://hoooao.github.io/net/chap1/</guid>
-      <description>目录   导言  1.1 什么是网络   1.1.1 软硬件组成角度  1.1.2 分布式程序服务角度  1.1.3 协议    1.2 网络结构   1.2.1 网络边缘 Edge  1.2.2 网络核心 Core  1.2.3 网络核心关键功能 Core’s functions  1.2.4 接入层和物理媒体 Access &amp;amp; Physical Media     导言：  第一章是对于计算机网络的概述，主要介绍术语和概念，以及组成网络的软硬件。本博客完全基于 《计算机网络：自顶向下方法 (Computer Networking: A Top-Down Approach)》 以及中科大郑烇、杨坚全套视频讲解。
- 1.1 什么是网络  本书将围绕公网讨论计算机网络以及协议。互联网不是一个网络，而是由很多网络连接在一起的存在，即网络的网络。有两个理解计算机网络途径：
-  考虑网络的软硬件组成; 把网络看作响分布式应用提供服务的基建。   1.1.1 软硬件组成角度  虽然叫做计算机网络，看起来只包含传统的桌面端计算机，Linux工作站以及服务器等，但是实际上现在的设备已经不止计算机了，比如很多移动设备，电视等等也被包含在了“计算机网络”。所有的设备都叫做主机(Host)或者端系统(End system)，同时在网络中表示为主机节点。</description>
+      <description>目录 导言 1.1 什么是网络 1.1.1 软硬件组成角度 1.1.2 分布式程序服务角度 1.1.3 协议 1.1.4 协议层次及服务模型 1.2 网络结构 1.2.1 网络边缘 Edge 1.2.2 网络核心 Core 1.2.3 分组延时，丢失，和吞吐量 Delay, Lost, and Throughput 1.2.4 网络核心关键功能 Core’s functions 1.2.5 接入层和物理媒体 Access &amp;amp; Physical Media 导言： 第一章是对于计算机网络的概述，主要介绍术语和概念，以及组成网络的软硬件。本博客完全基于 《计算机网络：自顶向下方法 (Computer Networking: A Top-Down Approach)》 以及中科大郑烇、杨坚全套视频讲解。
+1.1 什么是网络 本书将围绕公网讨论计算机网络以及协议。互联网不是一个网络，而是由很多网络连接在一起的存在，即网络的网络。有两个理解计算机网络途径：
+考虑网络的软硬件组成; 把网络看作响分布式应用提供服务的基建。 1.1.1 软硬件组成角度 虽然叫做计算机网络，看起来只包含传统的桌面端计算机，Linux工作站以及服务器等，但是实际上现在的设备已经不止计算机了，比如很多移动设备，电视等等也被包含在了“计算机网络”。所有的设备都叫做主机(Host)或者端系统(End system)，同时在网络中表示为主机节点。
+每个系统都被通信链路（Communication links）以及 信息包交换机/分组交换（Packet switches）连接着。前者通常是物理介质，比如铜线，光线，电磁波等。不同的链路有不同的传输速率（Transmission rate），单位为bit/second。发送信息的中断系统会为信息打包为 封包（packet），并传输给接收端，这些封包会被接收端重新组装。信息包交换机是信息传输的中转站，也可以叫做数据交换节点，它会把它从输入链路的数据从它的输出链路转发出去。交换机主要分为两种：路由器（Router），链路层交换机（Link-layer switches。前者通常用在网络内核（Internet core） 中使用,后者通常用在访问网络中。一段信息从发出被接受，经过链路和交换器这段路叫做路由（route/path）。主机到互联网之间的连接叫做接入网链路，服务器之间的连接叫做主干链路。
+数据传输的过程可以类比高速路，交叉口，和卡车：信息会被在起始点的“仓库”被打包放入卡车中，卡车会驶过高速路，在交叉口转弯，最终抵达目标仓库重新组装信息。packet类比卡车，link类比高速路，而switches类比交叉口。
+端系统通过互联网服务供应商 (ISPs：Internet service providers)访问互联网。存在不同的服务商：住宅ISPs比如本地线缆，座机公司等，还有企业/大学ISPs等等。每一个ISP都是一个分组交换和链路的网络（networl）。ISP同时也提供可访问内容提供者的互联网：互联网完全只关于端系统之间的连接，所以ISP之间也互相连接。每一个ISP是独立运行的，但都遵循着IP协议。协议控制着互联网信息的收发。最重要的两个协议就是TCP，IP。IP规范了封包的格式。互联网主要的协议被叫做TPC/IP，这些协议也是本书的主要内容。协议需要标准，互联网工程任务组（IETF：Internet Engineering Task Force设计了互联网标准，被叫做请求意见稿（RFCs：Request for Comments） ；人们也可以想IETF提交标准。这一文档规范了很多协议，比如TCP，IP，HTTP，SMTP等。其他的机构，如IEEE推出了对于以太网和WiFi的标准。</description>
     </item>
     
     <item>
@@ -48,8 +76,14 @@
       <pubDate>Thu, 11 Aug 2022 13:20:14 -0400</pubDate>
       
       <guid>https://hoooao.github.io/algo/chap3/</guid>
-      <description>目录   导言  3.1 深度优先  3.2 广度优先  3.3 图  3.3 拓扑排序  3.4 最短路   3.4.1 朴素Dijkstra  3.4.2 堆优化Dijkstra  3.4.3 Bellman-Ford 算法  3.4.4 SPFA算法  3.4.5 Floyd算法    3.5 最小生成树   3.5.1 朴素版普里姆  3.5.2 Kruskal    3.6 二分图   3.6.1 染色法  3.6.2 匈牙利算法      导言： 本章着重于图论的介绍，包括DFS，BFS，树与图的深度优先遍历，树与图的广度优先遍历，拓扑排序，Dijkstra，bellman-ford，spfa，Floyd，Prim，Kruskal，染色法判定二分图，匈牙利算法等内容。
- 3.1 深度优先  DFS每次会搜索到叶节点再回溯。DFS使用stack，空间复杂度为$\mathcal{O}(h)$，也就是说大小和高度成正比。不具有最短性。DFS中最重要的两个概念：回溯，剪枝。</description>
+      <description>目录 导言 3.1 深度优先 3.2 广度优先 3.3 图 3.3 拓扑排序 3.4 最短路 3.4.1 朴素Dijkstra 3.4.2 堆优化Dijkstra 3.4.3 Bellman-Ford 算法 3.4.4 SPFA算法 3.4.5 Floyd算法 3.5 最小生成树 3.5.1 朴素版普里姆 3.5.2 Kruskal 3.6 二分图 3.6.1 染色法 3.6.2 匈牙利算法 导言： 本章着重于图论的介绍，包括DFS，BFS，树与图的深度优先遍历，树与图的广度优先遍历，拓扑排序，Dijkstra，bellman-ford，spfa，Floyd，Prim，Kruskal，染色法判定二分图，匈牙利算法等内容。
+3.1 深度优先 DFS每次会搜索到叶节点再回溯。DFS使用stack，空间复杂度为$\mathcal{O}(h)$，也就是说大小和高度成正比。不具有最短性。DFS中最重要的两个概念：回溯，剪枝。
+例题：排列数字：给定一个整数 n，将数字 1∼n 排成一排，将会有很多种排列方法。现在，请你按照字典序将所有的排列方法输出。
+输入格式：
+共一行，包含一个整数 n。
+输出格式： 按字典序输出所有排列方案，每个方案占一行。
+数据范围：$1\leq n \leq 7$.
+int path[N]; int n; void DFS(int u, int state){ //如果遍历到最后一个元素了，说明可以位数足够输出了 if(u==n){ for (int i = 0; i &amp;lt; n; i ++ )printf(&amp;#34;%d &amp;#34;,path[i]); puts(&amp;#34;&amp;#34;); } //遍历每一个数字 for (int i = 0; i &amp;lt; n; i ++ ){ //检查state第i个bit的值，如果是0证明对应的数字（i+1）还没有被使用 if(!</description>
     </item>
     
     <item>
@@ -58,9 +92,14 @@
       <pubDate>Sat, 06 Aug 2022 15:49:13 -0400</pubDate>
       
       <guid>https://hoooao.github.io/os/chap9/</guid>
-      <description>目录  文件系统性能以及恢复 FS Performance &amp;amp; Recovery  导言： 9.1 Linux Ext3 文件系统 9.2 Ext3 日志系统优势 9.3 Ext3 日志过程   用户程序对于虚拟内存的应用 Virtual Memory for Applications  导言： 9.4 原语 Primitives 9.5 用户空间Trap 9.6 垃圾回收器 Garbage Collector   微内核 Microkernels  导言： 9.7 内核对比 Kernel comparison 9.8 seL4      从本章开始，所有内容脱离了xv6教科书，转向了对现代操作系统（Unix/Linux等）的其他方面的介绍。本章对应于MIT 6.S081的Lec 16 至Lec 18。
- 
-文件系统性能以及恢复 FS Performance &amp;amp; Recovery 导言：  回忆在xv6中，文件系统维护在磁盘上维护着一个日志系统，他的结构十分简单：header block+logged blocks。header中记录着当前日志中记录着的block的数量和每个block的number。重要的是，在某个系统调用使用end_op之前，使用的都是内存中的cached block，而只有在所有被修改的block都同步到了磁盘上的日志中的时候，日志的header才会更新指示着对应的block number。而更新header的这一瞬间就是commit-point：在此之前发生的崩溃都会导致这些还没有写入磁盘原来位置的数据丢失（即使已经保存在了日志中），而在此之后这些数据都可以被恢复。</description>
+      <description>目录 文件系统性能以及恢复 FS Performance &amp;amp; Recovery 导言： 9.1 Linux Ext3 文件系统 9.2 Ext3 日志系统优势 9.3 Ext3 日志过程 用户程序对于虚拟内存的应用 Virtual Memory for Applications 导言： 9.4 原语 Primitives 9.5 用户空间Trap 9.6 垃圾回收器 Garbage Collector 微内核 Microkernels 导言： 9.7 内核对比 Kernel comparison 9.8 seL4 从本章开始，所有内容脱离了xv6教科书，转向了对现代操作系统（Unix/Linux等）的其他方面的介绍。本章对应于MIT 6.S081的Lec 16 至Lec 18。
+文件系统性能以及恢复 FS Performance &amp;amp; Recovery 导言： 回忆在xv6中，文件系统维护在磁盘上维护着一个日志系统，他的结构十分简单：header block+logged blocks。header中记录着当前日志中记录着的block的数量和每个block的number。重要的是，在某个系统调用使用end_op之前，使用的都是内存中的cached block，而只有在所有被修改的block都同步到了磁盘上的日志中的时候，日志的header才会更新指示着对应的block number。而更新header的这一瞬间就是commit-point：在此之前发生的崩溃都会导致这些还没有写入磁盘原来位置的数据丢失（即使已经保存在了日志中），而在此之后这些数据都可以被恢复。
+任何使用日志系统的文件系统都需要遵守两个原则：
+Write-ahead rule：在log中的内容写入磁盘之前，任何日志中对应的block都不能提前写入磁盘原位置。这保证了原子化，是日志系统最重要的准则；
+Freeing rule：不能在log写入磁盘真正位置之前重写或者重新利用任何log中的block。
+xv6中的日志系统被称为“synchronous”：在一个系统调用执行完一对begin_op, end_op之前，不可能返回用户空间，并且最重要的是在committing的过程中，没有任何其他线程可以使用日志系统，效率十分低。
+9.1 Linux Ext3 文件系统 ext3是Linux所使用的第三代文件系统，本质上是ext2+Journaling：journaling与logging完全等同。与xv6一样，Linux也在内存中保存着一个缓冲缓存器，储存着一些从磁盘中复制来的block。但是不同的是它同样保存着transaction的信息。在ext3中，允许多个交易并发进行，所以它保存着每一个交易的信息：
+Sequence：是当前transaction的次序；</description>
     </item>
     
     <item>
@@ -69,7 +108,9 @@
       <pubDate>Sun, 31 Jul 2022 10:51:16 -0400</pubDate>
       
       <guid>https://hoooao.github.io/algo/chap1/</guid>
-      <description>目录   导言  1.1 排序  1.2 二分  1.2.1 整数二分   1.2.2 浮点数二分    1.3 高精度   1.3.1 高精度加法  1.3.2 高精度减法  1.3.3 高精度乘法  1.3.4 高精度除法    1.4 前缀和与差分   1.4.1 一维前缀和  1.4.2 二维（矩阵）前缀和  1.4.3 一维差分  1.4.4 矩阵差分    1.5 双指针  1.6 位运算  1.7 离散化  1.8 区间合并   导言：  本章主要介绍一些常用的基础算法：包括排序、二分、高精度、前缀和与差分、双指针算法、位运算、离散化、区间合并等内容。</description>
+      <description>目录 导言 1.1 排序 1.2 二分 1.2.1 整数二分 1.2.2 浮点数二分 1.3 高精度 1.3.1 高精度加法 1.3.2 高精度减法 1.3.3 高精度乘法 1.3.4 高精度除法 1.4 前缀和与差分 1.4.1 一维前缀和 1.4.2 二维（矩阵）前缀和 1.4.3 一维差分 1.4.4 矩阵差分 1.5 双指针 1.6 位运算 1.7 离散化 1.8 区间合并 导言： 本章主要介绍一些常用的基础算法：包括排序、二分、高精度、前缀和与差分、双指针算法、位运算、离散化、区间合并等内容。
+1.1 排序 快速排序：
+int arr[N]; void quick_sort(int arr[],int l,int r){ if(l&amp;gt;=r) return; //从左右端点两侧开始，因为下面do/while int i=l-1,j=r+1; //x取中间值可以防止边界问题 int x = arr[l + r &amp;gt;&amp;gt; 1]; while(i&amp;lt;j){ do(i++);while(arr[i]&amp;lt;x); do(j--);while(arr[j]&amp;gt;x); //交换 //这里的判断很重要，因为很可能会再一次循环中i&amp;gt;j //比如当j=i+2，i++之后arr[i]碰巧&amp;lt;x，会再次i++，然后j--就会导致i&amp;gt;j //i&amp;gt;j之后必然swap，所以没有这个if一定会出错。 if (i &amp;lt; j) swap(arr[i], arr[j]); } quick_sort(arr,l,j); quick_sort(arr,j+1,r); } 归并排序</description>
     </item>
     
     <item>
@@ -78,7 +119,13 @@
       <pubDate>Sat, 30 Jul 2022 21:51:42 -0400</pubDate>
       
       <guid>https://hoooao.github.io/os/chap8/</guid>
-      <description>目录   导言  8.1 概述 Overview  8.2 缓存缓冲层 Buffer cache layer  8.3 代码：缓存缓冲 Buffer cache  8.4 日志层 Logging Layer  8.5 日志设计 Log Design  8.6 代码：日志 Code：logging  8.7 代码：Block分配器 Code：Block Allocator  8.8 Inode层 Inode layer  8.9 代码：Inode Code：Inode  8.10 代码：Inode 内容 Code：Inode content  8.11 代码：目录层 Code：Directory layer  8.12 代码：路径名称 Code：Path names  8.13 文件描述符层 File descriptor layer  8.</description>
+      <description>目录 导言 8.1 概述 Overview 8.2 缓存缓冲层 Buffer cache layer 8.3 代码：缓存缓冲 Buffer cache 8.4 日志层 Logging Layer 8.5 日志设计 Log Design 8.6 代码：日志 Code：logging 8.7 代码：Block分配器 Code：Block Allocator 8.8 Inode层 Inode layer 8.9 代码：Inode Code：Inode 8.10 代码：Inode 内容 Code：Inode content 8.11 代码：目录层 Code：Directory layer 8.12 代码：路径名称 Code：Path names 8.13 文件描述符层 File descriptor layer 8.14 代码：系统调用 Code：System calls 8.15 练习 Exercises 导言： 一个文件系统的目的是储存和组织数据，把这些数据供给与多个进程和用户，同时也要保证重启后数据的保留。 创建一个文件系统有几个难点：
+文件系统需要有一个在磁盘上的树类结构去储存文件目录和文件本身。并且也要知道哪些磁盘块（block/sector）是被占用的，哪些是可以使用的。
+文件系统必须有崩溃修复机制。也就是说在崩溃发生，比如断电，重启后，文件系统必须正常工作。不然可能造成类似并行错误的发生。
+不同的进程可能会同时去访问一个文件，所以需要保证并发时文件系统也能正常运行。
+从磁盘中获取数据很慢，所以文件系统必须在内存中有对部分常用的磁盘内容缓存。
+本章解释xv6是如何解决这些困难的。
+8.1 概述 Overview xv6的文件系统有7层:</description>
     </item>
     
     <item>
@@ -87,15 +134,15 @@
       <pubDate>Wed, 27 Jul 2022 14:18:50 -0400</pubDate>
       
       <guid>https://hoooao.github.io/algo/chap6/</guid>
-      <description>目录   导言  6.1 区间问题   6.1.1 区间选点  6.1.2 最大不相交区间数量  6.1.3 区间分组  6.1.3 区间覆盖    6.2 Huffman树  6.3 排列不等式  6.4 绝对值不等式  6.5 推公式    导言：  本章着重于贪心算法/思想的介绍和正确性证明。贪心算法不同于DP，没有具体的套路，这导致贪使用贪心思想解决问题可能导致大部分“贪心“都是没有正确性的，而有正确性的贪心又很难证明。
- 6.1 区间问题  区间问题是贪心算法的一大类。虽然贪心没什么套路，但是可以尝试全照左右端点排序来实验。
-6.1.1 区间选点  需求：
+      <description>目录 导言 6.1 区间问题 6.1.1 区间选点 6.1.2 最大不相交区间数量 6.1.3 区间分组 6.1.3 区间覆盖 6.2 Huffman树 6.3 排列不等式 6.4 绝对值不等式 6.5 推公式 导言： 本章着重于贪心算法/思想的介绍和正确性证明。贪心算法不同于DP，没有具体的套路，这导致贪使用贪心思想解决问题可能导致大部分“贪心“都是没有正确性的，而有正确性的贪心又很难证明。
+6.1 区间问题 区间问题是贪心算法的一大类。虽然贪心没什么套路，但是可以尝试全照左右端点排序来实验。
+6.1.1 区间选点 需求：
 给定 $N$ 个闭区间 $[a_i,b_i]$，请你在数轴上选择尽量少的点，使得每个区间内至少包含一个选出的点。输出选择的点的最小数量。位于区间端点上的点也算作区间内。
 输入格式:
 第一行包含整数 $N$，表示区间数。
 接下来 $N$ 行，每行包含两个整数 $a_i,b_i$，表示一个区间的两个端点。
 输出格式： 输出一个整数，表示所需的点的最小数量。
-#define N 100010  //使用一个结构体储存一个区间，保存左右两个端点 struct Range{ int l,r; //重载运算符，供sort使用  bool operator&amp;lt;(const Range &amp;amp;w) const{ return r&amp;lt;w.</description>
+#define N 100010 //使用一个结构体储存一个区间，保存左右两个端点 struct Range{ int l,r; //重载运算符，供sort使用 bool operator&amp;lt;(const Range &amp;amp;w) const{ return r&amp;lt;w.r; } //结构体数组 }range[N]; int main() { int n,m; scanf(&amp;#34;%d&amp;#34;,&amp;amp;n); int l,r; //赋值 for (int i = 0; i &amp;lt; n; i ++ ){ scanf(&amp;#34;%d%d&amp;#34;, &amp;amp;l, &amp;amp;r); range[i]={l,r}; } //以右端点排序 sort(range,range+n); //ed代表区间的右端点，初始化为最小值 int res=0,ed=-2e9; for (int i = 0; i &amp;lt; n; i ++ ){ //如果发现有某个区间的左端点比当前使用的右端点大 //说明这个右端点没有办法覆盖这个区间 if(range[i].</description>
     </item>
     
     <item>
@@ -104,19 +151,15 @@
       <pubDate>Sat, 23 Jul 2022 16:09:15 -0400</pubDate>
       
       <guid>https://hoooao.github.io/os/chap7/</guid>
-      <description>目录   导言  7.1 上下文切换 Code: Context switch  7.2 调度 Scheduling  7.3 函数 myproc(), mycpu()  7.4 睡眠和唤醒 Sleep and wakeup  7.5 代码：睡眠和唤醒 Code： Sleep and wakeup  7.6 代码：管道 Code: Pipe  7.7 代码：等待，退出，杀死 Code: Wait, exit, and kill  7.8 进程锁 Process Lock  7.9 补充 More  7.10 练习 Exercise   导言  OS希望在同时运行多个进程，除了使用多核处理器，CPU需要实现分时。在理想状态下，分时对于进程来说应当是透明的，也就是说进程不应当知道分时的进行，或者说，进程会认为自己独享一个CPU。这被叫做将进程多路复用（Multiplexing） 在CPU上。
- xv6通过让CPU在不同的进程之间切换实现多路复用。这种进程切换主要体现在两种情形之下:
-   一个进程调用了sleep让另一个进程开始运行，或者一个进程调用了wakeup让另一个睡眠的进程继续运行（7.5）。</description>
-    </item>
-    
-    <item>
-      <title>Chap2: 数据结构 Data Structures</title>
-      <link>https://hoooao.github.io/algo/chap2/</link>
-      <pubDate>Fri, 22 Jul 2022 16:06:12 -0400</pubDate>
-      
-      <guid>https://hoooao.github.io/algo/chap2/</guid>
-      <description>目录   导言  2.1 链表   2.1.1 单链表  2.1.2 双链表    2.2 栈和队列  2.3 KMP  2.4 Trie树  2.5 并查集   2.5.1 合并集合  2.5.2 连通块中点的数量    2.5 堆  2.5.1 堆排序  2.5.2 模拟堆  2.6 哈希表   2.6.1 哈希方法  2.6.2 字符串哈希    2.6 STL使用   导言：  本章主要介绍一些常用的数据结构的实现，包括单链表，双链表，栈，队列，单调栈，单调队列，KMP，Trie，并查集，堆，哈希表等内容。注：本章着重于数据结构模拟，即用数组模拟上述数据结构：数组模拟的数据结构比STL快。
- 2.1 链表  链表的实现有两种，第一种是通过结构体保存当前节点的数据和指向下一个/上一节点的指针，第二种是通过数组模拟链表，即用多个数组分别代表第 idx 个节点的数据，上下节点（静态链表）。</description>
+      <description>目录 导言 7.1 上下文切换 Code: Context switch 7.2 调度 Scheduling 7.3 函数 myproc(), mycpu() 7.4 睡眠和唤醒 Sleep and wakeup 7.5 代码：睡眠和唤醒 Code： Sleep and wakeup 7.6 代码：管道 Code: Pipe 7.7 代码：等待，退出，杀死 Code: Wait, exit, and kill 7.8 进程锁 Process Lock 7.9 补充 More 7.10 练习 Exercise 导言 OS希望在同时运行多个进程，除了使用多核处理器，CPU需要实现分时。在理想状态下，分时对于进程来说应当是透明的，也就是说进程不应当知道分时的进行，或者说，进程会认为自己独享一个CPU。这被叫做将进程多路复用（Multiplexing） 在CPU上。
+xv6通过让CPU在不同的进程之间切换实现多路复用。这种进程切换主要体现在两种情形之下:
+一个进程调用了sleep让另一个进程开始运行，或者一个进程调用了wakeup让另一个睡眠的进程继续运行（7.5）。
+强制的分时，即时钟中断，让每个进程都有机会运行。
+在真正实现这一特性时有六个困难：
+如何切换进程。 如何让切换的过程对进程透明。 需要解决多个CPU同时切换进程可能引发竞争问题。 进程在退出之后的资源释放（一个进程不可能完全释放自己）。 需要让每个内核都知道自己运行的进程是谁，这样才能在正确的核心上使用系统调用。 实现sleep与wakeup。 注：多路复用，调度，和分时没必要在下文中区分。
+7.1 上下文切换 Code: Context switch 进程之间的切换本质上就是它们的**上下文（Context）**的切换。上下文包括进程的寄存器/代码/栈（实际上都由寄存器决定）。
+Fig.1 跳转过程 进程之间的切换主要包括下面4点：
+从当前进程的用户空间跳转到它的内核线程（Trap）。</description>
     </item>
     
   </channel>

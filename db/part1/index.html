@@ -8,11 +8,11 @@
 	<meta name="theme-color" content="#494f5c">
 	<meta name="msapplication-TileColor" content="#494f5c">
 <meta itemprop="name" content="Chap 1: 数据库管理系统概述与&amp;系模型 DBMS Overview and Rlational Model">
-<meta itemprop="description" content="MathJax.Hub.Config({ tex2jax: { skipTags: [&#39;script&#39;, &#39;noscript&#39;, &#39;style&#39;, &#39;textarea&#39;, &#39;pre&#39;], inlineMath: [[&#39;$&#39;,&#39;$&#39;]] } });   目录   数据库管理系统概述 Database Management System   导言  1.1 DBMS应用 DBMS Applications  1.2 DBMS目的 DBMS Purposes  1.3 数据模型 Data Models  1.4 数据抽象 Data Abstraction  1.5 数据库语言 DB Languages  1.6 数据库设计 DB Design  1.7 数据库引擎 DB Engine  1.8 数据库和应用 Database and Application Architecture    关系模型 Relational Model   导言  1."><meta itemprop="datePublished" content="2022-07-03T10:06:08-04:00" />
+<meta itemprop="description" content="目录 数据库管理系统概述 Database Management System 导言 1.1 DBMS应用 DBMS Applications 1.2 DBMS目的 DBMS Purposes 1.3 数据模型 Data Models 1.4 数据抽象 Data Abstraction 1.5 数据库语言 DB Languages 1.6 数据库设计 DB Design 1.7 数据库引擎 DB Engine 1.8 数据库和应用 Database and Application Architecture 关系模型 Relational Model 导言 1.9 概念 Concepts 1.10 DB 架构 DB Schema 1.11 键 Keys 1.12 关系查询语言 Relational Query Language 1.13 关系代数 Relational Algebra 数据库管理系统概述 Database Management System 导言： 数据库管理系统（DBMS：Database Management System） 由大量相互关联的数据以及操作这些数据的程序组成。数据的集合被叫做数据库。DBMS的目的是实现一个高效的 存储（Storage） 与 取出（Retrieve）。数据的管理主要有三个方面：1."><meta itemprop="datePublished" content="2022-07-03T10:06:08-04:00" />
 <meta itemprop="dateModified" content="2022-07-03T10:06:08-04:00" />
-<meta itemprop="wordCount" content="451">
+<meta itemprop="wordCount" content="466">
 <meta itemprop="keywords" content="" /><meta property="og:title" content="Chap 1: 数据库管理系统概述与&amp;系模型 DBMS Overview and Rlational Model" />
-<meta property="og:description" content="MathJax.Hub.Config({ tex2jax: { skipTags: [&#39;script&#39;, &#39;noscript&#39;, &#39;style&#39;, &#39;textarea&#39;, &#39;pre&#39;], inlineMath: [[&#39;$&#39;,&#39;$&#39;]] } });   目录   数据库管理系统概述 Database Management System   导言  1.1 DBMS应用 DBMS Applications  1.2 DBMS目的 DBMS Purposes  1.3 数据模型 Data Models  1.4 数据抽象 Data Abstraction  1.5 数据库语言 DB Languages  1.6 数据库设计 DB Design  1.7 数据库引擎 DB Engine  1.8 数据库和应用 Database and Application Architecture    关系模型 Relational Model   导言  1." />
+<meta property="og:description" content="目录 数据库管理系统概述 Database Management System 导言 1.1 DBMS应用 DBMS Applications 1.2 DBMS目的 DBMS Purposes 1.3 数据模型 Data Models 1.4 数据抽象 Data Abstraction 1.5 数据库语言 DB Languages 1.6 数据库设计 DB Design 1.7 数据库引擎 DB Engine 1.8 数据库和应用 Database and Application Architecture 关系模型 Relational Model 导言 1.9 概念 Concepts 1.10 DB 架构 DB Schema 1.11 键 Keys 1.12 关系查询语言 Relational Query Language 1.13 关系代数 Relational Algebra 数据库管理系统概述 Database Management System 导言： 数据库管理系统（DBMS：Database Management System） 由大量相互关联的数据以及操作这些数据的程序组成。数据的集合被叫做数据库。DBMS的目的是实现一个高效的 存储（Storage） 与 取出（Retrieve）。数据的管理主要有三个方面：1." />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://hoooao.github.io/db/part1/" /><meta property="article:section" content="db" />
 <meta property="article:published_time" content="2022-07-03T10:06:08-04:00" />
@@ -20,7 +20,7 @@
 
 <meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="Chap 1: 数据库管理系统概述与&amp;系模型 DBMS Overview and Rlational Model"/>
-<meta name="twitter:description" content="MathJax.Hub.Config({ tex2jax: { skipTags: [&#39;script&#39;, &#39;noscript&#39;, &#39;style&#39;, &#39;textarea&#39;, &#39;pre&#39;], inlineMath: [[&#39;$&#39;,&#39;$&#39;]] } });   目录   数据库管理系统概述 Database Management System   导言  1.1 DBMS应用 DBMS Applications  1.2 DBMS目的 DBMS Purposes  1.3 数据模型 Data Models  1.4 数据抽象 Data Abstraction  1.5 数据库语言 DB Languages  1.6 数据库设计 DB Design  1.7 数据库引擎 DB Engine  1.8 数据库和应用 Database and Application Architecture    关系模型 Relational Model   导言  1."/>
+<meta name="twitter:description" content="目录 数据库管理系统概述 Database Management System 导言 1.1 DBMS应用 DBMS Applications 1.2 DBMS目的 DBMS Purposes 1.3 数据模型 Data Models 1.4 数据抽象 Data Abstraction 1.5 数据库语言 DB Languages 1.6 数据库设计 DB Design 1.7 数据库引擎 DB Engine 1.8 数据库和应用 Database and Application Architecture 关系模型 Relational Model 导言 1.9 概念 Concepts 1.10 DB 架构 DB Schema 1.11 键 Keys 1.12 关系查询语言 Relational Query Language 1.13 关系代数 Relational Algebra 数据库管理系统概述 Database Management System 导言： 数据库管理系统（DBMS：Database Management System） 由大量相互关联的数据以及操作这些数据的程序组成。数据的集合被叫做数据库。DBMS的目的是实现一个高效的 存储（Storage） 与 取出（Retrieve）。数据的管理主要有三个方面：1."/>
 
 	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -433,7 +433,7 @@ Relational calculus：declarative，不讨论。</p>
 
 
 
-	<script src="https://hoooao.github.io/js/bundle.min.5a42c67b729ee2fa1059251688235399704707e04edb4e28c42c6f6dfa49d1d9.js" integrity="sha256-WkLGe3Ke4voQWSUWiCNTmXBHB+BO204oxCxvbfpJ0dk=" crossorigin="anonymous"></script>
+	<script src="https://hoooao.github.io/js/bundle.min.580988ed2982bcbb74a1773c7abea97b43e4c43b9324e10cda0813ec6ec4bb67.js" integrity="sha256-WAmI7SmCvLt0oXc8er6pe0PkxDuTJOEM2ggT7G7Eu2c=" crossorigin="anonymous"></script>
 	
 
 </body>

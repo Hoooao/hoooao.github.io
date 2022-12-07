@@ -8,15 +8,21 @@
 	<meta name="theme-color" content="#494f5c">
 	<meta name="msapplication-TileColor" content="#494f5c">
 <meta itemprop="name" content="Chap 1: 计算机网络和互联网 Computer Networks and the Internet">
-<meta itemprop="description" content="目录   导言  1.1 什么是网络   1.1.1 软硬件组成角度  1.1.2 分布式程序服务角度  1.1.3 协议    1.2 网络结构   1.2.1 网络边缘 Edge  1.2.2 网络核心 Core  1.2.3 网络核心关键功能 Core’s functions  1.2.4 接入层和物理媒体 Access &amp; Physical Media     导言：  第一章是对于计算机网络的概述，主要介绍术语和概念，以及组成网络的软硬件。本博客完全基于 《计算机网络：自顶向下方法 (Computer Networking: A Top-Down Approach)》 以及中科大郑烇、杨坚全套视频讲解。
- 1.1 什么是网络  本书将围绕公网讨论计算机网络以及协议。互联网不是一个网络，而是由很多网络连接在一起的存在，即网络的网络。有两个理解计算机网络途径：
-  考虑网络的软硬件组成; 把网络看作响分布式应用提供服务的基建。   1.1.1 软硬件组成角度  虽然叫做计算机网络，看起来只包含传统的桌面端计算机，Linux工作站以及服务器等，但是实际上现在的设备已经不止计算机了，比如很多移动设备，电视等等也被包含在了“计算机网络”。所有的设备都叫做主机(Host)或者端系统(End system)，同时在网络中表示为主机节点。"><meta itemprop="datePublished" content="2022-08-17T10:59:26-04:00" />
+<meta itemprop="description" content="目录 导言 1.1 什么是网络 1.1.1 软硬件组成角度 1.1.2 分布式程序服务角度 1.1.3 协议 1.1.4 协议层次及服务模型 1.2 网络结构 1.2.1 网络边缘 Edge 1.2.2 网络核心 Core 1.2.3 分组延时，丢失，和吞吐量 Delay, Lost, and Throughput 1.2.4 网络核心关键功能 Core’s functions 1.2.5 接入层和物理媒体 Access &amp; Physical Media 导言： 第一章是对于计算机网络的概述，主要介绍术语和概念，以及组成网络的软硬件。本博客完全基于 《计算机网络：自顶向下方法 (Computer Networking: A Top-Down Approach)》 以及中科大郑烇、杨坚全套视频讲解。
+1.1 什么是网络 本书将围绕公网讨论计算机网络以及协议。互联网不是一个网络，而是由很多网络连接在一起的存在，即网络的网络。有两个理解计算机网络途径：
+考虑网络的软硬件组成; 把网络看作响分布式应用提供服务的基建。 1.1.1 软硬件组成角度 虽然叫做计算机网络，看起来只包含传统的桌面端计算机，Linux工作站以及服务器等，但是实际上现在的设备已经不止计算机了，比如很多移动设备，电视等等也被包含在了“计算机网络”。所有的设备都叫做主机(Host)或者端系统(End system)，同时在网络中表示为主机节点。
+每个系统都被通信链路（Communication links）以及 信息包交换机/分组交换（Packet switches）连接着。前者通常是物理介质，比如铜线，光线，电磁波等。不同的链路有不同的传输速率（Transmission rate），单位为bit/second。发送信息的中断系统会为信息打包为 封包（packet），并传输给接收端，这些封包会被接收端重新组装。信息包交换机是信息传输的中转站，也可以叫做数据交换节点，它会把它从输入链路的数据从它的输出链路转发出去。交换机主要分为两种：路由器（Router），链路层交换机（Link-layer switches。前者通常用在网络内核（Internet core） 中使用,后者通常用在访问网络中。一段信息从发出被接受，经过链路和交换器这段路叫做路由（route/path）。主机到互联网之间的连接叫做接入网链路，服务器之间的连接叫做主干链路。
+数据传输的过程可以类比高速路，交叉口，和卡车：信息会被在起始点的“仓库”被打包放入卡车中，卡车会驶过高速路，在交叉口转弯，最终抵达目标仓库重新组装信息。packet类比卡车，link类比高速路，而switches类比交叉口。
+端系统通过互联网服务供应商 (ISPs：Internet service providers)访问互联网。存在不同的服务商：住宅ISPs比如本地线缆，座机公司等，还有企业/大学ISPs等等。每一个ISP都是一个分组交换和链路的网络（networl）。ISP同时也提供可访问内容提供者的互联网：互联网完全只关于端系统之间的连接，所以ISP之间也互相连接。每一个ISP是独立运行的，但都遵循着IP协议。协议控制着互联网信息的收发。最重要的两个协议就是TCP，IP。IP规范了封包的格式。互联网主要的协议被叫做TPC/IP，这些协议也是本书的主要内容。协议需要标准，互联网工程任务组（IETF：Internet Engineering Task Force设计了互联网标准，被叫做请求意见稿（RFCs：Request for Comments） ；人们也可以想IETF提交标准。这一文档规范了很多协议，比如TCP，IP，HTTP，SMTP等。其他的机构，如IEEE推出了对于以太网和WiFi的标准。"><meta itemprop="datePublished" content="2022-08-17T10:59:26-04:00" />
 <meta itemprop="dateModified" content="2022-08-17T10:59:26-04:00" />
-<meta itemprop="wordCount" content="266">
+<meta itemprop="wordCount" content="302">
 <meta itemprop="keywords" content="" /><meta property="og:title" content="Chap 1: 计算机网络和互联网 Computer Networks and the Internet" />
-<meta property="og:description" content="目录   导言  1.1 什么是网络   1.1.1 软硬件组成角度  1.1.2 分布式程序服务角度  1.1.3 协议    1.2 网络结构   1.2.1 网络边缘 Edge  1.2.2 网络核心 Core  1.2.3 网络核心关键功能 Core’s functions  1.2.4 接入层和物理媒体 Access &amp; Physical Media     导言：  第一章是对于计算机网络的概述，主要介绍术语和概念，以及组成网络的软硬件。本博客完全基于 《计算机网络：自顶向下方法 (Computer Networking: A Top-Down Approach)》 以及中科大郑烇、杨坚全套视频讲解。
- 1.1 什么是网络  本书将围绕公网讨论计算机网络以及协议。互联网不是一个网络，而是由很多网络连接在一起的存在，即网络的网络。有两个理解计算机网络途径：
-  考虑网络的软硬件组成; 把网络看作响分布式应用提供服务的基建。   1.1.1 软硬件组成角度  虽然叫做计算机网络，看起来只包含传统的桌面端计算机，Linux工作站以及服务器等，但是实际上现在的设备已经不止计算机了，比如很多移动设备，电视等等也被包含在了“计算机网络”。所有的设备都叫做主机(Host)或者端系统(End system)，同时在网络中表示为主机节点。" />
+<meta property="og:description" content="目录 导言 1.1 什么是网络 1.1.1 软硬件组成角度 1.1.2 分布式程序服务角度 1.1.3 协议 1.1.4 协议层次及服务模型 1.2 网络结构 1.2.1 网络边缘 Edge 1.2.2 网络核心 Core 1.2.3 分组延时，丢失，和吞吐量 Delay, Lost, and Throughput 1.2.4 网络核心关键功能 Core’s functions 1.2.5 接入层和物理媒体 Access &amp; Physical Media 导言： 第一章是对于计算机网络的概述，主要介绍术语和概念，以及组成网络的软硬件。本博客完全基于 《计算机网络：自顶向下方法 (Computer Networking: A Top-Down Approach)》 以及中科大郑烇、杨坚全套视频讲解。
+1.1 什么是网络 本书将围绕公网讨论计算机网络以及协议。互联网不是一个网络，而是由很多网络连接在一起的存在，即网络的网络。有两个理解计算机网络途径：
+考虑网络的软硬件组成; 把网络看作响分布式应用提供服务的基建。 1.1.1 软硬件组成角度 虽然叫做计算机网络，看起来只包含传统的桌面端计算机，Linux工作站以及服务器等，但是实际上现在的设备已经不止计算机了，比如很多移动设备，电视等等也被包含在了“计算机网络”。所有的设备都叫做主机(Host)或者端系统(End system)，同时在网络中表示为主机节点。
+每个系统都被通信链路（Communication links）以及 信息包交换机/分组交换（Packet switches）连接着。前者通常是物理介质，比如铜线，光线，电磁波等。不同的链路有不同的传输速率（Transmission rate），单位为bit/second。发送信息的中断系统会为信息打包为 封包（packet），并传输给接收端，这些封包会被接收端重新组装。信息包交换机是信息传输的中转站，也可以叫做数据交换节点，它会把它从输入链路的数据从它的输出链路转发出去。交换机主要分为两种：路由器（Router），链路层交换机（Link-layer switches。前者通常用在网络内核（Internet core） 中使用,后者通常用在访问网络中。一段信息从发出被接受，经过链路和交换器这段路叫做路由（route/path）。主机到互联网之间的连接叫做接入网链路，服务器之间的连接叫做主干链路。
+数据传输的过程可以类比高速路，交叉口，和卡车：信息会被在起始点的“仓库”被打包放入卡车中，卡车会驶过高速路，在交叉口转弯，最终抵达目标仓库重新组装信息。packet类比卡车，link类比高速路，而switches类比交叉口。
+端系统通过互联网服务供应商 (ISPs：Internet service providers)访问互联网。存在不同的服务商：住宅ISPs比如本地线缆，座机公司等，还有企业/大学ISPs等等。每一个ISP都是一个分组交换和链路的网络（networl）。ISP同时也提供可访问内容提供者的互联网：互联网完全只关于端系统之间的连接，所以ISP之间也互相连接。每一个ISP是独立运行的，但都遵循着IP协议。协议控制着互联网信息的收发。最重要的两个协议就是TCP，IP。IP规范了封包的格式。互联网主要的协议被叫做TPC/IP，这些协议也是本书的主要内容。协议需要标准，互联网工程任务组（IETF：Internet Engineering Task Force设计了互联网标准，被叫做请求意见稿（RFCs：Request for Comments） ；人们也可以想IETF提交标准。这一文档规范了很多协议，比如TCP，IP，HTTP，SMTP等。其他的机构，如IEEE推出了对于以太网和WiFi的标准。" />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://hoooao.github.io/net/chap1/" /><meta property="article:section" content="net" />
 <meta property="article:published_time" content="2022-08-17T10:59:26-04:00" />
@@ -24,9 +30,12 @@
 
 <meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="Chap 1: 计算机网络和互联网 Computer Networks and the Internet"/>
-<meta name="twitter:description" content="目录   导言  1.1 什么是网络   1.1.1 软硬件组成角度  1.1.2 分布式程序服务角度  1.1.3 协议    1.2 网络结构   1.2.1 网络边缘 Edge  1.2.2 网络核心 Core  1.2.3 网络核心关键功能 Core’s functions  1.2.4 接入层和物理媒体 Access &amp; Physical Media     导言：  第一章是对于计算机网络的概述，主要介绍术语和概念，以及组成网络的软硬件。本博客完全基于 《计算机网络：自顶向下方法 (Computer Networking: A Top-Down Approach)》 以及中科大郑烇、杨坚全套视频讲解。
- 1.1 什么是网络  本书将围绕公网讨论计算机网络以及协议。互联网不是一个网络，而是由很多网络连接在一起的存在，即网络的网络。有两个理解计算机网络途径：
-  考虑网络的软硬件组成; 把网络看作响分布式应用提供服务的基建。   1.1.1 软硬件组成角度  虽然叫做计算机网络，看起来只包含传统的桌面端计算机，Linux工作站以及服务器等，但是实际上现在的设备已经不止计算机了，比如很多移动设备，电视等等也被包含在了“计算机网络”。所有的设备都叫做主机(Host)或者端系统(End system)，同时在网络中表示为主机节点。"/>
+<meta name="twitter:description" content="目录 导言 1.1 什么是网络 1.1.1 软硬件组成角度 1.1.2 分布式程序服务角度 1.1.3 协议 1.1.4 协议层次及服务模型 1.2 网络结构 1.2.1 网络边缘 Edge 1.2.2 网络核心 Core 1.2.3 分组延时，丢失，和吞吐量 Delay, Lost, and Throughput 1.2.4 网络核心关键功能 Core’s functions 1.2.5 接入层和物理媒体 Access &amp; Physical Media 导言： 第一章是对于计算机网络的概述，主要介绍术语和概念，以及组成网络的软硬件。本博客完全基于 《计算机网络：自顶向下方法 (Computer Networking: A Top-Down Approach)》 以及中科大郑烇、杨坚全套视频讲解。
+1.1 什么是网络 本书将围绕公网讨论计算机网络以及协议。互联网不是一个网络，而是由很多网络连接在一起的存在，即网络的网络。有两个理解计算机网络途径：
+考虑网络的软硬件组成; 把网络看作响分布式应用提供服务的基建。 1.1.1 软硬件组成角度 虽然叫做计算机网络，看起来只包含传统的桌面端计算机，Linux工作站以及服务器等，但是实际上现在的设备已经不止计算机了，比如很多移动设备，电视等等也被包含在了“计算机网络”。所有的设备都叫做主机(Host)或者端系统(End system)，同时在网络中表示为主机节点。
+每个系统都被通信链路（Communication links）以及 信息包交换机/分组交换（Packet switches）连接着。前者通常是物理介质，比如铜线，光线，电磁波等。不同的链路有不同的传输速率（Transmission rate），单位为bit/second。发送信息的中断系统会为信息打包为 封包（packet），并传输给接收端，这些封包会被接收端重新组装。信息包交换机是信息传输的中转站，也可以叫做数据交换节点，它会把它从输入链路的数据从它的输出链路转发出去。交换机主要分为两种：路由器（Router），链路层交换机（Link-layer switches。前者通常用在网络内核（Internet core） 中使用,后者通常用在访问网络中。一段信息从发出被接受，经过链路和交换器这段路叫做路由（route/path）。主机到互联网之间的连接叫做接入网链路，服务器之间的连接叫做主干链路。
+数据传输的过程可以类比高速路，交叉口，和卡车：信息会被在起始点的“仓库”被打包放入卡车中，卡车会驶过高速路，在交叉口转弯，最终抵达目标仓库重新组装信息。packet类比卡车，link类比高速路，而switches类比交叉口。
+端系统通过互联网服务供应商 (ISPs：Internet service providers)访问互联网。存在不同的服务商：住宅ISPs比如本地线缆，座机公司等，还有企业/大学ISPs等等。每一个ISP都是一个分组交换和链路的网络（networl）。ISP同时也提供可访问内容提供者的互联网：互联网完全只关于端系统之间的连接，所以ISP之间也互相连接。每一个ISP是独立运行的，但都遵循着IP协议。协议控制着互联网信息的收发。最重要的两个协议就是TCP，IP。IP规范了封包的格式。互联网主要的协议被叫做TPC/IP，这些协议也是本书的主要内容。协议需要标准，互联网工程任务组（IETF：Internet Engineering Task Force设计了互联网标准，被叫做请求意见稿（RFCs：Request for Comments） ；人们也可以想IETF提交标准。这一文档规范了很多协议，比如TCP，IP，HTTP，SMTP等。其他的机构，如IEEE推出了对于以太网和WiFi的标准。"/>
 
 	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -99,18 +108,20 @@
 <li> <a href="#111-%E8%BD%AF%E7%A1%AC%E4%BB%B6%E7%BB%84%E6%88%90%E8%A7%92%E5%BA%A6">1.1.1 软硬件组成角度</a></li>
 <li> <a href="#112-%E5%88%86%E5%B8%83%E5%BC%8F%E7%A8%8B%E5%BA%8F%E6%9C%8D%E5%8A%A1%E8%A7%92%E5%BA%A6">1.1.2 分布式程序服务角度</a></li>
 <li> <a href="#113-%E5%8D%8F%E8%AE%AE">1.1.3 协议</a></li>
+<li> <a href="#114-%E5%8D%8F%E8%AE%AE%E5%B1%82%E6%AC%A1%E5%8F%8A%E6%9C%8D%E5%8A%A1%E6%A8%A1%E5%9E%8B">1.1.4 协议层次及服务模型</a></li>
 </ul>
 </li>
 <li> <a href="#12-%E7%BD%91%E7%BB%9C%E7%BB%93%E6%9E%84">1.2 网络结构</a>
 <ul>
 <li> <a href="#121-%E7%BD%91%E7%BB%9C%E8%BE%B9%E7%BC%98-edge">1.2.1 网络边缘 Edge</a></li>
 <li> <a href="#122-%E7%BD%91%E7%BB%9C%E6%A0%B8%E5%BF%83-core">1.2.2 网络核心 Core</a></li>
-<li> <a href="#123-%E7%BD%91%E7%BB%9C%E6%A0%B8%E5%BF%83%E5%85%B3%E9%94%AE%E5%8A%9F%E8%83%BD-cores-functions">1.2.3 网络核心关键功能 Core’s functions</a></li>
-<li> <a href="#124-%E6%8E%A5%E5%85%A5%E5%B1%82%E5%92%8C%E7%89%A9%E7%90%86%E5%AA%92%E4%BD%93-access--physical-media">1.2.4 接入层和物理媒体 Access &amp; Physical Media</a></li>
+<li> <a href="#123-%E5%88%86%E7%BB%84%E5%BB%B6%E6%97%B6%E4%B8%A2%E5%A4%B1%E5%92%8C%E5%90%9E%E5%90%90%E9%87%8F-delay-lost-and-throughput">1.2.3 分组延时，丢失，和吞吐量 Delay, Lost, and Throughput</a></li>
+<li> <a href="#124-%E7%BD%91%E7%BB%9C%E6%A0%B8%E5%BF%83%E5%85%B3%E9%94%AE%E5%8A%9F%E8%83%BD-cores-functions">1.2.4 网络核心关键功能 Core’s functions</a></li>
+<li> <a href="#125-%E6%8E%A5%E5%85%A5%E5%B1%82%E5%92%8C%E7%89%A9%E7%90%86%E5%AA%92%E4%BD%93-access--physical-media">1.2.5 接入层和物理媒体 Access &amp; Physical Media</a>
+<br></li>
 </ul>
 </li>
 </ul>
-<br>
 <hr>
 <br>
 <h2 id="导言">导言：<a href="#导言" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
@@ -154,6 +165,42 @@
 <p>当一个人打招呼的时候开启了一个会话，对方的回应侧面确认了对方听到了，标志着两者的链接。前者便可继续发问。当然后者也可以用不同的回应来回复前者的打招呼，来象征不同的状态。</p>
 <p>    网路协议是类似的，除了它们使用软硬件作为基础。所有互联网中的活动都涉及两个及以上的，被协议规范的远程交流。假设你希望访问一个网页，首先计算机会发送一个连接<strong>请求报文（Request message）</strong> 给网络服务器然后等待回复。之后网络服务器会接收到这一请求然后返回一个连接回复。如果计算机发现交流建立了，它会向服务器发送网页名。最终服务器会返回计算机所请求的网页/文件。</p>
 <p>    协议的正式定义：协议定义了在两个或多个通信实体之间交换的报文格式（语法/语义）和次序，以及在报文传输/接收或其他事件方面所采取的动作。</p>
+<br>
+<br>
+<h3 id="114-协议层次及服务模型">1.1.4 协议层次及服务模型<a href="#114-协议层次及服务模型" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h3>
+<p>    协议是对等层之间的约定/规范：协议描述的是一种<strong>横向</strong>的关系。下层向上层提供上层可使用的服务，上层通过原语（对下层行为的抽象的描述）来使用这些服务：服务是<strong>垂直</strong>的关系。在实现/使用本层协议的时候，会使用相邻的下层的服务，而下层的协议也使用了下下层的服务：虽然协议不可能跨层交流，但是服务的使用是<strong>累加</strong>的。上下层之间交流的“窗口”被叫做<strong>服务访问点(SAP:Service Access Point)</strong>，比如传输层的SAP就是端口。</p>
+<p>    <strong>数据单元（DU）：</strong></p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/fU4Nlfa.png" alt="" style="width:100%; background: rgba(255, 255, 255, .5)">
+</div>
+</figure>
+<p>层与层之间通过SAP交流。上层会把自己的SDU（包含上层的header等）和ICI一起打包为IDU递交给下层，ICI可以让SDU更好的通过SAP，之后抛弃ICI（使用之后ICI就没意义了）。在添加本层的header后，它会组成PDU（header+SDU）传给下一层，在下一层看来，上层的PDU就是本层的SDU（相对关系）：换句话说，图中第一个SDU是对n层来说的，而它实际上页是n+1层的PDU。每一层的PDU有不同的名称：</p>
+<ul>
+<li>应用层：报文 Message</li>
+<li>传输层：报文段 Segment</li>
+<li>网络层 分组 Packet。 数据报 Datagram</li>
+<li>数据链路层 帧 Frame</li>
+<li>物理层 位 Bit</li>
+</ul>
+<p>    分层的好处：</p>
+<ul>
+<li>概念化：结构清晰，方便描述相互关系</li>
+<li>模组化：易于维护</li>
+</ul>
+<p>    <strong>Internet协议栈</strong>:应用层有最多的协议，传输层通常只是用TCP/Ip协议。链路层和物理层通常都封装在了网卡中。</p>
+<figure>
+<div style="text-align:center">
+<img src="https://www.guru99.com/images/1/093019_0615_TCPIPModelW3.png" alt="" style="width:70%; background: rgba(255, 255, 255, .5)">
+</div>
+</figure>
+<p>同时还有<strong>OSI参考模型</strong>：它有表示层和会话层。表示层：负责加密，压缩，机器表示等；会话层：数据交换的同步，检查，回复。在实践中，这两个层的功能会在App层，需要APp自己实现。</p>
+<p>    封装解封装：Packet在路由的过程中，会被不断地被封装解封装，让交换器/路由器得到判断下一跳/目标IP的信息：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/l1Ssovc.png" alt="" style="width:70%; background: rgba(255, 255, 255, .5)">
+</div>
+</figure>
 <br>
 <br>
 <br>
@@ -400,11 +447,14 @@
 			</div>
 			<hr class="post-end">
 			<footer class="post-info">
-				<p><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-file-text"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>4704 字</p>
+				<p><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-file-text"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>6027 字</p>
 				<p><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-calendar"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>2022-08-17 10:59 -0400</p>
 			</footer>
 		</article>
 		<div class="post-nav thin">
+			<a class="next-post" href="https://hoooao.github.io/net/chap2/">
+				<span class="post-nav-label"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-arrow-left"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>&nbsp;上一篇</span><br><span>Chap 2: 应用层 Application Layer</span>
+			</a>
 		</div>
 		<div id="comments" class="thin">
 </div>
@@ -419,7 +469,7 @@
 
 
 
-	<script src="https://hoooao.github.io/js/bundle.min.5a42c67b729ee2fa1059251688235399704707e04edb4e28c42c6f6dfa49d1d9.js" integrity="sha256-WkLGe3Ke4voQWSUWiCNTmXBHB+BO204oxCxvbfpJ0dk=" crossorigin="anonymous"></script>
+	<script src="https://hoooao.github.io/js/bundle.min.580988ed2982bcbb74a1773c7abea97b43e4c43b9324e10cda0813ec6ec4bb67.js" integrity="sha256-WAmI7SmCvLt0oXc8er6pe0PkxDuTJOEM2ggT7G7Eu2c=" crossorigin="anonymous"></script>
 	
 
 </body>

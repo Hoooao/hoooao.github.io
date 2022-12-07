@@ -8,15 +8,27 @@
 	<meta name="theme-color" content="#494f5c">
 	<meta name="msapplication-TileColor" content="#494f5c">
 <meta itemprop="name" content="Chap 3: 数据库存储 DB Storage">
-<meta itemprop="description" content="目录   导言  3.1 物理储存&amp;接口概述 Overview of Physical Storage Media&amp;Interface  3.2 磁盘 Magnetic Disks  3.3 文件组成 File Organization   3.3.1 属性在Record中的存储  3.3.2 Block布局：Tuple-oriented  3.3.3 Block布局：Log-structured    3.4 文件中的Records的组织 Organization of Records in Files  3.5 数据表示 Data Representation  3.6 储存模型 Storage Model   导言：  本章的主要内容包括文件是如何储存在磁盘上的，以及对于如何构建可靠的储存结构的讨论。
- 3.1 物理储存&amp;接口概述 Overview of Physical Storage Media&amp;Interface  缓存（Cache）：缓存是最快的存储，但缓存不是数据库的重点。
- 主内存（Main Memory）：通常来说，只有储存在内存的数据可以被直接修改。相对于DB，内存太小，并且“volatile”，即在断电后数据被清除。"><meta itemprop="datePublished" content="2022-08-18T15:30:08-04:00" />
+<meta itemprop="description" content="目录 导言 3.1 物理储存&amp;接口概述 Overview of Physical Storage Media&amp;Interface 3.2 磁盘 Magnetic Disks 3.3 文件组成 File Organization 3.3.1 属性在Record中的存储 3.3.2 Block布局：Tuple-oriented 3.3.3 Block布局：Log-structured 3.4 文件中的Records的组织 Organization of Records in Files 3.5 数据表示 Data Representation 3.6 储存模型 Storage Model 导言： 本章的主要内容包括文件是如何储存在磁盘上的，以及对于如何构建可靠的储存结构的讨论。
+3.1 物理储存&amp;接口概述 Overview of Physical Storage Media&amp;Interface 缓存（Cache）：缓存是最快的存储，但缓存不是数据库的重点。
+主内存（Main Memory）：通常来说，只有储存在内存的数据可以被直接修改。相对于DB，内存太小，并且“volatile”，即在断电后数据被清除。
+闪存（Flash memory）：闪存是“non-volatile”的，SSD就在内部使用了闪存，但是提供了类似磁盘的接口，正在逐渐代替磁盘。
+磁盘（Magnetic-disk storage）：也被叫做硬盘HDD。系统为了访问磁盘上的数据，必须先把磁盘上的数据放入内存。在内存中修改之后再写回磁盘。
+磁带（Tape storage）：通常被用来做永久备份，最慢。
+上图前两个被叫做 Primary Storage，之后两个被叫做 Secondary/online Storage，最后两个被叫做 Tertiary/oﬄine Storage。Volatile的储存设备支持快随机访问，并且能精确的访问特定的Byte。但是Non-volatile设备，除了SSD，不支持随机访问，只支持顺序访问，并且访问的最小单位是block/page/sector。
+HDD和SSD都通过接口与计算机相连。常见的接口：
+Serial ATA (SATA)/Serial Attached SCSI (SAS)：它们通常使用在服务器中； Non-Volatile Memory Express (NVMe)：似一种逻辑接口，帮助 PCIe接口实现更好的 Storage area network (SAN)：这是一种架构，在这种架构中，磁盘可以组成阵列，被称为独立磁盘冗余阵列（RAID： Redundant arrays of independent disks）。Network attached storage (NAS) 与此类似，但是使用在云储存中。"><meta itemprop="datePublished" content="2022-08-18T15:30:08-04:00" />
 <meta itemprop="dateModified" content="2022-08-18T15:30:08-04:00" />
-<meta itemprop="wordCount" content="296">
+<meta itemprop="wordCount" content="313">
 <meta itemprop="keywords" content="" /><meta property="og:title" content="Chap 3: 数据库存储 DB Storage" />
-<meta property="og:description" content="目录   导言  3.1 物理储存&amp;接口概述 Overview of Physical Storage Media&amp;Interface  3.2 磁盘 Magnetic Disks  3.3 文件组成 File Organization   3.3.1 属性在Record中的存储  3.3.2 Block布局：Tuple-oriented  3.3.3 Block布局：Log-structured    3.4 文件中的Records的组织 Organization of Records in Files  3.5 数据表示 Data Representation  3.6 储存模型 Storage Model   导言：  本章的主要内容包括文件是如何储存在磁盘上的，以及对于如何构建可靠的储存结构的讨论。
- 3.1 物理储存&amp;接口概述 Overview of Physical Storage Media&amp;Interface  缓存（Cache）：缓存是最快的存储，但缓存不是数据库的重点。
- 主内存（Main Memory）：通常来说，只有储存在内存的数据可以被直接修改。相对于DB，内存太小，并且“volatile”，即在断电后数据被清除。" />
+<meta property="og:description" content="目录 导言 3.1 物理储存&amp;接口概述 Overview of Physical Storage Media&amp;Interface 3.2 磁盘 Magnetic Disks 3.3 文件组成 File Organization 3.3.1 属性在Record中的存储 3.3.2 Block布局：Tuple-oriented 3.3.3 Block布局：Log-structured 3.4 文件中的Records的组织 Organization of Records in Files 3.5 数据表示 Data Representation 3.6 储存模型 Storage Model 导言： 本章的主要内容包括文件是如何储存在磁盘上的，以及对于如何构建可靠的储存结构的讨论。
+3.1 物理储存&amp;接口概述 Overview of Physical Storage Media&amp;Interface 缓存（Cache）：缓存是最快的存储，但缓存不是数据库的重点。
+主内存（Main Memory）：通常来说，只有储存在内存的数据可以被直接修改。相对于DB，内存太小，并且“volatile”，即在断电后数据被清除。
+闪存（Flash memory）：闪存是“non-volatile”的，SSD就在内部使用了闪存，但是提供了类似磁盘的接口，正在逐渐代替磁盘。
+磁盘（Magnetic-disk storage）：也被叫做硬盘HDD。系统为了访问磁盘上的数据，必须先把磁盘上的数据放入内存。在内存中修改之后再写回磁盘。
+磁带（Tape storage）：通常被用来做永久备份，最慢。
+上图前两个被叫做 Primary Storage，之后两个被叫做 Secondary/online Storage，最后两个被叫做 Tertiary/oﬄine Storage。Volatile的储存设备支持快随机访问，并且能精确的访问特定的Byte。但是Non-volatile设备，除了SSD，不支持随机访问，只支持顺序访问，并且访问的最小单位是block/page/sector。
+HDD和SSD都通过接口与计算机相连。常见的接口：
+Serial ATA (SATA)/Serial Attached SCSI (SAS)：它们通常使用在服务器中； Non-Volatile Memory Express (NVMe)：似一种逻辑接口，帮助 PCIe接口实现更好的 Storage area network (SAN)：这是一种架构，在这种架构中，磁盘可以组成阵列，被称为独立磁盘冗余阵列（RAID： Redundant arrays of independent disks）。Network attached storage (NAS) 与此类似，但是使用在云储存中。" />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://hoooao.github.io/db/part3/" /><meta property="article:section" content="db" />
 <meta property="article:published_time" content="2022-08-18T15:30:08-04:00" />
@@ -24,9 +36,15 @@
 
 <meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="Chap 3: 数据库存储 DB Storage"/>
-<meta name="twitter:description" content="目录   导言  3.1 物理储存&amp;接口概述 Overview of Physical Storage Media&amp;Interface  3.2 磁盘 Magnetic Disks  3.3 文件组成 File Organization   3.3.1 属性在Record中的存储  3.3.2 Block布局：Tuple-oriented  3.3.3 Block布局：Log-structured    3.4 文件中的Records的组织 Organization of Records in Files  3.5 数据表示 Data Representation  3.6 储存模型 Storage Model   导言：  本章的主要内容包括文件是如何储存在磁盘上的，以及对于如何构建可靠的储存结构的讨论。
- 3.1 物理储存&amp;接口概述 Overview of Physical Storage Media&amp;Interface  缓存（Cache）：缓存是最快的存储，但缓存不是数据库的重点。
- 主内存（Main Memory）：通常来说，只有储存在内存的数据可以被直接修改。相对于DB，内存太小，并且“volatile”，即在断电后数据被清除。"/>
+<meta name="twitter:description" content="目录 导言 3.1 物理储存&amp;接口概述 Overview of Physical Storage Media&amp;Interface 3.2 磁盘 Magnetic Disks 3.3 文件组成 File Organization 3.3.1 属性在Record中的存储 3.3.2 Block布局：Tuple-oriented 3.3.3 Block布局：Log-structured 3.4 文件中的Records的组织 Organization of Records in Files 3.5 数据表示 Data Representation 3.6 储存模型 Storage Model 导言： 本章的主要内容包括文件是如何储存在磁盘上的，以及对于如何构建可靠的储存结构的讨论。
+3.1 物理储存&amp;接口概述 Overview of Physical Storage Media&amp;Interface 缓存（Cache）：缓存是最快的存储，但缓存不是数据库的重点。
+主内存（Main Memory）：通常来说，只有储存在内存的数据可以被直接修改。相对于DB，内存太小，并且“volatile”，即在断电后数据被清除。
+闪存（Flash memory）：闪存是“non-volatile”的，SSD就在内部使用了闪存，但是提供了类似磁盘的接口，正在逐渐代替磁盘。
+磁盘（Magnetic-disk storage）：也被叫做硬盘HDD。系统为了访问磁盘上的数据，必须先把磁盘上的数据放入内存。在内存中修改之后再写回磁盘。
+磁带（Tape storage）：通常被用来做永久备份，最慢。
+上图前两个被叫做 Primary Storage，之后两个被叫做 Secondary/online Storage，最后两个被叫做 Tertiary/oﬄine Storage。Volatile的储存设备支持快随机访问，并且能精确的访问特定的Byte。但是Non-volatile设备，除了SSD，不支持随机访问，只支持顺序访问，并且访问的最小单位是block/page/sector。
+HDD和SSD都通过接口与计算机相连。常见的接口：
+Serial ATA (SATA)/Serial Attached SCSI (SAS)：它们通常使用在服务器中； Non-Volatile Memory Express (NVMe)：似一种逻辑接口，帮助 PCIe接口实现更好的 Storage area network (SAN)：这是一种架构，在这种架构中，磁盘可以组成阵列，被称为独立磁盘冗余阵列（RAID： Redundant arrays of independent disks）。Network attached storage (NAS) 与此类似，但是使用在云储存中。"/>
 
 	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -434,7 +452,7 @@
 
 
 
-	<script src="https://hoooao.github.io/js/bundle.min.5a42c67b729ee2fa1059251688235399704707e04edb4e28c42c6f6dfa49d1d9.js" integrity="sha256-WkLGe3Ke4voQWSUWiCNTmXBHB+BO204oxCxvbfpJ0dk=" crossorigin="anonymous"></script>
+	<script src="https://hoooao.github.io/js/bundle.min.580988ed2982bcbb74a1773c7abea97b43e4c43b9324e10cda0813ec6ec4bb67.js" integrity="sha256-WAmI7SmCvLt0oXc8er6pe0PkxDuTJOEM2ggT7G7Eu2c=" crossorigin="anonymous"></script>
 	
 
 </body>

@@ -14,10 +14,20 @@
       <pubDate>Thu, 25 Aug 2022 10:32:43 -0400</pubDate>
       
       <guid>https://hoooao.github.io/db/part4/</guid>
-      <description>目录   缓冲池 Buffer Pool   导言：  4.1 缓冲池组成 Buffer Pool Organization  4.2 缓冲池优化 Buffer Pool Optimization  4.3 缓冲替换机制 Buffer Replacement Policies    哈希表 Hash Table   导言：  4.4 静态哈希表 Static Hash Table  4.5 动态哈希 Dynamic Hashing     缓冲池 Buffer Pool 导言：  上一章内容介绍了DBMS是如何把它的文件储存在磁盘上的，这一部分内容讨论DBMS是如何管理它在内存中的缓冲的文件以及如何把数据从内存放入磁盘。对于DB的管理涉及两个方面：
-   空间管理（Spatial Control）：把Page写入到哪里：目标为把通常会一起使用到Page储存在相邻的位置；
-  时间管理（Temporal Control）：什么时候把Page读入内存/写入磁盘：目标为尽可能减少磁盘与内存的互动。
-    4.</description>
+      <description>目录 缓冲池 Buffer Pool 导言： 4.1 缓冲池组成 Buffer Pool Organization 4.2 缓冲池优化 Buffer Pool Optimization 4.3 缓冲替换机制 Buffer Replacement Policies 哈希表 Hash Table 导言： 4.4 静态哈希表 Static Hash Table 4.5 动态哈希 Dynamic Hashing 缓冲池 Buffer Pool 导言： 上一章内容介绍了DBMS是如何把它的文件储存在磁盘上的，这一部分内容讨论DBMS是如何管理它在内存中的缓冲的文件以及如何把数据从内存放入磁盘。对于DB的管理涉及两个方面：
+空间管理（Spatial Control）：把Page写入到哪里：目标为把通常会一起使用到Page储存在相邻的位置；
+时间管理（Temporal Control）：什么时候把Page读入内存/写入磁盘：目标为尽可能减少磁盘与内存的互动。
+4.1 缓冲池组成 Buffer Pool Organization 缓冲池是DBMS在内存中委会的一段区域，用来临时保存读入的pages在内存中修改/读取。
+Frame指的是缓冲池中的“槽位”，用来放置读入的page。同时DBMS还会维护一个Page table，用来记录缓冲池中的Page的位置（指针），以及其他原数据，比如：
+Dirty bit：记录该Page在读入内存中后是否修改过； Pin：记录这个Page是否被Pin，如果被Pin，就不能被evict； Ref/Cnt：类似OS中内存中的文件系统维护的cnt，记录当前有几个线程/进程正在使用这个Page。
+为了保护数据，DBMS会使用Lock和Latches：
+Lock：这里的Lock并不是OS中锁，而是一种High-Level实现；它保护的是数据库中的内容：Tuples/Tables/DB，让它们在不会在一起交易中因其他交易而受到破坏；在交易期间，这个Lock都会存在；具有**复原（Rollback）**数据的能力：比如在数据传输过程中发生崩溃，需要能够让这个交易原子化；
+Latches：它实际上更像OS中的锁，是一种Low-Level实现，其本质是一个 互斥锁（Mutex）；它保护的是DB中的数据结构，比如Page table；在其保护的数据结构被操作的期间都会存在，不要求有复原数据的能力。
+如上图所示，Page3被pin了，所以DB将无法把它Evict出去；并且PT也给其中一个槽位上了Latch：别的进程和线程就无法修改这个槽位了，当前进程可以把Page2的指针保存在这个槽位而不用担心并发问题。
+需要区分 PT与Page目录：前者通过PageId记录着Page复制品在缓冲池里的位置，后者通过PageId记录着真实的Page在磁盘（DB文件）上的位置，任何对于它的修改都会被日志系统记录。
+为缓冲池分配内存的规则分为两类：1.全局规则：为所有交易做一套规则；2.本地规则：为不同的交易规定不同的规则，但是可能并不是对全局来说更好的方案。后面的优化就是不同的数据采用不同的优化的例子。
+虽然前一章说DBMS本质上是创建了自己的文件系统，独立于OS，但实际上DBMS的任何行为底层仍然必须依赖于OS的API。所以这就导致，当使用这些API的时候，OS并不知道这是来自DBMS的，它自己的文件系统的机制仍然会进行。其中最明显的就是文件系统的缓存机制。这就会导致在使用某系统调用之后，内存中可能保存着两份同一个文件，一个在缓冲池，一个在OS的缓存中。除了会导致浪费空间，更重要的是会因为不同的Eviction规则造成同步问题。所以大多数DBMS使用 **Direct I/O（O_DIRECT）**告诉OS在调用API的时候不要使用OS的任何机制。少数的DBMS会一定程度利用OS的缓存，但大多数一点也不用。
+4.2 缓冲池优化 Buffer Pool Optimization 介绍：多缓冲池，预取，扫描共享，缓冲池绕过。</description>
     </item>
     
     <item>
@@ -26,9 +36,15 @@
       <pubDate>Thu, 18 Aug 2022 15:30:08 -0400</pubDate>
       
       <guid>https://hoooao.github.io/db/part3/</guid>
-      <description>目录   导言  3.1 物理储存&amp;amp;接口概述 Overview of Physical Storage Media&amp;amp;Interface  3.2 磁盘 Magnetic Disks  3.3 文件组成 File Organization   3.3.1 属性在Record中的存储  3.3.2 Block布局：Tuple-oriented  3.3.3 Block布局：Log-structured    3.4 文件中的Records的组织 Organization of Records in Files  3.5 数据表示 Data Representation  3.6 储存模型 Storage Model   导言：  本章的主要内容包括文件是如何储存在磁盘上的，以及对于如何构建可靠的储存结构的讨论。
- 3.1 物理储存&amp;amp;接口概述 Overview of Physical Storage Media&amp;amp;Interface  缓存（Cache）：缓存是最快的存储，但缓存不是数据库的重点。
- 主内存（Main Memory）：通常来说，只有储存在内存的数据可以被直接修改。相对于DB，内存太小，并且“volatile”，即在断电后数据被清除。</description>
+      <description>目录 导言 3.1 物理储存&amp;amp;接口概述 Overview of Physical Storage Media&amp;amp;Interface 3.2 磁盘 Magnetic Disks 3.3 文件组成 File Organization 3.3.1 属性在Record中的存储 3.3.2 Block布局：Tuple-oriented 3.3.3 Block布局：Log-structured 3.4 文件中的Records的组织 Organization of Records in Files 3.5 数据表示 Data Representation 3.6 储存模型 Storage Model 导言： 本章的主要内容包括文件是如何储存在磁盘上的，以及对于如何构建可靠的储存结构的讨论。
+3.1 物理储存&amp;amp;接口概述 Overview of Physical Storage Media&amp;amp;Interface 缓存（Cache）：缓存是最快的存储，但缓存不是数据库的重点。
+主内存（Main Memory）：通常来说，只有储存在内存的数据可以被直接修改。相对于DB，内存太小，并且“volatile”，即在断电后数据被清除。
+闪存（Flash memory）：闪存是“non-volatile”的，SSD就在内部使用了闪存，但是提供了类似磁盘的接口，正在逐渐代替磁盘。
+磁盘（Magnetic-disk storage）：也被叫做硬盘HDD。系统为了访问磁盘上的数据，必须先把磁盘上的数据放入内存。在内存中修改之后再写回磁盘。
+磁带（Tape storage）：通常被用来做永久备份，最慢。
+上图前两个被叫做 Primary Storage，之后两个被叫做 Secondary/online Storage，最后两个被叫做 Tertiary/oﬄine Storage。Volatile的储存设备支持快随机访问，并且能精确的访问特定的Byte。但是Non-volatile设备，除了SSD，不支持随机访问，只支持顺序访问，并且访问的最小单位是block/page/sector。
+HDD和SSD都通过接口与计算机相连。常见的接口：
+Serial ATA (SATA)/Serial Attached SCSI (SAS)：它们通常使用在服务器中； Non-Volatile Memory Express (NVMe)：似一种逻辑接口，帮助 PCIe接口实现更好的 Storage area network (SAN)：这是一种架构，在这种架构中，磁盘可以组成阵列，被称为独立磁盘冗余阵列（RAID： Redundant arrays of independent disks）。Network attached storage (NAS) 与此类似，但是使用在云储存中。</description>
     </item>
     
     <item>
@@ -37,7 +53,7 @@
       <pubDate>Wed, 13 Jul 2022 19:11:24 -0400</pubDate>
       
       <guid>https://hoooao.github.io/db/part2/</guid>
-      <description>目录   SQL进阶 Advanced SQL   导言  2.1 SQL作为数据定义语言 SQL&amp;amp;Data Definition Language  2.2 SQL查询基础结构 Basic Structure of SQL Queries   2.2.1 单关系查询 Queries on a Single Relation  2.2.2 多关系查询 Queries on a Multiple Relations    2.3 基础操作 Basic Operations  2.4 集合操作 Set Operations  2.5 Null值 Null Values  2.6 聚合函数 Aggregate Functions   2.6.1 基础聚合 Basic Aggregation  2.6.2 分组聚合 Aggregation with Grouping  2.</description>
+      <description>目录 SQL进阶 Advanced SQL 导言 2.1 SQL作为数据定义语言 SQL&amp;amp;Data Definition Language 2.2 SQL查询基础结构 Basic Structure of SQL Queries 2.2.1 单关系查询 Queries on a Single Relation 2.2.2 多关系查询 Queries on a Multiple Relations 2.3 基础操作 Basic Operations 2.4 集合操作 Set Operations 2.5 Null值 Null Values 2.6 聚合函数 Aggregate Functions 2.6.1 基础聚合 Basic Aggregation 2.6.2 分组聚合 Aggregation with Grouping 2.6.3 Having 语句/从句 2.7 嵌套子查询 Nested Subqueries 2.7.1 Where中的子查询 Nested in Where 2.7.2 From中的子查询 Subqueries in the From Clause 2.</description>
     </item>
     
     <item>
@@ -46,7 +62,7 @@
       <pubDate>Sun, 03 Jul 2022 10:06:08 -0400</pubDate>
       
       <guid>https://hoooao.github.io/db/part1/</guid>
-      <description>MathJax.Hub.Config({ tex2jax: { skipTags: [&#39;script&#39;, &#39;noscript&#39;, &#39;style&#39;, &#39;textarea&#39;, &#39;pre&#39;], inlineMath: [[&#39;$&#39;,&#39;$&#39;]] } });   目录   数据库管理系统概述 Database Management System   导言  1.1 DBMS应用 DBMS Applications  1.2 DBMS目的 DBMS Purposes  1.3 数据模型 Data Models  1.4 数据抽象 Data Abstraction  1.5 数据库语言 DB Languages  1.6 数据库设计 DB Design  1.7 数据库引擎 DB Engine  1.8 数据库和应用 Database and Application Architecture    关系模型 Relational Model   导言  1.</description>
+      <description>目录 数据库管理系统概述 Database Management System 导言 1.1 DBMS应用 DBMS Applications 1.2 DBMS目的 DBMS Purposes 1.3 数据模型 Data Models 1.4 数据抽象 Data Abstraction 1.5 数据库语言 DB Languages 1.6 数据库设计 DB Design 1.7 数据库引擎 DB Engine 1.8 数据库和应用 Database and Application Architecture 关系模型 Relational Model 导言 1.9 概念 Concepts 1.10 DB 架构 DB Schema 1.11 键 Keys 1.12 关系查询语言 Relational Query Language 1.13 关系代数 Relational Algebra 数据库管理系统概述 Database Management System 导言： 数据库管理系统（DBMS：Database Management System） 由大量相互关联的数据以及操作这些数据的程序组成。数据的集合被叫做数据库。DBMS的目的是实现一个高效的 存储（Storage） 与 取出（Retrieve）。数据的管理主要有三个方面：1.</description>
     </item>
     
   </channel>

@@ -8,15 +8,25 @@
 	<meta name="theme-color" content="#494f5c">
 	<meta name="msapplication-TileColor" content="#494f5c">
 <meta itemprop="name" content="Chap 9: Ext3 &amp; 用户空间虚拟内存应用 &amp; 微内核">
-<meta itemprop="description" content="目录  文件系统性能以及恢复 FS Performance &amp; Recovery  导言： 9.1 Linux Ext3 文件系统 9.2 Ext3 日志系统优势 9.3 Ext3 日志过程   用户程序对于虚拟内存的应用 Virtual Memory for Applications  导言： 9.4 原语 Primitives 9.5 用户空间Trap 9.6 垃圾回收器 Garbage Collector   微内核 Microkernels  导言： 9.7 内核对比 Kernel comparison 9.8 seL4      从本章开始，所有内容脱离了xv6教科书，转向了对现代操作系统（Unix/Linux等）的其他方面的介绍。本章对应于MIT 6.S081的Lec 16 至Lec 18。
- 
-文件系统性能以及恢复 FS Performance &amp; Recovery 导言：  回忆在xv6中，文件系统维护在磁盘上维护着一个日志系统，他的结构十分简单：header block&#43;logged blocks。header中记录着当前日志中记录着的block的数量和每个block的number。重要的是，在某个系统调用使用end_op之前，使用的都是内存中的cached block，而只有在所有被修改的block都同步到了磁盘上的日志中的时候，日志的header才会更新指示着对应的block number。而更新header的这一瞬间就是commit-point：在此之前发生的崩溃都会导致这些还没有写入磁盘原来位置的数据丢失（即使已经保存在了日志中），而在此之后这些数据都可以被恢复。"><meta itemprop="datePublished" content="2022-08-06T15:49:13-04:00" />
+<meta itemprop="description" content="目录 文件系统性能以及恢复 FS Performance &amp; Recovery 导言： 9.1 Linux Ext3 文件系统 9.2 Ext3 日志系统优势 9.3 Ext3 日志过程 用户程序对于虚拟内存的应用 Virtual Memory for Applications 导言： 9.4 原语 Primitives 9.5 用户空间Trap 9.6 垃圾回收器 Garbage Collector 微内核 Microkernels 导言： 9.7 内核对比 Kernel comparison 9.8 seL4 从本章开始，所有内容脱离了xv6教科书，转向了对现代操作系统（Unix/Linux等）的其他方面的介绍。本章对应于MIT 6.S081的Lec 16 至Lec 18。
+文件系统性能以及恢复 FS Performance &amp; Recovery 导言： 回忆在xv6中，文件系统维护在磁盘上维护着一个日志系统，他的结构十分简单：header block&#43;logged blocks。header中记录着当前日志中记录着的block的数量和每个block的number。重要的是，在某个系统调用使用end_op之前，使用的都是内存中的cached block，而只有在所有被修改的block都同步到了磁盘上的日志中的时候，日志的header才会更新指示着对应的block number。而更新header的这一瞬间就是commit-point：在此之前发生的崩溃都会导致这些还没有写入磁盘原来位置的数据丢失（即使已经保存在了日志中），而在此之后这些数据都可以被恢复。
+任何使用日志系统的文件系统都需要遵守两个原则：
+Write-ahead rule：在log中的内容写入磁盘之前，任何日志中对应的block都不能提前写入磁盘原位置。这保证了原子化，是日志系统最重要的准则；
+Freeing rule：不能在log写入磁盘真正位置之前重写或者重新利用任何log中的block。
+xv6中的日志系统被称为“synchronous”：在一个系统调用执行完一对begin_op, end_op之前，不可能返回用户空间，并且最重要的是在committing的过程中，没有任何其他线程可以使用日志系统，效率十分低。
+9.1 Linux Ext3 文件系统 ext3是Linux所使用的第三代文件系统，本质上是ext2&#43;Journaling：journaling与logging完全等同。与xv6一样，Linux也在内存中保存着一个缓冲缓存器，储存着一些从磁盘中复制来的block。但是不同的是它同样保存着transaction的信息。在ext3中，允许多个交易并发进行，所以它保存着每一个交易的信息：
+Sequence：是当前transaction的次序；"><meta itemprop="datePublished" content="2022-08-06T15:49:13-04:00" />
 <meta itemprop="dateModified" content="2022-08-06T15:49:13-04:00" />
 <meta itemprop="wordCount" content="478">
 <meta itemprop="keywords" content="" /><meta property="og:title" content="Chap 9: Ext3 &amp; 用户空间虚拟内存应用 &amp; 微内核" />
-<meta property="og:description" content="目录  文件系统性能以及恢复 FS Performance &amp; Recovery  导言： 9.1 Linux Ext3 文件系统 9.2 Ext3 日志系统优势 9.3 Ext3 日志过程   用户程序对于虚拟内存的应用 Virtual Memory for Applications  导言： 9.4 原语 Primitives 9.5 用户空间Trap 9.6 垃圾回收器 Garbage Collector   微内核 Microkernels  导言： 9.7 内核对比 Kernel comparison 9.8 seL4      从本章开始，所有内容脱离了xv6教科书，转向了对现代操作系统（Unix/Linux等）的其他方面的介绍。本章对应于MIT 6.S081的Lec 16 至Lec 18。
- 
-文件系统性能以及恢复 FS Performance &amp; Recovery 导言：  回忆在xv6中，文件系统维护在磁盘上维护着一个日志系统，他的结构十分简单：header block&#43;logged blocks。header中记录着当前日志中记录着的block的数量和每个block的number。重要的是，在某个系统调用使用end_op之前，使用的都是内存中的cached block，而只有在所有被修改的block都同步到了磁盘上的日志中的时候，日志的header才会更新指示着对应的block number。而更新header的这一瞬间就是commit-point：在此之前发生的崩溃都会导致这些还没有写入磁盘原来位置的数据丢失（即使已经保存在了日志中），而在此之后这些数据都可以被恢复。" />
+<meta property="og:description" content="目录 文件系统性能以及恢复 FS Performance &amp; Recovery 导言： 9.1 Linux Ext3 文件系统 9.2 Ext3 日志系统优势 9.3 Ext3 日志过程 用户程序对于虚拟内存的应用 Virtual Memory for Applications 导言： 9.4 原语 Primitives 9.5 用户空间Trap 9.6 垃圾回收器 Garbage Collector 微内核 Microkernels 导言： 9.7 内核对比 Kernel comparison 9.8 seL4 从本章开始，所有内容脱离了xv6教科书，转向了对现代操作系统（Unix/Linux等）的其他方面的介绍。本章对应于MIT 6.S081的Lec 16 至Lec 18。
+文件系统性能以及恢复 FS Performance &amp; Recovery 导言： 回忆在xv6中，文件系统维护在磁盘上维护着一个日志系统，他的结构十分简单：header block&#43;logged blocks。header中记录着当前日志中记录着的block的数量和每个block的number。重要的是，在某个系统调用使用end_op之前，使用的都是内存中的cached block，而只有在所有被修改的block都同步到了磁盘上的日志中的时候，日志的header才会更新指示着对应的block number。而更新header的这一瞬间就是commit-point：在此之前发生的崩溃都会导致这些还没有写入磁盘原来位置的数据丢失（即使已经保存在了日志中），而在此之后这些数据都可以被恢复。
+任何使用日志系统的文件系统都需要遵守两个原则：
+Write-ahead rule：在log中的内容写入磁盘之前，任何日志中对应的block都不能提前写入磁盘原位置。这保证了原子化，是日志系统最重要的准则；
+Freeing rule：不能在log写入磁盘真正位置之前重写或者重新利用任何log中的block。
+xv6中的日志系统被称为“synchronous”：在一个系统调用执行完一对begin_op, end_op之前，不可能返回用户空间，并且最重要的是在committing的过程中，没有任何其他线程可以使用日志系统，效率十分低。
+9.1 Linux Ext3 文件系统 ext3是Linux所使用的第三代文件系统，本质上是ext2&#43;Journaling：journaling与logging完全等同。与xv6一样，Linux也在内存中保存着一个缓冲缓存器，储存着一些从磁盘中复制来的block。但是不同的是它同样保存着transaction的信息。在ext3中，允许多个交易并发进行，所以它保存着每一个交易的信息：
+Sequence：是当前transaction的次序；" />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://hoooao.github.io/os/chap9/" /><meta property="article:section" content="os" />
 <meta property="article:published_time" content="2022-08-06T15:49:13-04:00" />
@@ -24,9 +34,14 @@
 
 <meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="Chap 9: Ext3 &amp; 用户空间虚拟内存应用 &amp; 微内核"/>
-<meta name="twitter:description" content="目录  文件系统性能以及恢复 FS Performance &amp; Recovery  导言： 9.1 Linux Ext3 文件系统 9.2 Ext3 日志系统优势 9.3 Ext3 日志过程   用户程序对于虚拟内存的应用 Virtual Memory for Applications  导言： 9.4 原语 Primitives 9.5 用户空间Trap 9.6 垃圾回收器 Garbage Collector   微内核 Microkernels  导言： 9.7 内核对比 Kernel comparison 9.8 seL4      从本章开始，所有内容脱离了xv6教科书，转向了对现代操作系统（Unix/Linux等）的其他方面的介绍。本章对应于MIT 6.S081的Lec 16 至Lec 18。
- 
-文件系统性能以及恢复 FS Performance &amp; Recovery 导言：  回忆在xv6中，文件系统维护在磁盘上维护着一个日志系统，他的结构十分简单：header block&#43;logged blocks。header中记录着当前日志中记录着的block的数量和每个block的number。重要的是，在某个系统调用使用end_op之前，使用的都是内存中的cached block，而只有在所有被修改的block都同步到了磁盘上的日志中的时候，日志的header才会更新指示着对应的block number。而更新header的这一瞬间就是commit-point：在此之前发生的崩溃都会导致这些还没有写入磁盘原来位置的数据丢失（即使已经保存在了日志中），而在此之后这些数据都可以被恢复。"/>
+<meta name="twitter:description" content="目录 文件系统性能以及恢复 FS Performance &amp; Recovery 导言： 9.1 Linux Ext3 文件系统 9.2 Ext3 日志系统优势 9.3 Ext3 日志过程 用户程序对于虚拟内存的应用 Virtual Memory for Applications 导言： 9.4 原语 Primitives 9.5 用户空间Trap 9.6 垃圾回收器 Garbage Collector 微内核 Microkernels 导言： 9.7 内核对比 Kernel comparison 9.8 seL4 从本章开始，所有内容脱离了xv6教科书，转向了对现代操作系统（Unix/Linux等）的其他方面的介绍。本章对应于MIT 6.S081的Lec 16 至Lec 18。
+文件系统性能以及恢复 FS Performance &amp; Recovery 导言： 回忆在xv6中，文件系统维护在磁盘上维护着一个日志系统，他的结构十分简单：header block&#43;logged blocks。header中记录着当前日志中记录着的block的数量和每个block的number。重要的是，在某个系统调用使用end_op之前，使用的都是内存中的cached block，而只有在所有被修改的block都同步到了磁盘上的日志中的时候，日志的header才会更新指示着对应的block number。而更新header的这一瞬间就是commit-point：在此之前发生的崩溃都会导致这些还没有写入磁盘原来位置的数据丢失（即使已经保存在了日志中），而在此之后这些数据都可以被恢复。
+任何使用日志系统的文件系统都需要遵守两个原则：
+Write-ahead rule：在log中的内容写入磁盘之前，任何日志中对应的block都不能提前写入磁盘原位置。这保证了原子化，是日志系统最重要的准则；
+Freeing rule：不能在log写入磁盘真正位置之前重写或者重新利用任何log中的block。
+xv6中的日志系统被称为“synchronous”：在一个系统调用执行完一对begin_op, end_op之前，不可能返回用户空间，并且最重要的是在committing的过程中，没有任何其他线程可以使用日志系统，效率十分低。
+9.1 Linux Ext3 文件系统 ext3是Linux所使用的第三代文件系统，本质上是ext2&#43;Journaling：journaling与logging完全等同。与xv6一样，Linux也在内存中保存着一个缓冲缓存器，储存着一些从磁盘中复制来的block。但是不同的是它同样保存着transaction的信息。在ext3中，允许多个交易并发进行，所以它保存着每一个交易的信息：
+Sequence：是当前transaction的次序；"/>
 
 	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -208,12 +223,12 @@
 <br>
 <h2 id="93-ext3-日志过程">9.3 Ext3 日志过程<a href="#93-ext3-日志过程" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
 <p>    类似xv6中的磁盘写入过程，ext3也需要系统调用标明写入的开始和结束位置：</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="n">h</span> <span class="o">=</span> <span class="n">start</span><span class="p">();</span>
-</span></span><span class="line"><span class="cl"><span class="n">get</span><span class="p">(</span><span class="n">h</span><span class="p">,</span> <span class="n">blocknum</span><span class="p">);</span>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="n">h</span> <span class="o">=</span> <span class="nf">start</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl"><span class="nf">get</span><span class="p">(</span><span class="n">h</span><span class="p">,</span> <span class="n">blocknum</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl"><span class="c1">//operations...
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>
-</span></span><span class="line"><span class="cl"><span class="n">stop</span><span class="p">(</span><span class="n">h</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="nf">stop</span><span class="p">(</span><span class="n">h</span><span class="p">);</span>
 </span></span></code></pre></div><p><code>star()</code>开始把接下来的操作记录到一个transaction中（内存中操作），返回一个handler：这个handler是每个写入磁盘的系统调用所独有的。调用<code>get()</code>，传入handler和目标block number，再获取目标block的同时标记“这个block正在被系统调用h使用”。在执行一系列的写入操作后，调用<code>stop()</code>，告诉文件系统当前系统调用h结束。不像xv6，这里的<code>stop</code>只是通知系统一个系统调用结束。5秒内会很有很多这样的系统调用发生并且被分配到这一个交易中。很好理解在5秒结束的瞬间，很可能还有一些系统调用正在执行写入，此时文件系统就需要等待这些操作完成，然后再开始提交。</p>
 <p>    提交的步骤：</p>
 <blockquote>
@@ -302,53 +317,53 @@
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">    <span class="c1">// Only mapping to find a safe location for the table.
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// 这里的意义是找到一块可以分配的位置
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">sqrts</span> <span class="o">=</span> <span class="n">mmap</span><span class="p">(</span><span class="nb">NULL</span><span class="p">,</span> <span class="n">MAX_SQRTS</span> <span class="o">*</span> <span class="k">sizeof</span><span class="p">(</span><span class="kt">double</span><span class="p">)</span> <span class="o">+</span> <span class="n">AS_LIMIT</span><span class="p">,</span><span class="n">PROT_NONE</span><span class="p">,</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">sqrts</span> <span class="o">=</span> <span class="nf">mmap</span><span class="p">(</span><span class="nb">NULL</span><span class="p">,</span> <span class="n">MAX_SQRTS</span> <span class="o">*</span> <span class="k">sizeof</span><span class="p">(</span><span class="kt">double</span><span class="p">)</span> <span class="o">+</span> <span class="n">AS_LIMIT</span><span class="p">,</span><span class="n">PROT_NONE</span><span class="p">,</span>
 </span></span><span class="line"><span class="cl">                <span class="n">MAP_PRIVATE</span> <span class="o">|</span> <span class="n">MAP_ANONYMOUS</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">sqrts</span> <span class="o">==</span> <span class="n">MAP_FAILED</span><span class="p">){</span>
-</span></span><span class="line"><span class="cl">        <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&#34;Couldn&#39;t mmap() region for sqrt table; %s</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span>
-</span></span><span class="line"><span class="cl">            <span class="n">strerror</span><span class="p">(</span><span class="n">errno</span><span class="p">));</span>
-</span></span><span class="line"><span class="cl">        <span class="n">exit</span><span class="p">(</span><span class="n">EXIT_FAILURE</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&#34;Couldn&#39;t mmap() region for sqrt table; %s</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">            <span class="nf">strerror</span><span class="p">(</span><span class="n">errno</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">exit</span><span class="p">(</span><span class="n">EXIT_FAILURE</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">        <span class="p">}</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">    <span class="c1">// Now release the virtual memory
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">//释放掉
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span> <span class="p">(</span><span class="n">munmap</span><span class="p">(</span><span class="n">sqrts</span><span class="p">,</span> <span class="n">MAX_SQRTS</span> <span class="o">*</span> <span class="k">sizeof</span><span class="p">(</span><span class="kt">double</span><span class="p">)</span><span class="o">+</span><span class="n">AS_LIMIT</span><span class="p">)</span><span class="o">==-</span><span class="mi">1</span><span class="p">){</span> 
-</span></span><span class="line"><span class="cl">        <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&#34;Couldn&#39;t munmap() region for sqrt table; %s</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span>
-</span></span><span class="line"><span class="cl">            <span class="n">strerror</span><span class="p">(</span><span class="n">errno</span><span class="p">));</span>
-</span></span><span class="line"><span class="cl">        <span class="n">exit</span><span class="p">(</span><span class="n">EXIT_FAILURE</span><span class="p">);</span> <span class="p">}</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span> <span class="p">(</span><span class="nf">munmap</span><span class="p">(</span><span class="n">sqrts</span><span class="p">,</span> <span class="n">MAX_SQRTS</span> <span class="o">*</span> <span class="k">sizeof</span><span class="p">(</span><span class="kt">double</span><span class="p">)</span><span class="o">+</span><span class="n">AS_LIMIT</span><span class="p">)</span><span class="o">==-</span><span class="mi">1</span><span class="p">){</span> 
+</span></span><span class="line"><span class="cl">        <span class="nf">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&#34;Couldn&#39;t munmap() region for sqrt table; %s</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">            <span class="nf">strerror</span><span class="p">(</span><span class="n">errno</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">exit</span><span class="p">(</span><span class="n">EXIT_FAILURE</span><span class="p">);</span> <span class="p">}</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">    <span class="c1">// Register a signal handler to capture SIGSEGV. 
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// 这里设置SIGSEGV的handler
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">act</span><span class="p">.</span><span class="n">sa_sigaction</span> <span class="o">=</span> <span class="n">handle_sigsegv</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">    <span class="n">act</span><span class="p">.</span><span class="n">sa_flags</span> <span class="o">=</span> <span class="n">SA_SIGINFO</span><span class="p">;</span> 
-</span></span><span class="line"><span class="cl">    <span class="n">sigemptyset</span><span class="p">(</span><span class="o">&amp;</span><span class="n">act</span><span class="p">.</span><span class="n">sa_mask</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">sigemptyset</span><span class="p">(</span><span class="o">&amp;</span><span class="n">act</span><span class="p">.</span><span class="n">sa_mask</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="c1">// 正式设置
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span> <span class="p">(</span><span class="n">sigaction</span><span class="p">(</span><span class="n">SIGSEGV</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">act</span><span class="p">,</span><span class="nb">NULL</span><span class="p">)</span><span class="o">==-</span><span class="mi">1</span><span class="p">){</span>
-</span></span><span class="line"><span class="cl">        <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&#34;Couldn&#39;t set up SIGSEGV handler;, %s</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">strerror</span><span class="p">(</span><span class="n">errno</span><span class="p">));</span> 
-</span></span><span class="line"><span class="cl">        <span class="n">exit</span><span class="p">(</span><span class="n">EXIT_FAILURE</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span> <span class="p">(</span><span class="nf">sigaction</span><span class="p">(</span><span class="n">SIGSEGV</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">act</span><span class="p">,</span><span class="nb">NULL</span><span class="p">)</span><span class="o">==-</span><span class="mi">1</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&#34;Couldn&#39;t set up SIGSEGV handler;, %s</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="nf">strerror</span><span class="p">(</span><span class="n">errno</span><span class="p">));</span> 
+</span></span><span class="line"><span class="cl">        <span class="nf">exit</span><span class="p">(</span><span class="n">EXIT_FAILURE</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="p">}</span> 
 </span></span><span class="line"><span class="cl"><span class="p">}</span> 
 </span></span></code></pre></div><p>在<code>setup_sqrt_region</code>函数中，进程会会真正地设置handler。当对应的Signal发生时，就会调用这里所设置的用户函数<code>handle_sigsegv</code>:</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="k">static</span> <span class="kt">void</span>
-</span></span><span class="line"><span class="cl"><span class="nf">handle_sigsegv</span><span class="p">(</span><span class="kt">int</span> <span class="n">sig</span><span class="p">,</span> <span class="n">siginfo_t</span> <span class="o">*</span><span class="n">si</span><span class="p">,</span> <span class="kt">void</span> <span class="o">*</span><span class="n">ctx</span><span class="p">)</span> 
+</span></span><span class="line"><span class="cl"><span class="nf">handle_sigsegv</span><span class="p">(</span><span class="kt">int</span> <span class="n">sig</span><span class="p">,</span> <span class="kt">siginfo_t</span> <span class="o">*</span><span class="n">si</span><span class="p">,</span> <span class="kt">void</span> <span class="o">*</span><span class="n">ctx</span><span class="p">)</span> 
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
-</span></span><span class="line"><span class="cl">    <span class="n">uintptr_t</span> <span class="n">fault_addr</span><span class="o">=</span><span class="p">(</span><span class="n">uintptr_t</span><span class="p">)</span><span class="n">si</span><span class="o">-&gt;</span><span class="n">si_addr</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">    <span class="kt">double</span> <span class="o">*</span><span class="n">page_base</span> <span class="o">=</span> <span class="p">(</span><span class="kt">double</span> <span class="o">*</span><span class="p">)</span><span class="n">align_down</span><span class="p">(</span><span class="n">fault_addr</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">uintptr_t</span> <span class="n">fault_addr</span><span class="o">=</span><span class="p">(</span><span class="kt">uintptr_t</span><span class="p">)</span><span class="n">si</span><span class="o">-&gt;</span><span class="n">si_addr</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">double</span> <span class="o">*</span><span class="n">page_base</span> <span class="o">=</span> <span class="p">(</span><span class="kt">double</span> <span class="o">*</span><span class="p">)</span><span class="nf">align_down</span><span class="p">(</span><span class="n">fault_addr</span><span class="p">,</span>
 </span></span><span class="line"><span class="cl">            <span class="n">page_size</span><span class="p">);</span> 
 </span></span><span class="line"><span class="cl">    <span class="k">static</span> <span class="kt">double</span> <span class="o">*</span><span class="n">last_page_base</span> <span class="o">=</span><span class="nb">NULL</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">    <span class="c1">//开始映射
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span> <span class="p">(</span><span class="n">mmap</span><span class="p">(</span><span class="n">page_base</span><span class="p">,</span> <span class="n">page_size</span><span class="p">,</span> <span class="n">PROT_READ</span> <span class="o">|</span> <span class="n">PROT_WRITE</span><span class="p">,</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span> <span class="p">(</span><span class="nf">mmap</span><span class="p">(</span><span class="n">page_base</span><span class="p">,</span> <span class="n">page_size</span><span class="p">,</span> <span class="n">PROT_READ</span> <span class="o">|</span> <span class="n">PROT_WRITE</span><span class="p">,</span>
 </span></span><span class="line"><span class="cl">            <span class="n">MAP_PRIVATE</span><span class="o">|</span> <span class="n">MAP_ANONYMOUS</span> <span class="o">|</span> <span class="n">MAP_FIXED</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">)</span> <span class="o">==</span><span class="n">MAP_FAILED</span><span class="p">){</span> 
-</span></span><span class="line"><span class="cl">        <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&#34;Couldn&#39;t mmap(); %s</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">strerror</span><span class="p">(</span><span class="n">errno</span><span class="p">));</span>
-</span></span><span class="line"><span class="cl">        <span class="n">exit</span><span class="p">(</span><span class="n">EXIT_FAILURE</span><span class="p">);</span> 
+</span></span><span class="line"><span class="cl">        <span class="nf">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&#34;Couldn&#39;t mmap(); %s</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="nf">strerror</span><span class="p">(</span><span class="n">errno</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">exit</span><span class="p">(</span><span class="n">EXIT_FAILURE</span><span class="p">);</span> 
 </span></span><span class="line"><span class="cl">    <span class="p">}</span>
 </span></span><span class="line"><span class="cl">    <span class="c1">//计算平方根
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">calculate_sqrts</span><span class="p">(</span><span class="n">page_base</span><span class="p">,</span> <span class="n">page_base</span> <span class="o">-</span> <span class="n">sqrts</span><span class="p">,</span> <span class="n">page_size</span> <span class="o">/</span> <span class="k">sizeof</span><span class="p">(</span><span class="kt">double</span><span class="p">));</span> 
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nf">calculate_sqrts</span><span class="p">(</span><span class="n">page_base</span><span class="p">,</span> <span class="n">page_base</span> <span class="o">-</span> <span class="n">sqrts</span><span class="p">,</span> <span class="n">page_size</span> <span class="o">/</span> <span class="k">sizeof</span><span class="p">(</span><span class="kt">double</span><span class="p">));</span> 
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">    <span class="c1">//释放之前分配的Page，压缩所使用的空间
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span> <span class="p">(</span><span class="n">last_page_base</span> <span class="o">&amp;&amp;</span> <span class="n">munmap</span><span class="p">(</span><span class="n">last_page_base</span><span class="p">,</span><span class="n">page_size</span><span class="p">)</span><span class="o">==-</span><span class="mi">1</span><span class="p">){</span>    
-</span></span><span class="line"><span class="cl">        <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&#34;Couldn&#39;t munmap(); %s</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">strerror</span><span class="p">(</span><span class="n">errno</span><span class="p">));</span> 
-</span></span><span class="line"><span class="cl">        <span class="n">exit</span><span class="p">(</span><span class="n">EXIT_FAILURE</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span> <span class="p">(</span><span class="n">last_page_base</span> <span class="o">&amp;&amp;</span> <span class="nf">munmap</span><span class="p">(</span><span class="n">last_page_base</span><span class="p">,</span><span class="n">page_size</span><span class="p">)</span><span class="o">==-</span><span class="mi">1</span><span class="p">){</span>    
+</span></span><span class="line"><span class="cl">        <span class="nf">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&#34;Couldn&#39;t munmap(); %s</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="nf">strerror</span><span class="p">(</span><span class="n">errno</span><span class="p">));</span> 
+</span></span><span class="line"><span class="cl">        <span class="nf">exit</span><span class="p">(</span><span class="n">EXIT_FAILURE</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="p">}</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">    <span class="n">last_page_base</span> <span class="o">=</span> <span class="n">page_base</span><span class="p">;</span> 
@@ -581,7 +596,7 @@
 
 
 
-	<script src="https://hoooao.github.io/js/bundle.min.5a42c67b729ee2fa1059251688235399704707e04edb4e28c42c6f6dfa49d1d9.js" integrity="sha256-WkLGe3Ke4voQWSUWiCNTmXBHB+BO204oxCxvbfpJ0dk=" crossorigin="anonymous"></script>
+	<script src="https://hoooao.github.io/js/bundle.min.580988ed2982bcbb74a1773c7abea97b43e4c43b9324e10cda0813ec6ec4bb67.js" integrity="sha256-WAmI7SmCvLt0oXc8er6pe0PkxDuTJOEM2ggT7G7Eu2c=" crossorigin="anonymous"></script>
 	
 
 </body>

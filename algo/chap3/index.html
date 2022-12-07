@@ -8,13 +8,25 @@
 	<meta name="theme-color" content="#494f5c">
 	<meta name="msapplication-TileColor" content="#494f5c">
 <meta itemprop="name" content="Chap3: 图论 Graph Theory">
-<meta itemprop="description" content="目录   导言  3.1 深度优先  3.2 广度优先  3.3 图  3.3 拓扑排序  3.4 最短路   3.4.1 朴素Dijkstra  3.4.2 堆优化Dijkstra  3.4.3 Bellman-Ford 算法  3.4.4 SPFA算法  3.4.5 Floyd算法    3.5 最小生成树   3.5.1 朴素版普里姆  3.5.2 Kruskal    3.6 二分图   3.6.1 染色法  3.6.2 匈牙利算法      导言： 本章着重于图论的介绍，包括DFS，BFS，树与图的深度优先遍历，树与图的广度优先遍历，拓扑排序，Dijkstra，bellman-ford，spfa，Floyd，Prim，Kruskal，染色法判定二分图，匈牙利算法等内容。
- 3.1 深度优先  DFS每次会搜索到叶节点再回溯。DFS使用stack，空间复杂度为$\mathcal{O}(h)$，也就是说大小和高度成正比。不具有最短性。DFS中最重要的两个概念：回溯，剪枝。"><meta itemprop="datePublished" content="2022-08-11T13:20:14-04:00" />
+<meta itemprop="description" content="目录 导言 3.1 深度优先 3.2 广度优先 3.3 图 3.3 拓扑排序 3.4 最短路 3.4.1 朴素Dijkstra 3.4.2 堆优化Dijkstra 3.4.3 Bellman-Ford 算法 3.4.4 SPFA算法 3.4.5 Floyd算法 3.5 最小生成树 3.5.1 朴素版普里姆 3.5.2 Kruskal 3.6 二分图 3.6.1 染色法 3.6.2 匈牙利算法 导言： 本章着重于图论的介绍，包括DFS，BFS，树与图的深度优先遍历，树与图的广度优先遍历，拓扑排序，Dijkstra，bellman-ford，spfa，Floyd，Prim，Kruskal，染色法判定二分图，匈牙利算法等内容。
+3.1 深度优先 DFS每次会搜索到叶节点再回溯。DFS使用stack，空间复杂度为$\mathcal{O}(h)$，也就是说大小和高度成正比。不具有最短性。DFS中最重要的两个概念：回溯，剪枝。
+例题：排列数字：给定一个整数 n，将数字 1∼n 排成一排，将会有很多种排列方法。现在，请你按照字典序将所有的排列方法输出。
+输入格式：
+共一行，包含一个整数 n。
+输出格式： 按字典序输出所有排列方案，每个方案占一行。
+数据范围：$1\leq n \leq 7$.
+int path[N]; int n; void DFS(int u, int state){ //如果遍历到最后一个元素了，说明可以位数足够输出了 if(u==n){ for (int i = 0; i &lt; n; i &#43;&#43; )printf(&#34;%d &#34;,path[i]); puts(&#34;&#34;); } //遍历每一个数字 for (int i = 0; i &lt; n; i &#43;&#43; ){ //检查state第i个bit的值，如果是0证明对应的数字（i&#43;1）还没有被使用 if(!"><meta itemprop="datePublished" content="2022-08-11T13:20:14-04:00" />
 <meta itemprop="dateModified" content="2022-08-11T13:20:14-04:00" />
 <meta itemprop="wordCount" content="1986">
 <meta itemprop="keywords" content="" /><meta property="og:title" content="Chap3: 图论 Graph Theory" />
-<meta property="og:description" content="目录   导言  3.1 深度优先  3.2 广度优先  3.3 图  3.3 拓扑排序  3.4 最短路   3.4.1 朴素Dijkstra  3.4.2 堆优化Dijkstra  3.4.3 Bellman-Ford 算法  3.4.4 SPFA算法  3.4.5 Floyd算法    3.5 最小生成树   3.5.1 朴素版普里姆  3.5.2 Kruskal    3.6 二分图   3.6.1 染色法  3.6.2 匈牙利算法      导言： 本章着重于图论的介绍，包括DFS，BFS，树与图的深度优先遍历，树与图的广度优先遍历，拓扑排序，Dijkstra，bellman-ford，spfa，Floyd，Prim，Kruskal，染色法判定二分图，匈牙利算法等内容。
- 3.1 深度优先  DFS每次会搜索到叶节点再回溯。DFS使用stack，空间复杂度为$\mathcal{O}(h)$，也就是说大小和高度成正比。不具有最短性。DFS中最重要的两个概念：回溯，剪枝。" />
+<meta property="og:description" content="目录 导言 3.1 深度优先 3.2 广度优先 3.3 图 3.3 拓扑排序 3.4 最短路 3.4.1 朴素Dijkstra 3.4.2 堆优化Dijkstra 3.4.3 Bellman-Ford 算法 3.4.4 SPFA算法 3.4.5 Floyd算法 3.5 最小生成树 3.5.1 朴素版普里姆 3.5.2 Kruskal 3.6 二分图 3.6.1 染色法 3.6.2 匈牙利算法 导言： 本章着重于图论的介绍，包括DFS，BFS，树与图的深度优先遍历，树与图的广度优先遍历，拓扑排序，Dijkstra，bellman-ford，spfa，Floyd，Prim，Kruskal，染色法判定二分图，匈牙利算法等内容。
+3.1 深度优先 DFS每次会搜索到叶节点再回溯。DFS使用stack，空间复杂度为$\mathcal{O}(h)$，也就是说大小和高度成正比。不具有最短性。DFS中最重要的两个概念：回溯，剪枝。
+例题：排列数字：给定一个整数 n，将数字 1∼n 排成一排，将会有很多种排列方法。现在，请你按照字典序将所有的排列方法输出。
+输入格式：
+共一行，包含一个整数 n。
+输出格式： 按字典序输出所有排列方案，每个方案占一行。
+数据范围：$1\leq n \leq 7$.
+int path[N]; int n; void DFS(int u, int state){ //如果遍历到最后一个元素了，说明可以位数足够输出了 if(u==n){ for (int i = 0; i &lt; n; i &#43;&#43; )printf(&#34;%d &#34;,path[i]); puts(&#34;&#34;); } //遍历每一个数字 for (int i = 0; i &lt; n; i &#43;&#43; ){ //检查state第i个bit的值，如果是0证明对应的数字（i&#43;1）还没有被使用 if(!" />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://hoooao.github.io/algo/chap3/" /><meta property="article:section" content="algo" />
 <meta property="article:published_time" content="2022-08-11T13:20:14-04:00" />
@@ -22,8 +34,14 @@
 
 <meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="Chap3: 图论 Graph Theory"/>
-<meta name="twitter:description" content="目录   导言  3.1 深度优先  3.2 广度优先  3.3 图  3.3 拓扑排序  3.4 最短路   3.4.1 朴素Dijkstra  3.4.2 堆优化Dijkstra  3.4.3 Bellman-Ford 算法  3.4.4 SPFA算法  3.4.5 Floyd算法    3.5 最小生成树   3.5.1 朴素版普里姆  3.5.2 Kruskal    3.6 二分图   3.6.1 染色法  3.6.2 匈牙利算法      导言： 本章着重于图论的介绍，包括DFS，BFS，树与图的深度优先遍历，树与图的广度优先遍历，拓扑排序，Dijkstra，bellman-ford，spfa，Floyd，Prim，Kruskal，染色法判定二分图，匈牙利算法等内容。
- 3.1 深度优先  DFS每次会搜索到叶节点再回溯。DFS使用stack，空间复杂度为$\mathcal{O}(h)$，也就是说大小和高度成正比。不具有最短性。DFS中最重要的两个概念：回溯，剪枝。"/>
+<meta name="twitter:description" content="目录 导言 3.1 深度优先 3.2 广度优先 3.3 图 3.3 拓扑排序 3.4 最短路 3.4.1 朴素Dijkstra 3.4.2 堆优化Dijkstra 3.4.3 Bellman-Ford 算法 3.4.4 SPFA算法 3.4.5 Floyd算法 3.5 最小生成树 3.5.1 朴素版普里姆 3.5.2 Kruskal 3.6 二分图 3.6.1 染色法 3.6.2 匈牙利算法 导言： 本章着重于图论的介绍，包括DFS，BFS，树与图的深度优先遍历，树与图的广度优先遍历，拓扑排序，Dijkstra，bellman-ford，spfa，Floyd，Prim，Kruskal，染色法判定二分图，匈牙利算法等内容。
+3.1 深度优先 DFS每次会搜索到叶节点再回溯。DFS使用stack，空间复杂度为$\mathcal{O}(h)$，也就是说大小和高度成正比。不具有最短性。DFS中最重要的两个概念：回溯，剪枝。
+例题：排列数字：给定一个整数 n，将数字 1∼n 排成一排，将会有很多种排列方法。现在，请你按照字典序将所有的排列方法输出。
+输入格式：
+共一行，包含一个整数 n。
+输出格式： 按字典序输出所有排列方案，每个方案占一行。
+数据范围：$1\leq n \leq 7$.
+int path[N]; int n; void DFS(int u, int state){ //如果遍历到最后一个元素了，说明可以位数足够输出了 if(u==n){ for (int i = 0; i &lt; n; i &#43;&#43; )printf(&#34;%d &#34;,path[i]); puts(&#34;&#34;); } //遍历每一个数字 for (int i = 0; i &lt; n; i &#43;&#43; ){ //检查state第i个bit的值，如果是0证明对应的数字（i&#43;1）还没有被使用 if(!"/>
 
 	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -1135,7 +1153,7 @@
 
 
 
-	<script src="https://hoooao.github.io/js/bundle.min.5a42c67b729ee2fa1059251688235399704707e04edb4e28c42c6f6dfa49d1d9.js" integrity="sha256-WkLGe3Ke4voQWSUWiCNTmXBHB+BO204oxCxvbfpJ0dk=" crossorigin="anonymous"></script>
+	<script src="https://hoooao.github.io/js/bundle.min.580988ed2982bcbb74a1773c7abea97b43e4c43b9324e10cda0813ec6ec4bb67.js" integrity="sha256-WAmI7SmCvLt0oXc8er6pe0PkxDuTJOEM2ggT7G7Eu2c=" crossorigin="anonymous"></script>
 	
 
 </body>

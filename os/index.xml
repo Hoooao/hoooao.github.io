@@ -14,9 +14,14 @@
       <pubDate>Sat, 06 Aug 2022 15:49:13 -0400</pubDate>
       
       <guid>https://hoooao.github.io/os/chap9/</guid>
-      <description>目录  文件系统性能以及恢复 FS Performance &amp;amp; Recovery  导言： 9.1 Linux Ext3 文件系统 9.2 Ext3 日志系统优势 9.3 Ext3 日志过程   用户程序对于虚拟内存的应用 Virtual Memory for Applications  导言： 9.4 原语 Primitives 9.5 用户空间Trap 9.6 垃圾回收器 Garbage Collector   微内核 Microkernels  导言： 9.7 内核对比 Kernel comparison 9.8 seL4      从本章开始，所有内容脱离了xv6教科书，转向了对现代操作系统（Unix/Linux等）的其他方面的介绍。本章对应于MIT 6.S081的Lec 16 至Lec 18。
- 
-文件系统性能以及恢复 FS Performance &amp;amp; Recovery 导言：  回忆在xv6中，文件系统维护在磁盘上维护着一个日志系统，他的结构十分简单：header block+logged blocks。header中记录着当前日志中记录着的block的数量和每个block的number。重要的是，在某个系统调用使用end_op之前，使用的都是内存中的cached block，而只有在所有被修改的block都同步到了磁盘上的日志中的时候，日志的header才会更新指示着对应的block number。而更新header的这一瞬间就是commit-point：在此之前发生的崩溃都会导致这些还没有写入磁盘原来位置的数据丢失（即使已经保存在了日志中），而在此之后这些数据都可以被恢复。</description>
+      <description>目录 文件系统性能以及恢复 FS Performance &amp;amp; Recovery 导言： 9.1 Linux Ext3 文件系统 9.2 Ext3 日志系统优势 9.3 Ext3 日志过程 用户程序对于虚拟内存的应用 Virtual Memory for Applications 导言： 9.4 原语 Primitives 9.5 用户空间Trap 9.6 垃圾回收器 Garbage Collector 微内核 Microkernels 导言： 9.7 内核对比 Kernel comparison 9.8 seL4 从本章开始，所有内容脱离了xv6教科书，转向了对现代操作系统（Unix/Linux等）的其他方面的介绍。本章对应于MIT 6.S081的Lec 16 至Lec 18。
+文件系统性能以及恢复 FS Performance &amp;amp; Recovery 导言： 回忆在xv6中，文件系统维护在磁盘上维护着一个日志系统，他的结构十分简单：header block+logged blocks。header中记录着当前日志中记录着的block的数量和每个block的number。重要的是，在某个系统调用使用end_op之前，使用的都是内存中的cached block，而只有在所有被修改的block都同步到了磁盘上的日志中的时候，日志的header才会更新指示着对应的block number。而更新header的这一瞬间就是commit-point：在此之前发生的崩溃都会导致这些还没有写入磁盘原来位置的数据丢失（即使已经保存在了日志中），而在此之后这些数据都可以被恢复。
+任何使用日志系统的文件系统都需要遵守两个原则：
+Write-ahead rule：在log中的内容写入磁盘之前，任何日志中对应的block都不能提前写入磁盘原位置。这保证了原子化，是日志系统最重要的准则；
+Freeing rule：不能在log写入磁盘真正位置之前重写或者重新利用任何log中的block。
+xv6中的日志系统被称为“synchronous”：在一个系统调用执行完一对begin_op, end_op之前，不可能返回用户空间，并且最重要的是在committing的过程中，没有任何其他线程可以使用日志系统，效率十分低。
+9.1 Linux Ext3 文件系统 ext3是Linux所使用的第三代文件系统，本质上是ext2+Journaling：journaling与logging完全等同。与xv6一样，Linux也在内存中保存着一个缓冲缓存器，储存着一些从磁盘中复制来的block。但是不同的是它同样保存着transaction的信息。在ext3中，允许多个交易并发进行，所以它保存着每一个交易的信息：
+Sequence：是当前transaction的次序；</description>
     </item>
     
     <item>
@@ -25,7 +30,13 @@
       <pubDate>Sat, 30 Jul 2022 21:51:42 -0400</pubDate>
       
       <guid>https://hoooao.github.io/os/chap8/</guid>
-      <description>目录   导言  8.1 概述 Overview  8.2 缓存缓冲层 Buffer cache layer  8.3 代码：缓存缓冲 Buffer cache  8.4 日志层 Logging Layer  8.5 日志设计 Log Design  8.6 代码：日志 Code：logging  8.7 代码：Block分配器 Code：Block Allocator  8.8 Inode层 Inode layer  8.9 代码：Inode Code：Inode  8.10 代码：Inode 内容 Code：Inode content  8.11 代码：目录层 Code：Directory layer  8.12 代码：路径名称 Code：Path names  8.13 文件描述符层 File descriptor layer  8.</description>
+      <description>目录 导言 8.1 概述 Overview 8.2 缓存缓冲层 Buffer cache layer 8.3 代码：缓存缓冲 Buffer cache 8.4 日志层 Logging Layer 8.5 日志设计 Log Design 8.6 代码：日志 Code：logging 8.7 代码：Block分配器 Code：Block Allocator 8.8 Inode层 Inode layer 8.9 代码：Inode Code：Inode 8.10 代码：Inode 内容 Code：Inode content 8.11 代码：目录层 Code：Directory layer 8.12 代码：路径名称 Code：Path names 8.13 文件描述符层 File descriptor layer 8.14 代码：系统调用 Code：System calls 8.15 练习 Exercises 导言： 一个文件系统的目的是储存和组织数据，把这些数据供给与多个进程和用户，同时也要保证重启后数据的保留。 创建一个文件系统有几个难点：
+文件系统需要有一个在磁盘上的树类结构去储存文件目录和文件本身。并且也要知道哪些磁盘块（block/sector）是被占用的，哪些是可以使用的。
+文件系统必须有崩溃修复机制。也就是说在崩溃发生，比如断电，重启后，文件系统必须正常工作。不然可能造成类似并行错误的发生。
+不同的进程可能会同时去访问一个文件，所以需要保证并发时文件系统也能正常运行。
+从磁盘中获取数据很慢，所以文件系统必须在内存中有对部分常用的磁盘内容缓存。
+本章解释xv6是如何解决这些困难的。
+8.1 概述 Overview xv6的文件系统有7层:</description>
     </item>
     
     <item>
@@ -34,9 +45,15 @@
       <pubDate>Sat, 23 Jul 2022 16:09:15 -0400</pubDate>
       
       <guid>https://hoooao.github.io/os/chap7/</guid>
-      <description>目录   导言  7.1 上下文切换 Code: Context switch  7.2 调度 Scheduling  7.3 函数 myproc(), mycpu()  7.4 睡眠和唤醒 Sleep and wakeup  7.5 代码：睡眠和唤醒 Code： Sleep and wakeup  7.6 代码：管道 Code: Pipe  7.7 代码：等待，退出，杀死 Code: Wait, exit, and kill  7.8 进程锁 Process Lock  7.9 补充 More  7.10 练习 Exercise   导言  OS希望在同时运行多个进程，除了使用多核处理器，CPU需要实现分时。在理想状态下，分时对于进程来说应当是透明的，也就是说进程不应当知道分时的进行，或者说，进程会认为自己独享一个CPU。这被叫做将进程多路复用（Multiplexing） 在CPU上。
- xv6通过让CPU在不同的进程之间切换实现多路复用。这种进程切换主要体现在两种情形之下:
-   一个进程调用了sleep让另一个进程开始运行，或者一个进程调用了wakeup让另一个睡眠的进程继续运行（7.5）。</description>
+      <description>目录 导言 7.1 上下文切换 Code: Context switch 7.2 调度 Scheduling 7.3 函数 myproc(), mycpu() 7.4 睡眠和唤醒 Sleep and wakeup 7.5 代码：睡眠和唤醒 Code： Sleep and wakeup 7.6 代码：管道 Code: Pipe 7.7 代码：等待，退出，杀死 Code: Wait, exit, and kill 7.8 进程锁 Process Lock 7.9 补充 More 7.10 练习 Exercise 导言 OS希望在同时运行多个进程，除了使用多核处理器，CPU需要实现分时。在理想状态下，分时对于进程来说应当是透明的，也就是说进程不应当知道分时的进行，或者说，进程会认为自己独享一个CPU。这被叫做将进程多路复用（Multiplexing） 在CPU上。
+xv6通过让CPU在不同的进程之间切换实现多路复用。这种进程切换主要体现在两种情形之下:
+一个进程调用了sleep让另一个进程开始运行，或者一个进程调用了wakeup让另一个睡眠的进程继续运行（7.5）。
+强制的分时，即时钟中断，让每个进程都有机会运行。
+在真正实现这一特性时有六个困难：
+如何切换进程。 如何让切换的过程对进程透明。 需要解决多个CPU同时切换进程可能引发竞争问题。 进程在退出之后的资源释放（一个进程不可能完全释放自己）。 需要让每个内核都知道自己运行的进程是谁，这样才能在正确的核心上使用系统调用。 实现sleep与wakeup。 注：多路复用，调度，和分时没必要在下文中区分。
+7.1 上下文切换 Code: Context switch 进程之间的切换本质上就是它们的**上下文（Context）**的切换。上下文包括进程的寄存器/代码/栈（实际上都由寄存器决定）。
+Fig.1 跳转过程 进程之间的切换主要包括下面4点：
+从当前进程的用户空间跳转到它的内核线程（Trap）。</description>
     </item>
     
     <item>
@@ -45,10 +62,13 @@
       <pubDate>Wed, 20 Jul 2022 17:48:44 -0400</pubDate>
       
       <guid>https://hoooao.github.io/os/chap6/</guid>
-      <description>目录   导言  6.1竞争冒险 Race condition  6.2 Code：锁 Code: Lock  6.3 锁的使用 Code: Using Locks  6.4 死锁和锁的顺序 Deadlock and lock ordering  6.5 锁和中断处理器 Locks and interrupt handlers  6.6 指令和内存顺序 Instruction and memory ordering  6.7 睡眠锁 Sleep-locks  6.7 UART中的锁 Case study  6.8 练习 Exercises   导言：  操作系统通常会 交错（Interleave） 运行不同的活动，这种交错主要由于3种行为
-   多核CPU共用ram。由于一台计算机中可以有多个CPU/核心，但是只有一个内存空间，这就导致多个CPU可能在同一时刻访问一个地址并修改。
-  即使在单核中，CPU也会进行分时，在不同的线程之间切换，而不同的线程可能会访问同一个数据。
-  设备中断。设备中断可能会在不恰当的时间发生，导致修改了它中断掉的代码正在使用的数据。</description>
+      <description>目录 导言 6.1竞争冒险 Race condition 6.2 Code：锁 Code: Lock 6.3 锁的使用 Code: Using Locks 6.4 死锁和锁的顺序 Deadlock and lock ordering 6.5 锁和中断处理器 Locks and interrupt handlers 6.6 指令和内存顺序 Instruction and memory ordering 6.7 睡眠锁 Sleep-locks 6.7 UART中的锁 Case study 6.8 练习 Exercises 导言： 操作系统通常会 交错（Interleave） 运行不同的活动，这种交错主要由于3种行为
+多核CPU共用ram。由于一台计算机中可以有多个CPU/核心，但是只有一个内存空间，这就导致多个CPU可能在同一时刻访问一个地址并修改。
+即使在单核中，CPU也会进行分时，在不同的线程之间切换，而不同的线程可能会访问同一个数据。
+设备中断。设备中断可能会在不恰当的时间发生，导致修改了它中断掉的代码正在使用的数据。
+内核中有很多这样的例子。其中一个被共用的内存资源就是代码本身。比如多个CPU可能同时使用kalloc.c，后者会去修改那个记录着可用分页的自由表。当两个CPU同时调用其中函数的时候，内存的自由表的表头可能同时会被两个CPU获取。为了禁止这种并发导致的不合法行为，操作系统设计者通过并发控制（Concurrent control）解决。它的实现有多种，锁（Locks） 就是其中一种。一个锁保证了在一个瞬间只有一个CPU（进程）可以拥有它，使得被“锁住”的数据只能被这个CPU访问，从而实现对数据的保护。锁存在一个劣势：由于它会序列化并发的进程，也就是说多个进程访问同一个数据，后面的会等待前面的进程结束再运行。这让并发不再并发，降低性能。随意也随之出现了Lock-free Programming，即不需要锁的实现，但是更加复杂。
+6.1 竞争冒险 Race condition 举个例子：假设有函数push，用来给一个链表添加节点到头节点的位置上。
+struct element { int data; struct element *next; }; struct element *list = 0; void push(int data) { struct element *l; l = malloc(sizeof *l); //13 l-&amp;gt;data = data; //14 l-&amp;gt;next = list; //15 list = l; //16 } 假如现在有两个CPU共享一个链表并且几乎同时调用了这个方法。当它们都运行到第15行的时候，某个CPU会率先执行赋值操作，把新建的节点指向之前的头节点list。而在它执行第16行之前，另一个CPU也执行了第15行，让自己的新建的节点也一样指向了之前的头节点。这里就出现了不合法的行为：有两个新建的元素都指向了之前的头节点。当地一个CPU运行了16行之后，后一个CPU将会覆盖前者的修改，导致 更新丢失（Update lost）。</description>
     </item>
     
     <item>
@@ -57,12 +77,15 @@
       <pubDate>Thu, 23 Jun 2022 09:25:49 -0400</pubDate>
       
       <guid>https://hoooao.github.io/os/chap5/</guid>
-      <description>目录   导言  5.1 控制台输出 Code:Console putput  5.2 控制台输入 Code: Console intput  5.3 驱动并发 Concurrency in drivers  5.4 时钟中断 Timer interrupts  5.5 练习 Exercise  5.6 补充   导言：  驱动（Device Driver） 本质上是管理某个设备的代码。它告诉该设备去执行什么操作，处理中断，与进程进行I/O交互等。由于并发性（Concurrency），与设备的接口通常很繁琐，导致驱动的设计复杂。
- 一个设备假如需要被CPU“注意”，它一定有能力发出中断。在发出中断后，中断会被当作Trap处理。与系统调用和报错不同：
-  外部设备中断是 异步（Asynchronous） 的，也就是说硬件所产生的中断可能和房钱正在运行的进程完全没有关系。 设备中断拥有更多的并发性：多设备同时运行，比如UART+网卡+CPU同时运行 可编程的设备：每种设备都有自己的寄存器，使用说明，功能等相关的编程手册   不同的设备有自己的中断处理代码。在xv6中，devintr()通过判断是哪个设备发出中断，并调用该设备对应的代码，这里指的主要是外部设备中断而非时钟中断和软件中断（软件中断指的是一个CPU给另一个CPU发送中断）。
- 通常，一个驱动可以分为 上下两部分（Top/bottom half）。上部代码运行于进程的内核线程，表现为这个进程使用系统调用：比如对控制台的输入输出。下部代码指的是中断期间的代码，即上述的中断处理代码。上部代码在发送了执行某一个操作的请求后进入等待，此时设备开始运行。在设备运行完毕后，它会发出一个设备中断。此时对应的处理代码（下部代码）会知道什么操作完成了，并且在需要的情况下叫醒等待中的进程（上部代码），然后让硬件去执行下一个操作。本章通过控制台介绍这一过程。
- 5.1 控制台输出 Code: Console output  控制台的输入输出是通过硬件UART实现的，控制台驱动管理UART。在qemu中，UART是通过代码模拟的。在现实中，UART将会连接RS232接口：
- Fig.1 RS-232[1]   在xv6中，UART连接着键盘和显示器。回忆第三章中的内存空间，UART是作为一段物理内存地址暴露给软件的。软件可以通过内存地址访问UART的 内存映射的控制寄存器（Memory-mapped control registers）：UART开始于UART0，即0x10000000；每个寄存器占1byte，通过偏移量访问。这些寄存器功能不一，比如：</description>
+      <description>目录 导言 5.1 控制台输出 Code:Console putput 5.2 控制台输入 Code: Console intput 5.3 驱动并发 Concurrency in drivers 5.4 时钟中断 Timer interrupts 5.5 练习 Exercise 5.6 补充 导言： 驱动（Device Driver） 本质上是管理某个设备的代码。它告诉该设备去执行什么操作，处理中断，与进程进行I/O交互等。由于并发性（Concurrency），与设备的接口通常很繁琐，导致驱动的设计复杂。
+一个设备假如需要被CPU“注意”，它一定有能力发出中断。在发出中断后，中断会被当作Trap处理。与系统调用和报错不同：
+外部设备中断是 异步（Asynchronous） 的，也就是说硬件所产生的中断可能和房钱正在运行的进程完全没有关系。 设备中断拥有更多的并发性：多设备同时运行，比如UART+网卡+CPU同时运行 可编程的设备：每种设备都有自己的寄存器，使用说明，功能等相关的编程手册 不同的设备有自己的中断处理代码。在xv6中，devintr()通过判断是哪个设备发出中断，并调用该设备对应的代码，这里指的主要是外部设备中断而非时钟中断和软件中断（软件中断指的是一个CPU给另一个CPU发送中断）。
+通常，一个驱动可以分为 上下两部分（Top/bottom half）。上部代码运行于进程的内核线程，表现为这个进程使用系统调用：比如对控制台的输入输出。下部代码指的是中断期间的代码，即上述的中断处理代码。上部代码在发送了执行某一个操作的请求后进入等待，此时设备开始运行。在设备运行完毕后，它会发出一个设备中断。此时对应的处理代码（下部代码）会知道什么操作完成了，并且在需要的情况下叫醒等待中的进程（上部代码），然后让硬件去执行下一个操作。本章通过控制台介绍这一过程。
+5.1 控制台输出 Code: Console output 控制台的输入输出是通过硬件UART实现的，控制台驱动管理UART。在qemu中，UART是通过代码模拟的。在现实中，UART将会连接RS232接口：
+Fig.1 RS-232[1] 在xv6中，UART连接着键盘和显示器。回忆第三章中的内存空间，UART是作为一段物理内存地址暴露给软件的。软件可以通过内存地址访问UART的 内存映射的控制寄存器（Memory-mapped control registers）：UART开始于UART0，即0x10000000；每个寄存器占1byte，通过偏移量访问。这些寄存器功能不一，比如：
+LSR：指示是否传入的char在等待软件接收 RHR：保存传入的char，软件从这里读取数据；每读取一个，UART就会删除被读取的；当没有待读取的数据时，LSR被清空 THR：当THR接受到1Byte，UART通过Data Trandmission Line输出数据。[2] Fig.2UART所有寄存器[3] 可以从图中看到，同一个地址在进行读写操作的时候，可以被认为是不同的寄存器。
+RISC-V有一些为中断服务的寄存器（不是上述UART的寄存器）：
+SIE: Supervisor Interrupt Enable: 其中使用3个bits，分别指示当前CPU是否允许外部设备中断，软件中断，和时钟中断。 SSTATUS: Supervisor Status: 一个bit，指示当前CPU是否允许中断。 SIP: Supervisor Interrupt Pending: CPU通过该寄存器去看什么中断进来了。</description>
     </item>
     
     <item>
@@ -71,16 +94,21 @@
       <pubDate>Mon, 20 Jun 2022 09:19:55 -0400</pubDate>
       
       <guid>https://hoooao.github.io/os/chap4/</guid>
-      <description>目录   导言  4.1 RISC-V Trap机制 RISC-V trap machinery  4.2 用户空间的Traps Traps from user space  4.3 使用系统调用 Code: Calling system calls  4.4 系统调用参数 Code: System call arguments  4.5 内核空间的Traps Traps from kernel space  4.6 缺页异常 Page-fault exceptions  4.7 补充  4.8 练习 Exercise   导言：  存在三种情况会导致OS停下手边的东西转而去执行一些特定的代码，它们分别是：
- 系统调用：进程调用ecall来让内核去执行一些操作
+      <description>目录 导言 4.1 RISC-V Trap机制 RISC-V trap machinery 4.2 用户空间的Traps Traps from user space 4.3 使用系统调用 Code: Calling system calls 4.4 系统调用参数 Code: System call arguments 4.5 内核空间的Traps Traps from kernel space 4.6 缺页异常 Page-fault exceptions 4.7 补充 4.8 练习 Exercise 导言： 存在三种情况会导致OS停下手边的东西转而去执行一些特定的代码，它们分别是：
+系统调用：进程调用ecall来让内核去执行一些操作
 Exception：当一条指令做了非法的事情，进程会被杀死
 设备中断（Device interrputs）：一个设备会向CPU发送注意请求，例如磁盘读写完成
- 这三种让“CPU去执行另一项任务”的行为统一叫做Traps。一个Trap处理的流程通常是：
- Trap处理机制让CPU切换控制（Control）
+这三种让“CPU去执行另一项任务”的行为统一叫做Traps。一个Trap处理的流程通常是：
+Trap处理机制让CPU切换控制（Control）
 保存当前进程的一切寄存器，为了让进程继续执行。
 执行对应Trap处理的代码
 恢复之前的进程
- 对于这个被中断的进程来说，Trap是“透明的”，也就是说，当前进程并不会知道自己被一个Trap打断了，因为它会被在未来某一个时刻继续运行（或者被杀死）。</description>
+对于这个被中断的进程来说，Trap是“透明的”，也就是说，当前进程并不会知道自己被一个Trap打断了，因为它会被在未来某一个时刻继续运行（或者被杀死）。
+4.1 RISC-V Trap机制 RISC-V trap machinery 上述的行为都需要被 控制与状态寄存器（CSRs：Control and Status Registers） 支持（satp也是其中之一），下面是一些常用的CSRs：
+stvec：保存着Trap handler函数（uservec/kernelvec）的程序地址，进程通过它来跳转到处理Trap的代码
+scause：记录着Trap发生的原因
+sstatus：其中的SIE-bit指示是否能处理interrupts，其中的SPP-bit指示Trap是从什么模式出现的，并控制在调用指令sret后，跳转至目标模式（sret会把sepc寄存器的内容写到pc寄存器，实现跳转模式），例如0是UM。
+sscratch：保存一些重要的进程与内核相关的数据并且用来保存进程的寄存器。</description>
     </item>
     
     <item>
@@ -89,10 +117,13 @@ Exception：当一条指令做了非法的事情，进程会被杀死
       <pubDate>Sun, 12 Jun 2022 10:15:51 -0400</pubDate>
       
       <guid>https://hoooao.github.io/os/chap3/</guid>
-      <description>目录   导言  3.1 分页硬件 Paging hardware  3.2 内核内存空间 Kernel address space  3.3 新建内存空间 Creating an address space  3.4 物理内存分配器 Physical memory allocator  3.5 进程内存空间 Process address space  3.6 exec 系统调用 Exec  3.7 练习 Exercises   导言：  每个进程都有自己的分页表（PT：Page table）。通过分页表（PT：Page table），kernel可以为一个进程创建私有的内存空间：每个虚拟内存地址（VA：Virtual adress） 都有对应着的物理内存地址（PA：Physical address）。对于进程来说，它在使用这一段连续的VA，但是这些VA在DRAM中的映射的物理内存地址则不一定连续。PT告诉分页硬件一个VA代表着什么，指向哪里。
- 3.1 分页硬件 Paging hardware  在计算机中虚拟内存（VM：Virtual memory） 的实现是由硬件支持的，这个硬件通常被叫做内存管理单元（MMU：Memory management unit）。CPU的指令通常使用VM：当它使用某一个VA的时候，MMU会把这个VA翻译成PA，然后执行这个PA里的指令或者读取/写入这个PA里的内容。
- 但是在xv6中，我们使用的是qemu的虚拟机：MMU被抽象成了一个定义在kernel/vm.c中的walk()函数。这个函数的行为与MMU类似。
- Fig.1 CPU，MMU，DRAM[1]    xv6跑在Sv39 RISC-V处理器上（虚拟机），这个处理器指使用64bits VA中的后39位。其中前27位用来作为分页表项（PTE：Page table entries）的索引（Index），所以一个PT最多可以有2^27个PTE。而后12位被用来当做偏移量（剩余的bits用来为未来可能的硬件升级做准备）。每个有效的PTE包含一个44bits的PPN：Physical page number和10bits的各种用来限定这个页的权限bits。</description>
+      <description>目录 导言 3.1 分页硬件 Paging hardware 3.2 内核内存空间 Kernel address space 3.3 新建内存空间 Creating an address space 3.4 物理内存分配器 Physical memory allocator 3.5 进程内存空间 Process address space 3.6 exec 系统调用 Exec 3.7 练习 Exercises 导言： 每个进程都有自己的分页表（PT：Page table）。通过分页表（PT：Page table），kernel可以为一个进程创建私有的内存空间：每个虚拟内存地址（VA：Virtual adress） 都有对应着的物理内存地址（PA：Physical address）。对于进程来说，它在使用这一段连续的VA，但是这些VA在DRAM中的映射的物理内存地址则不一定连续。PT告诉分页硬件一个VA代表着什么，指向哪里。
+3.1 分页硬件 Paging hardware 在计算机中虚拟内存（VM：Virtual memory） 的实现是由硬件支持的，这个硬件通常被叫做内存管理单元（MMU：Memory management unit）。CPU的指令通常使用VM：当它使用某一个VA的时候，MMU会把这个VA翻译成PA，然后执行这个PA里的指令或者读取/写入这个PA里的内容。
+但是在xv6中，我们使用的是qemu的虚拟机：MMU被抽象成了一个定义在kernel/vm.c中的walk()函数。这个函数的行为与MMU类似。
+Fig.1 CPU，MMU，DRAM[1] xv6跑在Sv39 RISC-V处理器上（虚拟机），这个处理器指使用64bits VA中的后39位。其中前27位用来作为分页表项（PTE：Page table entries）的索引（Index），所以一个PT最多可以有2^27个PTE。而后12位被用来当做偏移量（剩余的bits用来为未来可能的硬件升级做准备）。每个有效的PTE包含一个44bits的PPN：Physical page number和10bits的各种用来限定这个页的权限bits。
+Fig.2 简化的映射过程 当一个进程使用VA的时候，MMU/walk会通过该VA的27位的索引来找到这个进程的PT中唯一的PTE。然后这个PTE中的PPN会被取出，再把VA中的后12位偏移量接在PPN的后面组成一个56位的PA（64位PA中剩下的为未来准备），然后去DRAM中找该这个PA。由于偏移量有12位，他们可以与一个PPN组合2^12个连续的PA（一个地址储存1Byte数据），这也就组成了一个Page：即一块4096Bytes的内存空间。注： 一个Page中的PA连续，但是两个相邻的PTE所指向的Page不一定连续。
+在上述的过程中，walk似乎直接用27bits的索引找到了为一个PTE，但实际的实现中，这个过程被分成了三步：27bits的索引分成了三个9bits的索引，可以被看作三个偏移量。当一个进程在运行的时候，kernel会把CPU的satp寄存器中储存的数据需改成为这个进程分配的私有的PT的物理内存地址（PT被存储在内存中）。这个“PT”不同于上述的简化模型中的PT：它本质上是一个Page。但是由于这个Page储存着PTE，也可以叫它分页表页（PTP：Page Table Page）。与正常的Page一样，它也占据4096Bytes内存。由于一个PTE占64bits，即8Bytes，一个PTP可以存放512个PTE。Satp寄存器指向的PTP也被叫做根（Root）。我们使用27bits中前9bits作为偏移量，通过satp找到根页，在根页中找到唯一的PTE。不同于简化的模型，这个PTE的PPN将指向另一层PTP（PPN后面接12个0）。同样地，第二个9bits被用作于这个PTP的偏移量并找到对应的PTE。重复相同步骤，我们能找在第三层PTP中使用最后9bit找到对应的PTE。此时的PTE中的PPN将与最初的VA中的12bits结合，得到真正的56bits PA。
+Fig.3 真实虚拟内存检索模型 三层PTP是对一个有2^27个PTE的PT的优化。假如真的使用后者，那么一张PT需要2^27*2^3Bytes,超出了xv6所支持的内存上限（128MB），显然不现实。而前者的大小的变化是动态。比如一个进程只使用了1个Page，或者说它只用了0x0~0xFFF的虚拟地址,在这个情况下，27位索引全部为0，对于三层PTP，每次都导向最下面偏移量为0的PTE。换句话说，每个PTP只有最下层的PTE是有效的：第一层第二层PTP的其他PTE无效，因此不会为他们创建下层PTP。所以这个例子里面只有3个PTP存在，即3*4KB=12KB。由于分层的行为类似从文件夹中找文件，所以可以把PTP看作目录。</description>
     </item>
     
     <item>
@@ -101,13 +132,18 @@ Exception：当一条指令做了非法的事情，进程会被杀死
       <pubDate>Tue, 07 Jun 2022 17:25:02 -0400</pubDate>
       
       <guid>https://hoooao.github.io/os/chap2/</guid>
-      <description>目录    导言  2.1 抽象实体资源  2.2 用户模式，超级用户模式，和系统调用  2.3 内核组成  2.4 进程概述  2.5 xv6的启动与第一个进程  2.6 练习   导言：  OS 需要分时去给予每个进程资源，让他们都有机会运行。同时也要让每个进程相隔离，这样的话，某个进程的崩坏不会影响其他进程或者内核的运行。但是完全的隔离也是不理想的，因为我们希望实现进程之间的通信。综上OS必须要具备三个特性：复用（Multiplexing），隔离（Isolation），交互（Interaction）。 本章为OS的这三个特性做了综述。
- 2.1 抽象实体资源  OS的意义是值得思考的：为什么不可以让程序直接和硬件交互，就如一些嵌入式系统一般。实际上OS确实是不必要的，但是这种情况下，对于每个程序本身就会有更高的要求：每个程序必须“品行优良”，即程序之间必须要相互信任，并且每个程序必须自愿放弃资源供其他程序使用从而实现分时，而且程序不可以有Bug。但是这些情景是不现实的。OS的存在隔离了各个程序与软硬件，并且用抽象的方式把资源给到进程：比如I/O系统调用。即使不担心程序在无隔离的情况下会不稳定，这种分离和抽象也是更方便的。比如OS把与磁盘的交互抽象成了对fd和I/O的使用。同样地，这样的隔离使得只有OS可以去掌控硬件资源，比如通过切换CPU所执行的程序来实现分时，使得程序无法也不用去考虑分时：当一个进程进入了死循环时，其他进程仍然可以正常运行。可信计算基（TCB: Trusted Computing Base） 是指为实现计算机系统安全保护的所有安全保护机制的集合，kernel就是其中一种。
- Fig.1 抽象组成[1]    2.2 用户模式，超级用户模式，和系统调用  在强隔离（Strong Isolation） 中，一个进程的崩溃不会导致其他进程或者内核的崩溃，并且OS会清理崩溃进程且继续运行。为了实现这种强隔离，OS需要阻止进程去修改OS的数据结构，指令，以及其他进程的内存空间。RISC-V（xv6运行于的CPU）提供了三种权限，代表着三种不同的隔离强度：机器模式（MM：Machine Mode），超级用户模式（SM：Supervisor Mode），用户模式（UM：User Mode）。（注：不同的CPU支持不同的权限分级和名称。）寄存器MODE储存着指示当前模式的数据。
- 在MM中，CPU有使用指令的完全权限。CPU会在启动时位于MM去配置计算机。xv6仅有几行代码运行于MM用来启动自己，之后便切换到SM。
- 在SM中，CPU可以运行特权命令（Privileged Instruction），比如读写寄存器等。假如CPU在UM是，一个进程使用了这类特权命令，那么CPU会切换到SM来终止该进程：因为这个进程使用了它不应该去使用的命令。
- 程序只能使用UM中的命令，所以我们说程序在“用户空间”中运行。而因为kernel可以运行特权命令，所以我们说kernel“在SM下运行”，或“在kernel space中运行”。假如一个用户空间的程序希望执行一个特权指令，它需要发出一个系统调用到kernel：本质上仍然是kernel在运行这个指令。RISC-V提供了一个特殊的指令ecall用来把CPU切换到SM并访问kernel。之后kernel会通过检验这个系统调用的参数来决定是否运行它。注：访问kernel的入口（Trampoline：Chap 4）是由kernel自己决定，假若让程序指定入口，会导致跳过验证阶段直接执行。  2.3 内核组成  OS本身也是一个较大的程序，其本身的权限也需要被考量。其中一种方案是把整个OS放到kernel中，也就是宏内核（Monolithic Kernel）。这种方案给予了OS完整的硬件权限。
- 宏内核的优点：OS各个部分之间可以更好地协同，比如OS的文件系统和虚拟内存系统共用一个数据缓冲器（Buffer）。</description>
+      <description>目录 导言 2.1 抽象实体资源 2.2 用户模式，超级用户模式，和系统调用 2.3 内核组成 2.4 进程概述 2.5 xv6的启动与第一个进程 2.6 练习 导言： OS 需要分时去给予每个进程资源，让他们都有机会运行。同时也要让每个进程相隔离，这样的话，某个进程的崩坏不会影响其他进程或者内核的运行。但是完全的隔离也是不理想的，因为我们希望实现进程之间的通信。综上OS必须要具备三个特性：复用（Multiplexing），隔离（Isolation），交互（Interaction）。 本章为OS的这三个特性做了综述。
+2.1 抽象实体资源 OS的意义是值得思考的：为什么不可以让程序直接和硬件交互，就如一些嵌入式系统一般。实际上OS确实是不必要的，但是这种情况下，对于每个程序本身就会有更高的要求：每个程序必须“品行优良”，即程序之间必须要相互信任，并且每个程序必须自愿放弃资源供其他程序使用从而实现分时，而且程序不可以有Bug。但是这些情景是不现实的。OS的存在隔离了各个程序与软硬件，并且用抽象的方式把资源给到进程：比如I/O系统调用。即使不担心程序在无隔离的情况下会不稳定，这种分离和抽象也是更方便的。比如OS把与磁盘的交互抽象成了对fd和I/O的使用。同样地，这样的隔离使得只有OS可以去掌控硬件资源，比如通过切换CPU所执行的程序来实现分时，使得程序无法也不用去考虑分时：当一个进程进入了死循环时，其他进程仍然可以正常运行。可信计算基（TCB: Trusted Computing Base） 是指为实现计算机系统安全保护的所有安全保护机制的集合，kernel就是其中一种。
+Fig.1 抽象组成[1] 2.2 用户模式，超级用户模式，和系统调用 在强隔离（Strong Isolation） 中，一个进程的崩溃不会导致其他进程或者内核的崩溃，并且OS会清理崩溃进程且继续运行。为了实现这种强隔离，OS需要阻止进程去修改OS的数据结构，指令，以及其他进程的内存空间。RISC-V（xv6运行于的CPU）提供了三种权限，代表着三种不同的隔离强度：机器模式（MM：Machine Mode），超级用户模式（SM：Supervisor Mode），用户模式（UM：User Mode）。（注：不同的CPU支持不同的权限分级和名称。）寄存器MODE储存着指示当前模式的数据。
+在MM中，CPU有使用指令的完全权限。CPU会在启动时位于MM去配置计算机。xv6仅有几行代码运行于MM用来启动自己，之后便切换到SM。
+在SM中，CPU可以运行特权命令（Privileged Instruction），比如读写寄存器等。假如CPU在UM是，一个进程使用了这类特权命令，那么CPU会切换到SM来终止该进程：因为这个进程使用了它不应该去使用的命令。
+程序只能使用UM中的命令，所以我们说程序在“用户空间”中运行。而因为kernel可以运行特权命令，所以我们说kernel“在SM下运行”，或“在kernel space中运行”。假如一个用户空间的程序希望执行一个特权指令，它需要发出一个系统调用到kernel：本质上仍然是kernel在运行这个指令。RISC-V提供了一个特殊的指令ecall用来把CPU切换到SM并访问kernel。之后kernel会通过检验这个系统调用的参数来决定是否运行它。注：访问kernel的入口（Trampoline：Chap 4）是由kernel自己决定，假若让程序指定入口，会导致跳过验证阶段直接执行。 2.3 内核组成 OS本身也是一个较大的程序，其本身的权限也需要被考量。其中一种方案是把整个OS放到kernel中，也就是宏内核（Monolithic Kernel）。这种方案给予了OS完整的硬件权限。
+宏内核的优点：OS各个部分之间可以更好地协同，比如OS的文件系统和虚拟内存系统共用一个数据缓冲器（Buffer）。
+宏内核的缺点：OS各个部分之间的接口会更加复杂，这让设计者更容易写出Bug。在核空间（Kernel space）的bug可能会导致整个kernel，OS的崩溃。
+另一种方案，微内核（Microkernel），解决了宏内核的缺点。在这种实现中，kernel只包含OS中的一小部分，大部分OS运行于用户空间。如图所示，这台电脑的一部分OS将会运行于kernel之外，例如文件系统：由于文件系统提供文件相关的服务（Services），它被叫做“文件服务器（Server）”，作为一个独立的进程存在。通过kernel提供的 跨进程通信（IPC：Inter-Process communication） 机制，一个进程可以向各种服务器发送请求，并接收响应。微内核的内核实现中只有一些启动进程，发送消息，访问硬件的的函数/接口。这种特性让微内核更小更简单，例如Minix的内核仅有不到6,000行代码[3]。xv6使用宏内核的实现，但是由于它提供的服务很少，所以代码量不高。
+Fig.2 微内核[2] 2.4 进程概述 之前把进程定义为一个正在运行的程序，但更准确地说，进程是一个隔离单元（Unit of Isolation）。针对进程的抽象/隔离阻止一个进程进入其他进程的内存空间，CPU，fd等。同时也阻止进程进入kernel。
+当kernel开启了一个进程后，它给予这个进程：UM/SM Flag （代表这个进程的运行权限），地址空间（Address Space），线程分时（Time-slicing of Threads）。其中最重要的就是地址空间。Kernel为了加强进程之间的分隔，会使得一个进程认为自己有一台私有的电脑。这是通过给进程一个只属于它的内存系统（地址空间）实现的：别的进程无法访问这一地址空间。xv6，和大多类Unix操作系统，使用分页表（PT：Page Table） 给予进程内存空间。RISC-V下的PT记录着这个进程的虚拟内存（Virtual memory）地址和这些虚拟内存对应的物理内存（Physical memory）。类似fd，PT也是被kernel管理/维护的。
+RISC-V的指针，与x86_64相同，也是64bits。但是当硬件去找虚拟内存和物理层内存的对应关系的时候，只会对比64bits中的后39位，而xv6使用这39位中的后38位。换句话说，xv6中最多只有2^38 - 1个地址。（MAXVA: 0x3fffffffff）。</description>
     </item>
     
     <item>
@@ -116,15 +152,17 @@ Exception：当一条指令做了非法的事情，进程会被杀死
       <pubDate>Sat, 04 Jun 2022 08:52:06 +0400</pubDate>
       
       <guid>https://hoooao.github.io/os/chap1/</guid>
-      <description>目录   导言  1.1 进程与内存  1.2 I/O 与 文件描述符  1.3 管道命令  1.4 文件系统  1.5 练习   导言：  操作系统的工作是去让多个程序共享一台电脑且提供硬件单独无法提供的服务。操作系统本身可以看作一个程序与硬件，程序与程序之间中转站：例如一个文本编辑器不需要去关心它应当把数据放到磁盘的哪个部位，也不需要关心怎么让另一个程序读到它生成的文本——这些都是操作系统去关心的问题。而更本质地说，内核/操作系统实际上是很多停在内存中等待着被调用的代码：中断（Chap5）驱动着内核的用作。[5]
- MIT 6.S081/Fall 2020 课程基于xv6操作系统教学。
- xv6系统简介[1]：  xv6是由ANSI C编写，使用x86与RISC-V（架构的CPU）指令集的操作系统（本教材使用RISC-V）。它的前身是第六代Unix，即V6。课程使用的是现代重新实现后xv6，其整体相比Unix/Linux十分简单，自2006年被广泛使用于教学目的。
- xv6中的 内核（Kernel），一种特殊的程序，提供给人们 接口（Interface） 和它交互。
- Fig.1 关系图   当一个进程（Process）使用kernel提供的服务/接口的时候，该进程实际上出发了一个系统调用（System call）。
- 本章着眼于介绍进程，内存，文件标识符，管道命令，以及文件系统的 UI（User Interface） 的使用。如果说kernel是硬件与程序之间的桥梁，那么shell，也就是用户接口/UI， 则是用户与计算机交互的桥梁：它把从控制台/终端的输入翻译成内核可以理解的语言。Shell本质上只是一个很“普通”的程序：对于同一个操作系统，人们开发出了很多shell，例如Mac OS用户主流使用的zsh以及bash。相比于其他系统，xv6所使用的shell十分简单。
- 1.1 进程与内存  进程（Process），即“正在运行的程序”，依存于内存（Memory）。一个进程使用两部分内存：第一个部分是用户空间（user-space memory），包括指令，数据，堆栈等在计算机组成中熟知的“进程内存布局”中的元素；第二个部分是内核空间/内核态（Kernel space），这部分内存只有kernel可见。
- xv6，如同大多操作系统，采用了分时系统（Time-share）。在这种系统中，OS会分配可用的CPU资源给正在等待执行的进程。每一个进程都有属于自己的进程标识符PID（Process Identifier）[2]。 通过PID,可以实现调整进程的优先级或者杀死进程（kill）。下面主要介绍一些系统调用（System call）。这些调用是通过特定的指令/函数封装的，可以让程序在用户空间向kernel申请使用更高权限的服务。C语言由封装了这些调用的库，其中的方法同名于这些调用。
- fork()：在一个进程中使用fork()，可以让该进程“分支”出一个进程：前者称为父进程（Parent process/Calling process），后者称为子进程（Child process）。子进程与父进程有一模一样的内存布局，但是两者的内存是相隔开的。当调用fork()之后，父进程与子进程同时运行：也就是说父进程并不会默认等待子进程运行结束。除了创建子进程，在fork()被调用后，它会在父进程中返回子进程的PID，而在子进程中则会返回0.</description>
+      <description>目录 导言 1.1 进程与内存 1.2 I/O 与 文件描述符 1.3 管道命令 1.4 文件系统 1.5 练习 导言： 操作系统的工作是去让多个程序共享一台电脑且提供硬件单独无法提供的服务。操作系统本身可以看作一个程序与硬件，程序与程序之间中转站：例如一个文本编辑器不需要去关心它应当把数据放到磁盘的哪个部位，也不需要关心怎么让另一个程序读到它生成的文本——这些都是操作系统去关心的问题。而更本质地说，内核/操作系统实际上是很多停在内存中等待着被调用的代码：中断（Chap5）驱动着内核的用作。[5]
+MIT 6.S081/Fall 2020 课程基于xv6操作系统教学。
+xv6系统简介[1]： xv6是由ANSI C编写，使用x86与RISC-V（架构的CPU）指令集的操作系统（本教材使用RISC-V）。它的前身是第六代Unix，即V6。课程使用的是现代重新实现后xv6，其整体相比Unix/Linux十分简单，自2006年被广泛使用于教学目的。
+xv6中的 内核（Kernel），一种特殊的程序，提供给人们 接口（Interface） 和它交互。
+Fig.1 关系图 当一个进程（Process）使用kernel提供的服务/接口的时候，该进程实际上出发了一个系统调用（System call）。
+本章着眼于介绍进程，内存，文件标识符，管道命令，以及文件系统的 UI（User Interface） 的使用。如果说kernel是硬件与程序之间的桥梁，那么shell，也就是用户接口/UI， 则是用户与计算机交互的桥梁：它把从控制台/终端的输入翻译成内核可以理解的语言。Shell本质上只是一个很“普通”的程序：对于同一个操作系统，人们开发出了很多shell，例如Mac OS用户主流使用的zsh以及bash。相比于其他系统，xv6所使用的shell十分简单。
+1.1 进程与内存 进程（Process），即“正在运行的程序”，依存于内存（Memory）。一个进程使用两部分内存：第一个部分是用户空间（user-space memory），包括指令，数据，堆栈等在计算机组成中熟知的“进程内存布局”中的元素；第二个部分是内核空间/内核态（Kernel space），这部分内存只有kernel可见。
+xv6，如同大多操作系统，采用了分时系统（Time-share）。在这种系统中，OS会分配可用的CPU资源给正在等待执行的进程。每一个进程都有属于自己的进程标识符PID（Process Identifier）[2]。 通过PID,可以实现调整进程的优先级或者杀死进程（kill）。下面主要介绍一些系统调用（System call）。这些调用是通过特定的指令/函数封装的，可以让程序在用户空间向kernel申请使用更高权限的服务。C语言又封装了这些调用的库，其中的方法同名于这些调用。
+fork()：在一个进程中使用fork()，可以让该进程“分支”出一个进程：前者称为父进程（Parent process/Calling process），后者称为子进程（Child process）。子进程与父进程有一模一样的内存布局，但是两者的内存是相隔开的。当调用fork()之后，父进程与子进程同时运行：也就是说父进程并不会默认等待子进程运行结束。除了创建子进程，在fork()被调用后，它会在父进程中返回子进程的PID，而在子进程中则会返回0.
+int pid = fork(); //父进程中，变量pid的值将会是一个唯一数字，代表子进程的PID //而在子进程的内存中，这个变量的值是0 if(pid &amp;gt; 0){ //这里检测当前进程是否为父进程 printf(&amp;#34;parent: child=%d\n&amp;#34;, pid); ... exit(status)：当在一个进程中调用exit()，这个进程会“正常终止”。正常终止会自动关闭该进程的一切资源，比如分配的内存空间，曾打开的文件等（PS：反之也存在“非正常终止”）。exit()可以接受一个数字作为参数，来代表终止时的状态：通常0代表成功退出，1代表失败推出（与(非)正常终止无关）。
+wait(*status)：如上述，父子进程会同时运行，但是有时我们希望子进程运行完毕之后父进程再继续运行，这时就需要wait()系统调用。假设一个父进程A有一个子进程a，在A使用wait()后，它会停止运行开始等待a运行完毕。当a exit或被kill，wait()在A返回a的PID，A继续运行。wait()接受一个指针类型的参数，当子进程运行完毕，子进程的退出状态会被放到指针中，如果不关心退出状态，可以填入参数0。值得注意的是，wait()只能“wait”一个子进程：这不是说当计划使用wait()的时候，只能创建一个子进程，而是说当一个父进程的众多子进程中的一个终止后，wait()便返回该子进程的PID，父进程与剩余的子进程继续运行。当当前进程没有子进程时，wait()返回0.我们可以运用这一特性来“wait”所有子进程：while ((wpid = wait(&amp;amp;status)) &amp;gt; 0);[3]</description>
     </item>
     
   </channel>

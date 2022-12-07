@@ -8,21 +8,27 @@
 	<meta name="theme-color" content="#494f5c">
 	<meta name="msapplication-TileColor" content="#494f5c">
 <meta itemprop="name" content="Chap 5: 中断与设备驱动 Interrupts and device drivers">
-<meta itemprop="description" content="目录   导言  5.1 控制台输出 Code:Console putput  5.2 控制台输入 Code: Console intput  5.3 驱动并发 Concurrency in drivers  5.4 时钟中断 Timer interrupts  5.5 练习 Exercise  5.6 补充   导言：  驱动（Device Driver） 本质上是管理某个设备的代码。它告诉该设备去执行什么操作，处理中断，与进程进行I/O交互等。由于并发性（Concurrency），与设备的接口通常很繁琐，导致驱动的设计复杂。
- 一个设备假如需要被CPU“注意”，它一定有能力发出中断。在发出中断后，中断会被当作Trap处理。与系统调用和报错不同：
-  外部设备中断是 异步（Asynchronous） 的，也就是说硬件所产生的中断可能和房钱正在运行的进程完全没有关系。 设备中断拥有更多的并发性：多设备同时运行，比如UART&#43;网卡&#43;CPU同时运行 可编程的设备：每种设备都有自己的寄存器，使用说明，功能等相关的编程手册   不同的设备有自己的中断处理代码。在xv6中，devintr()通过判断是哪个设备发出中断，并调用该设备对应的代码，这里指的主要是外部设备中断而非时钟中断和软件中断（软件中断指的是一个CPU给另一个CPU发送中断）。
- 通常，一个驱动可以分为 上下两部分（Top/bottom half）。上部代码运行于进程的内核线程，表现为这个进程使用系统调用：比如对控制台的输入输出。下部代码指的是中断期间的代码，即上述的中断处理代码。上部代码在发送了执行某一个操作的请求后进入等待，此时设备开始运行。在设备运行完毕后，它会发出一个设备中断。此时对应的处理代码（下部代码）会知道什么操作完成了，并且在需要的情况下叫醒等待中的进程（上部代码），然后让硬件去执行下一个操作。本章通过控制台介绍这一过程。
- 5.1 控制台输出 Code: Console output  控制台的输入输出是通过硬件UART实现的，控制台驱动管理UART。在qemu中，UART是通过代码模拟的。在现实中，UART将会连接RS232接口：
- Fig.1 RS-232[1]   在xv6中，UART连接着键盘和显示器。回忆第三章中的内存空间，UART是作为一段物理内存地址暴露给软件的。软件可以通过内存地址访问UART的 内存映射的控制寄存器（Memory-mapped control registers）：UART开始于UART0，即0x10000000；每个寄存器占1byte，通过偏移量访问。这些寄存器功能不一，比如："><meta itemprop="datePublished" content="2022-06-23T09:25:49-04:00" />
+<meta itemprop="description" content="目录 导言 5.1 控制台输出 Code:Console putput 5.2 控制台输入 Code: Console intput 5.3 驱动并发 Concurrency in drivers 5.4 时钟中断 Timer interrupts 5.5 练习 Exercise 5.6 补充 导言： 驱动（Device Driver） 本质上是管理某个设备的代码。它告诉该设备去执行什么操作，处理中断，与进程进行I/O交互等。由于并发性（Concurrency），与设备的接口通常很繁琐，导致驱动的设计复杂。
+一个设备假如需要被CPU“注意”，它一定有能力发出中断。在发出中断后，中断会被当作Trap处理。与系统调用和报错不同：
+外部设备中断是 异步（Asynchronous） 的，也就是说硬件所产生的中断可能和房钱正在运行的进程完全没有关系。 设备中断拥有更多的并发性：多设备同时运行，比如UART&#43;网卡&#43;CPU同时运行 可编程的设备：每种设备都有自己的寄存器，使用说明，功能等相关的编程手册 不同的设备有自己的中断处理代码。在xv6中，devintr()通过判断是哪个设备发出中断，并调用该设备对应的代码，这里指的主要是外部设备中断而非时钟中断和软件中断（软件中断指的是一个CPU给另一个CPU发送中断）。
+通常，一个驱动可以分为 上下两部分（Top/bottom half）。上部代码运行于进程的内核线程，表现为这个进程使用系统调用：比如对控制台的输入输出。下部代码指的是中断期间的代码，即上述的中断处理代码。上部代码在发送了执行某一个操作的请求后进入等待，此时设备开始运行。在设备运行完毕后，它会发出一个设备中断。此时对应的处理代码（下部代码）会知道什么操作完成了，并且在需要的情况下叫醒等待中的进程（上部代码），然后让硬件去执行下一个操作。本章通过控制台介绍这一过程。
+5.1 控制台输出 Code: Console output 控制台的输入输出是通过硬件UART实现的，控制台驱动管理UART。在qemu中，UART是通过代码模拟的。在现实中，UART将会连接RS232接口：
+Fig.1 RS-232[1] 在xv6中，UART连接着键盘和显示器。回忆第三章中的内存空间，UART是作为一段物理内存地址暴露给软件的。软件可以通过内存地址访问UART的 内存映射的控制寄存器（Memory-mapped control registers）：UART开始于UART0，即0x10000000；每个寄存器占1byte，通过偏移量访问。这些寄存器功能不一，比如：
+LSR：指示是否传入的char在等待软件接收 RHR：保存传入的char，软件从这里读取数据；每读取一个，UART就会删除被读取的；当没有待读取的数据时，LSR被清空 THR：当THR接受到1Byte，UART通过Data Trandmission Line输出数据。[2] Fig.2UART所有寄存器[3] 可以从图中看到，同一个地址在进行读写操作的时候，可以被认为是不同的寄存器。
+RISC-V有一些为中断服务的寄存器（不是上述UART的寄存器）：
+SIE: Supervisor Interrupt Enable: 其中使用3个bits，分别指示当前CPU是否允许外部设备中断，软件中断，和时钟中断。 SSTATUS: Supervisor Status: 一个bit，指示当前CPU是否允许中断。 SIP: Supervisor Interrupt Pending: CPU通过该寄存器去看什么中断进来了。"><meta itemprop="datePublished" content="2022-06-23T09:25:49-04:00" />
 <meta itemprop="dateModified" content="2022-06-23T09:25:49-04:00" />
 <meta itemprop="wordCount" content="719">
 <meta itemprop="keywords" content="" /><meta property="og:title" content="Chap 5: 中断与设备驱动 Interrupts and device drivers" />
-<meta property="og:description" content="目录   导言  5.1 控制台输出 Code:Console putput  5.2 控制台输入 Code: Console intput  5.3 驱动并发 Concurrency in drivers  5.4 时钟中断 Timer interrupts  5.5 练习 Exercise  5.6 补充   导言：  驱动（Device Driver） 本质上是管理某个设备的代码。它告诉该设备去执行什么操作，处理中断，与进程进行I/O交互等。由于并发性（Concurrency），与设备的接口通常很繁琐，导致驱动的设计复杂。
- 一个设备假如需要被CPU“注意”，它一定有能力发出中断。在发出中断后，中断会被当作Trap处理。与系统调用和报错不同：
-  外部设备中断是 异步（Asynchronous） 的，也就是说硬件所产生的中断可能和房钱正在运行的进程完全没有关系。 设备中断拥有更多的并发性：多设备同时运行，比如UART&#43;网卡&#43;CPU同时运行 可编程的设备：每种设备都有自己的寄存器，使用说明，功能等相关的编程手册   不同的设备有自己的中断处理代码。在xv6中，devintr()通过判断是哪个设备发出中断，并调用该设备对应的代码，这里指的主要是外部设备中断而非时钟中断和软件中断（软件中断指的是一个CPU给另一个CPU发送中断）。
- 通常，一个驱动可以分为 上下两部分（Top/bottom half）。上部代码运行于进程的内核线程，表现为这个进程使用系统调用：比如对控制台的输入输出。下部代码指的是中断期间的代码，即上述的中断处理代码。上部代码在发送了执行某一个操作的请求后进入等待，此时设备开始运行。在设备运行完毕后，它会发出一个设备中断。此时对应的处理代码（下部代码）会知道什么操作完成了，并且在需要的情况下叫醒等待中的进程（上部代码），然后让硬件去执行下一个操作。本章通过控制台介绍这一过程。
- 5.1 控制台输出 Code: Console output  控制台的输入输出是通过硬件UART实现的，控制台驱动管理UART。在qemu中，UART是通过代码模拟的。在现实中，UART将会连接RS232接口：
- Fig.1 RS-232[1]   在xv6中，UART连接着键盘和显示器。回忆第三章中的内存空间，UART是作为一段物理内存地址暴露给软件的。软件可以通过内存地址访问UART的 内存映射的控制寄存器（Memory-mapped control registers）：UART开始于UART0，即0x10000000；每个寄存器占1byte，通过偏移量访问。这些寄存器功能不一，比如：" />
+<meta property="og:description" content="目录 导言 5.1 控制台输出 Code:Console putput 5.2 控制台输入 Code: Console intput 5.3 驱动并发 Concurrency in drivers 5.4 时钟中断 Timer interrupts 5.5 练习 Exercise 5.6 补充 导言： 驱动（Device Driver） 本质上是管理某个设备的代码。它告诉该设备去执行什么操作，处理中断，与进程进行I/O交互等。由于并发性（Concurrency），与设备的接口通常很繁琐，导致驱动的设计复杂。
+一个设备假如需要被CPU“注意”，它一定有能力发出中断。在发出中断后，中断会被当作Trap处理。与系统调用和报错不同：
+外部设备中断是 异步（Asynchronous） 的，也就是说硬件所产生的中断可能和房钱正在运行的进程完全没有关系。 设备中断拥有更多的并发性：多设备同时运行，比如UART&#43;网卡&#43;CPU同时运行 可编程的设备：每种设备都有自己的寄存器，使用说明，功能等相关的编程手册 不同的设备有自己的中断处理代码。在xv6中，devintr()通过判断是哪个设备发出中断，并调用该设备对应的代码，这里指的主要是外部设备中断而非时钟中断和软件中断（软件中断指的是一个CPU给另一个CPU发送中断）。
+通常，一个驱动可以分为 上下两部分（Top/bottom half）。上部代码运行于进程的内核线程，表现为这个进程使用系统调用：比如对控制台的输入输出。下部代码指的是中断期间的代码，即上述的中断处理代码。上部代码在发送了执行某一个操作的请求后进入等待，此时设备开始运行。在设备运行完毕后，它会发出一个设备中断。此时对应的处理代码（下部代码）会知道什么操作完成了，并且在需要的情况下叫醒等待中的进程（上部代码），然后让硬件去执行下一个操作。本章通过控制台介绍这一过程。
+5.1 控制台输出 Code: Console output 控制台的输入输出是通过硬件UART实现的，控制台驱动管理UART。在qemu中，UART是通过代码模拟的。在现实中，UART将会连接RS232接口：
+Fig.1 RS-232[1] 在xv6中，UART连接着键盘和显示器。回忆第三章中的内存空间，UART是作为一段物理内存地址暴露给软件的。软件可以通过内存地址访问UART的 内存映射的控制寄存器（Memory-mapped control registers）：UART开始于UART0，即0x10000000；每个寄存器占1byte，通过偏移量访问。这些寄存器功能不一，比如：
+LSR：指示是否传入的char在等待软件接收 RHR：保存传入的char，软件从这里读取数据；每读取一个，UART就会删除被读取的；当没有待读取的数据时，LSR被清空 THR：当THR接受到1Byte，UART通过Data Trandmission Line输出数据。[2] Fig.2UART所有寄存器[3] 可以从图中看到，同一个地址在进行读写操作的时候，可以被认为是不同的寄存器。
+RISC-V有一些为中断服务的寄存器（不是上述UART的寄存器）：
+SIE: Supervisor Interrupt Enable: 其中使用3个bits，分别指示当前CPU是否允许外部设备中断，软件中断，和时钟中断。 SSTATUS: Supervisor Status: 一个bit，指示当前CPU是否允许中断。 SIP: Supervisor Interrupt Pending: CPU通过该寄存器去看什么中断进来了。" />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://hoooao.github.io/os/chap5/" /><meta property="article:section" content="os" />
 <meta property="article:published_time" content="2022-06-23T09:25:49-04:00" />
@@ -30,12 +36,15 @@
 
 <meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="Chap 5: 中断与设备驱动 Interrupts and device drivers"/>
-<meta name="twitter:description" content="目录   导言  5.1 控制台输出 Code:Console putput  5.2 控制台输入 Code: Console intput  5.3 驱动并发 Concurrency in drivers  5.4 时钟中断 Timer interrupts  5.5 练习 Exercise  5.6 补充   导言：  驱动（Device Driver） 本质上是管理某个设备的代码。它告诉该设备去执行什么操作，处理中断，与进程进行I/O交互等。由于并发性（Concurrency），与设备的接口通常很繁琐，导致驱动的设计复杂。
- 一个设备假如需要被CPU“注意”，它一定有能力发出中断。在发出中断后，中断会被当作Trap处理。与系统调用和报错不同：
-  外部设备中断是 异步（Asynchronous） 的，也就是说硬件所产生的中断可能和房钱正在运行的进程完全没有关系。 设备中断拥有更多的并发性：多设备同时运行，比如UART&#43;网卡&#43;CPU同时运行 可编程的设备：每种设备都有自己的寄存器，使用说明，功能等相关的编程手册   不同的设备有自己的中断处理代码。在xv6中，devintr()通过判断是哪个设备发出中断，并调用该设备对应的代码，这里指的主要是外部设备中断而非时钟中断和软件中断（软件中断指的是一个CPU给另一个CPU发送中断）。
- 通常，一个驱动可以分为 上下两部分（Top/bottom half）。上部代码运行于进程的内核线程，表现为这个进程使用系统调用：比如对控制台的输入输出。下部代码指的是中断期间的代码，即上述的中断处理代码。上部代码在发送了执行某一个操作的请求后进入等待，此时设备开始运行。在设备运行完毕后，它会发出一个设备中断。此时对应的处理代码（下部代码）会知道什么操作完成了，并且在需要的情况下叫醒等待中的进程（上部代码），然后让硬件去执行下一个操作。本章通过控制台介绍这一过程。
- 5.1 控制台输出 Code: Console output  控制台的输入输出是通过硬件UART实现的，控制台驱动管理UART。在qemu中，UART是通过代码模拟的。在现实中，UART将会连接RS232接口：
- Fig.1 RS-232[1]   在xv6中，UART连接着键盘和显示器。回忆第三章中的内存空间，UART是作为一段物理内存地址暴露给软件的。软件可以通过内存地址访问UART的 内存映射的控制寄存器（Memory-mapped control registers）：UART开始于UART0，即0x10000000；每个寄存器占1byte，通过偏移量访问。这些寄存器功能不一，比如："/>
+<meta name="twitter:description" content="目录 导言 5.1 控制台输出 Code:Console putput 5.2 控制台输入 Code: Console intput 5.3 驱动并发 Concurrency in drivers 5.4 时钟中断 Timer interrupts 5.5 练习 Exercise 5.6 补充 导言： 驱动（Device Driver） 本质上是管理某个设备的代码。它告诉该设备去执行什么操作，处理中断，与进程进行I/O交互等。由于并发性（Concurrency），与设备的接口通常很繁琐，导致驱动的设计复杂。
+一个设备假如需要被CPU“注意”，它一定有能力发出中断。在发出中断后，中断会被当作Trap处理。与系统调用和报错不同：
+外部设备中断是 异步（Asynchronous） 的，也就是说硬件所产生的中断可能和房钱正在运行的进程完全没有关系。 设备中断拥有更多的并发性：多设备同时运行，比如UART&#43;网卡&#43;CPU同时运行 可编程的设备：每种设备都有自己的寄存器，使用说明，功能等相关的编程手册 不同的设备有自己的中断处理代码。在xv6中，devintr()通过判断是哪个设备发出中断，并调用该设备对应的代码，这里指的主要是外部设备中断而非时钟中断和软件中断（软件中断指的是一个CPU给另一个CPU发送中断）。
+通常，一个驱动可以分为 上下两部分（Top/bottom half）。上部代码运行于进程的内核线程，表现为这个进程使用系统调用：比如对控制台的输入输出。下部代码指的是中断期间的代码，即上述的中断处理代码。上部代码在发送了执行某一个操作的请求后进入等待，此时设备开始运行。在设备运行完毕后，它会发出一个设备中断。此时对应的处理代码（下部代码）会知道什么操作完成了，并且在需要的情况下叫醒等待中的进程（上部代码），然后让硬件去执行下一个操作。本章通过控制台介绍这一过程。
+5.1 控制台输出 Code: Console output 控制台的输入输出是通过硬件UART实现的，控制台驱动管理UART。在qemu中，UART是通过代码模拟的。在现实中，UART将会连接RS232接口：
+Fig.1 RS-232[1] 在xv6中，UART连接着键盘和显示器。回忆第三章中的内存空间，UART是作为一段物理内存地址暴露给软件的。软件可以通过内存地址访问UART的 内存映射的控制寄存器（Memory-mapped control registers）：UART开始于UART0，即0x10000000；每个寄存器占1byte，通过偏移量访问。这些寄存器功能不一，比如：
+LSR：指示是否传入的char在等待软件接收 RHR：保存传入的char，软件从这里读取数据；每读取一个，UART就会删除被读取的；当没有待读取的数据时，LSR被清空 THR：当THR接受到1Byte，UART通过Data Trandmission Line输出数据。[2] Fig.2UART所有寄存器[3] 可以从图中看到，同一个地址在进行读写操作的时候，可以被认为是不同的寄存器。
+RISC-V有一些为中断服务的寄存器（不是上述UART的寄存器）：
+SIE: Supervisor Interrupt Enable: 其中使用3个bits，分别指示当前CPU是否允许外部设备中断，软件中断，和时钟中断。 SSTATUS: Supervisor Status: 一个bit，指示当前CPU是否允许中断。 SIP: Supervisor Interrupt Pending: CPU通过该寄存器去看什么中断进来了。"/>
 
 	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -162,46 +171,46 @@ SSTATUS: Supervisor Status: 一个bit，指示当前CPU是否允许中断。
 SIP: Supervisor Interrupt Pending: CPU通过该寄存器去看什么中断进来了。</p>
 </blockquote>
 <p>    本节主要介绍中断的初始化和第一个shell中的<code>$</code>的产生</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="n">main</span><span class="p">()</span>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="nf">main</span><span class="p">()</span>
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
-</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">cpuid</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">){</span>
-</span></span><span class="line"><span class="cl">    <span class="n">consoleinit</span><span class="p">();</span>
-</span></span><span class="line"><span class="cl">    <span class="n">printfinit</span><span class="p">();</span>
-</span></span><span class="line"><span class="cl">    <span class="n">printf</span><span class="p">(</span><span class="s">&#34;</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl">    <span class="n">printf</span><span class="p">(</span><span class="s">&#34;xv6 kernel is booting</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl">    <span class="n">printf</span><span class="p">(</span><span class="s">&#34;</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl">    <span class="n">kinit</span><span class="p">();</span>         <span class="c1">// physical page allocator
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">kvminit</span><span class="p">();</span>       <span class="c1">// create kernel page table
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">kvminithart</span><span class="p">();</span>   <span class="c1">// turn on paging
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">procinit</span><span class="p">();</span>      <span class="c1">// process table
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">trapinit</span><span class="p">();</span>      <span class="c1">// trap vectors
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">trapinithart</span><span class="p">();</span>  <span class="c1">// install kernel trap vector
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">plicinit</span><span class="p">();</span>      <span class="c1">// set up interrupt controller
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">plicinithart</span><span class="p">();</span>  <span class="c1">// ask PLIC for device interrupts
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">binit</span><span class="p">();</span>         <span class="c1">// buffer cache
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">iinit</span><span class="p">();</span>         <span class="c1">// inode table
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">fileinit</span><span class="p">();</span>      <span class="c1">// file table
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">virtio_disk_init</span><span class="p">();</span> <span class="c1">// emulated hard disk
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">userinit</span><span class="p">();</span>      <span class="c1">// first user process
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">__sync_synchronize</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="nf">cpuid</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">consoleinit</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">printfinit</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">printf</span><span class="p">(</span><span class="s">&#34;</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">printf</span><span class="p">(</span><span class="s">&#34;xv6 kernel is booting</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">printf</span><span class="p">(</span><span class="s">&#34;</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">kinit</span><span class="p">();</span>         <span class="c1">// physical page allocator
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nf">kvminit</span><span class="p">();</span>       <span class="c1">// create kernel page table
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nf">kvminithart</span><span class="p">();</span>   <span class="c1">// turn on paging
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nf">procinit</span><span class="p">();</span>      <span class="c1">// process table
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nf">trapinit</span><span class="p">();</span>      <span class="c1">// trap vectors
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nf">trapinithart</span><span class="p">();</span>  <span class="c1">// install kernel trap vector
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nf">plicinit</span><span class="p">();</span>      <span class="c1">// set up interrupt controller
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nf">plicinithart</span><span class="p">();</span>  <span class="c1">// ask PLIC for device interrupts
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nf">binit</span><span class="p">();</span>         <span class="c1">// buffer cache
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nf">iinit</span><span class="p">();</span>         <span class="c1">// inode table
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nf">fileinit</span><span class="p">();</span>      <span class="c1">// file table
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nf">virtio_disk_init</span><span class="p">();</span> <span class="c1">// emulated hard disk
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nf">userinit</span><span class="p">();</span>      <span class="c1">// first user process
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nf">__sync_synchronize</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">    <span class="n">started</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">    <span class="k">while</span><span class="p">(</span><span class="n">started</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl">      <span class="p">;</span>
-</span></span><span class="line"><span class="cl">    <span class="n">__sync_synchronize</span><span class="p">();</span>
-</span></span><span class="line"><span class="cl">    <span class="n">printf</span><span class="p">(</span><span class="s">&#34;hart %d starting</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">cpuid</span><span class="p">());</span>
-</span></span><span class="line"><span class="cl">    <span class="n">kvminithart</span><span class="p">();</span>    <span class="c1">// turn on paging
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">trapinithart</span><span class="p">();</span>   <span class="c1">// install kernel trap vector
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">plicinithart</span><span class="p">();</span>   <span class="c1">// ask PLIC for device interrupts
+</span></span><span class="line"><span class="cl">    <span class="nf">__sync_synchronize</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">printf</span><span class="p">(</span><span class="s">&#34;hart %d starting</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="nf">cpuid</span><span class="p">());</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">kvminithart</span><span class="p">();</span>    <span class="c1">// turn on paging
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nf">trapinithart</span><span class="p">();</span>   <span class="c1">// install kernel trap vector
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nf">plicinithart</span><span class="p">();</span>   <span class="c1">// ask PLIC for device interrupts
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="p">}</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">  <span class="n">scheduler</span><span class="p">();</span>        
+</span></span><span class="line"><span class="cl">  <span class="nf">scheduler</span><span class="p">();</span>        
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p>    在启动xv6的过程中，首先会进入<code>start.c</code>来初始化一些寄存器，比如上述的SIE。之后会开始运行<code>main</code>。通过最开始的<code>if/else</code>语句，使得只有第0号CPU去进行这些硬件的初始化工作（不需要让其他CPU做重复的工作）。<code>main</code>会调用<code>consoleinit</code>去初始化UART（<code>consoleinit</code>只封装<code>uartinit</code>，后者给其寄存器赋值），让UART在每接受1byte数据时就出发一个<strong>接收中断（Receive interrupt）</strong>。UART是第一个初始化的外部设备。</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">consoleinit</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">  <span class="n">initlock</span><span class="p">(</span><span class="o">&amp;</span><span class="n">cons</span><span class="p">.</span><span class="n">lock</span><span class="p">,</span> <span class="s">&#34;cons&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">initlock</span><span class="p">(</span><span class="o">&amp;</span><span class="n">cons</span><span class="p">.</span><span class="n">lock</span><span class="p">,</span> <span class="s">&#34;cons&#34;</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="c1">//调用uartinit()
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">uartinit</span><span class="p">();</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nf">uartinit</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">  <span class="c1">//右侧的两个是console.c定义的函数
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="c1">//这两个函数未来会在对控制台的W/R中调用
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">devsw</span><span class="p">[</span><span class="n">CONSOLE</span><span class="p">].</span><span class="n">read</span> <span class="o">=</span> <span class="n">consoleread</span><span class="p">;</span>
@@ -209,14 +218,14 @@ SIP: Supervisor Interrupt Pending: CPU通过该寄存器去看什么中断进来
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">uartinit</span><span class="p">(</span><span class="kt">void</span><span class="p">){</span>
 </span></span><span class="line"><span class="cl">  <span class="c1">// disable interrupts.
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">WriteReg</span><span class="p">(</span><span class="n">IER</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nf">WriteReg</span><span class="p">(</span><span class="n">IER</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="c1">//...设置其他Fig.2中的一部分寄存器...
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>
 </span></span><span class="line"><span class="cl">  <span class="c1">// enable transmit and receive interrupts.
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">WriteReg</span><span class="p">(</span><span class="n">IER</span><span class="p">,</span> <span class="n">IER_TX_ENABLE</span> <span class="o">|</span> <span class="n">IER_RX_ENABLE</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nf">WriteReg</span><span class="p">(</span><span class="n">IER</span><span class="p">,</span> <span class="n">IER_TX_ENABLE</span> <span class="o">|</span> <span class="n">IER_RX_ENABLE</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">  <span class="n">initlock</span><span class="p">(</span><span class="o">&amp;</span><span class="n">uart_tx_lock</span><span class="p">,</span> <span class="s">&#34;uart&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">initlock</span><span class="p">(</span><span class="o">&amp;</span><span class="n">uart_tx_lock</span><span class="p">,</span> <span class="s">&#34;uart&#34;</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p>     理论上此时UART就可以发出中断了，但是<code>sstatus</code>还没有被设置，所以相当于当前CPU禁止中断。之后会有一段对控制台的文本显示输出，但是由于现在中断并不允许，实际上这里的输出是跳过了中断，直接输出到UART转而输出到控制台的。这里的<code>printf</code>是在<code>kernel/printf.c</code>中定义的特殊的<code>printf</code>，通过<code>uartputc_sync</code>函数直接进行输出。而通常使用的<code>printf</code>实际上是<code>user/printf.c</code>中定义的，后者需要进入中断处理。这一特殊的<code>printf</code>的使用场景就是这些输出文本和对用户未来输入的echo（即把用户的输入“输出”到显示器上，这个“输出”同样不需要经过中断）。</p>
 <figure>
@@ -229,27 +238,27 @@ SIP: Supervisor Interrupt Pending: CPU通过该寄存器去看什么中断进来
 <p>     之后<code>main</code>中的<code>plicinithart</code>会被调用。这个函数设置“PLIC可以给当前CPU发送哪些硬件产生的IRQ”。</p>
 <p>     <code>main</code>中每个CPU最后都会调用<code>scheduler()</code>，它会调用<code>intr_on</code>，后者实际上设置了<code>sstatus</code>。此时如果PLIC中等待的中断会被处理。 而0号CPU会调用<code>userinit</code>，然后调用<code>init</code>启动shell。在shell启动前，其“壳子进程”会开启三个fd，指向控制台（<code>init.c</code>）：输入输出和报错全部指向控制台。</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="c1">//init.c
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">if</span><span class="p">(</span><span class="n">open</span><span class="p">(</span><span class="s">&#34;console&#34;</span><span class="p">,</span> <span class="n">O_RDWR</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">){</span>
-</span></span><span class="line"><span class="cl">    <span class="n">mknod</span><span class="p">(</span><span class="s">&#34;console&#34;</span><span class="p">,</span> <span class="n">CONSOLE</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl">    <span class="n">open</span><span class="p">(</span><span class="s">&#34;console&#34;</span><span class="p">,</span> <span class="n">O_RDWR</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">if</span><span class="p">(</span><span class="nf">open</span><span class="p">(</span><span class="s">&#34;console&#34;</span><span class="p">,</span> <span class="n">O_RDWR</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">mknod</span><span class="p">(</span><span class="s">&#34;console&#34;</span><span class="p">,</span> <span class="n">CONSOLE</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">open</span><span class="p">(</span><span class="s">&#34;console&#34;</span><span class="p">,</span> <span class="n">O_RDWR</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
 </span></span><span class="line"><span class="cl">  <span class="c1">//此时fd 1，2闲置，所以被直接分配
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">dup</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>  <span class="c1">// stdout
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">dup</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>  <span class="c1">// stderr
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nf">dup</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>  <span class="c1">// stdout
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nf">dup</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>  <span class="c1">// stderr
 </span></span></span></code></pre></div><p>shell运行<code>getcmd</code>，这个函数会调用<code>fprintf</code>，在内部调用<code>putc</code>，<code>putc</code>调用<code>write</code>系统调用，这个系统调用使用<code>filewrite</code>函数，这个函数会检查<code>write</code>传入的fd是什么，如果是控制台的话，会调用<code>consolewrite</code>，这个函数内部调用<code>uartputc</code>，参数是一个字符(<code>consolewrite</code>循环调用<code>uartputc</code>)，<code>uartputc</code>会把这个字符放入它维护的buffer <code>uart_tx_buf</code>（32Bytes） 中，并且每次都会调用<code>uartstart</code>。<code>uartstart</code>让设备真正开始干活（通过写入<code>THR</code>寄存器来让UART把这个字符传输到目标设备）并发起中断。</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="c1">//uartputc的一部分
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>
 </span></span><span class="line"><span class="cl"><span class="k">while</span><span class="p">(</span><span class="mi">1</span><span class="p">){</span>
 </span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">uart_tx_w</span> <span class="o">==</span> <span class="n">uart_tx_r</span> <span class="o">+</span> <span class="n">UART_TX_BUF_SIZE</span><span class="p">){</span>
 </span></span><span class="line"><span class="cl">      <span class="c1">// buffer满了
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="n">sleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">uart_tx_r</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">uart_tx_lock</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="nf">sleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">uart_tx_r</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">uart_tx_lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">      <span class="c1">//数据保存到buffer
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="n">uart_tx_buf</span><span class="p">[</span><span class="n">uart_tx_w</span> <span class="o">%</span> <span class="n">UART_TX_BUF_SIZE</span><span class="p">]</span> <span class="o">=</span> <span class="n">c</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">      <span class="n">uart_tx_w</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">      <span class="c1">//首次调用uartstart
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="n">uartstart</span><span class="p">();</span>
-</span></span><span class="line"><span class="cl">      <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">uart_tx_lock</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="nf">uartstart</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">      <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">uart_tx_lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">      <span class="k">return</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">    <span class="p">}</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
@@ -259,16 +268,16 @@ SIP: Supervisor Interrupt Pending: CPU通过该寄存器去看什么中断进来
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
 </span></span><span class="line"><span class="cl">  <span class="c1">//通过uartgetc读取输入
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">while</span><span class="p">(</span><span class="mi">1</span><span class="p">){</span>
-</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">c</span> <span class="o">=</span> <span class="n">uartgetc</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">c</span> <span class="o">=</span> <span class="nf">uartgetc</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">c</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl">      <span class="k">break</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">    <span class="n">consoleintr</span><span class="p">(</span><span class="n">c</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">consoleintr</span><span class="p">(</span><span class="n">c</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
 </span></span><span class="line"><span class="cl">  <span class="c1">//如果输入不存在，说明是输出操作
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="c1">// send buffered characters.
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">uart_tx_lock</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl">  <span class="n">uartstart</span><span class="p">();</span>
-</span></span><span class="line"><span class="cl">  <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">uart_tx_lock</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nf">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">uart_tx_lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">uartstart</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">uart_tx_lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p>     当<code>uartstart</code>传送完1Byte，它会触发一个中断。由于中断的发生，又会进入<code>uartintr</code>，它会检查数据真的传输完毕了（通过调用<code>uartgetc</code>，如果<code>LSR</code>为空，返回<code>-1</code>：此时<code>uartintr</code>将不会执行<code>consoleintr</code>）。并且再次调用<code>uartstart</code>去buffer中传输数据（所以它在top/bottom-half中都被调用）。所以只有第一个Byte的<code>uartstart</code>是从<code>uartputc</code>中调用的，之后的<code>uartstart</code>都是在使用（通过前面1Byte的输出造成的中断而产生的）<code>uartintr</code>中的<code>uartstart</code>。</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">uartstart</span><span class="p">()</span> <span class="p">{</span>
@@ -278,7 +287,7 @@ SIP: Supervisor Interrupt Pending: CPU通过该寄存器去看什么中断进来
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="k">return</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">    <span class="p">}</span>
 </span></span><span class="line"><span class="cl">    
-</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">((</span><span class="n">ReadReg</span><span class="p">(</span><span class="n">LSR</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">LSR_TX_IDLE</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">((</span><span class="nf">ReadReg</span><span class="p">(</span><span class="n">LSR</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">LSR_TX_IDLE</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">){</span>
 </span></span><span class="line"><span class="cl">      <span class="c1">// the UART transmit holding register is full,
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="c1">// so we cannot give it another byte.
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="c1">// it will interrupt when it&#39;s ready for a new byte.
@@ -290,10 +299,10 @@ SIP: Supervisor Interrupt Pending: CPU通过该寄存器去看什么中断进来
 </span></span><span class="line"><span class="cl">    <span class="n">uart_tx_r</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">    
 </span></span><span class="line"><span class="cl">    <span class="c1">// maybe uartputc() is waiting for space in the buffer.
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">wakeup</span><span class="p">(</span><span class="o">&amp;</span><span class="n">uart_tx_r</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nf">wakeup</span><span class="p">(</span><span class="o">&amp;</span><span class="n">uart_tx_r</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    
 </span></span><span class="line"><span class="cl">    <span class="c1">//写入THR，用来传输这个c
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">WriteReg</span><span class="p">(</span><span class="n">THR</span><span class="p">,</span> <span class="n">c</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nf">WriteReg</span><span class="p">(</span><span class="n">THR</span><span class="p">,</span> <span class="n">c</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p><strong>注：</strong> <code>uartstart</code>会叫醒<code>uartputc</code>如果它因buffer满而睡眠。在这个例子中只会输出一次，因为只有一个字符<code>$</code>。</p>
@@ -308,9 +317,9 @@ SIP: Supervisor Interrupt Pending: CPU通过该寄存器去看什么中断进来
 <p>     控制台的输入行为也是类似的，不同的只是几个函数的调用。在通过<code>read</code>读取控制台数据时，最终该系统调用会使用<code>fileread</code>，在其中调用<code>consoleread</code>。它只有在完整地被输入一行数据后才会把字符串放到特定位置。在此之前，它会进入<code>sleep</code>（第七章）。当用户通过键盘输入一个char时，UART会触发一个中断，激活xv6中的Trap处理机制。通过<code>scause</code>，<code>devintr</code>可以知道中断触发的原因，同时使用PLIC来看到是哪个硬件发出了中断后，会调用指定的处理代码：这个例子中是<code>uartintr</code>。<code>uartintr</code>会不断地读取用户输入到UART（控制台）的数据，把它们移交到<code>consoleintr</code>（通过<code>uartgetc</code>得到输入的字符）。后者会一个一个地把前者送来的字符添加到一个buffer（<code>con.buf</code>，128Bytes）中，直到收到指示一行结束的符号。然后<code>consoleintr</code>会叫醒<code>consoleread</code>，后者开始把传来的整行数据复制到目标用户空间并返回用户空间。<strong>注：</strong> <code>consoleintr</code>同时也会调用<code>consputc</code>，这个函数echo输入的命令“输出”到显示器： 也是通过<code>uartputc_sync</code>，不需要中断。</p>
 <p>    <code>uartgetc()</code> 是通过读取寄存器实现读取输入的：</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">int</span> <span class="nf">uartgetc</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">ReadReg</span><span class="p">(</span><span class="n">LSR</span><span class="p">)</span> <span class="o">&amp;</span> <span class="mh">0x01</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="nf">ReadReg</span><span class="p">(</span><span class="n">LSR</span><span class="p">)</span> <span class="o">&amp;</span> <span class="mh">0x01</span><span class="p">){</span>
 </span></span><span class="line"><span class="cl">    <span class="c1">// input data is ready.
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">return</span> <span class="n">ReadReg</span><span class="p">(</span><span class="n">RHR</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">return</span> <span class="nf">ReadReg</span><span class="p">(</span><span class="n">RHR</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
@@ -348,14 +357,14 @@ SIP: Supervisor Interrupt Pending: CPU通过该寄存器去看什么中断进来
 <br>
 <h2 id="54-时钟中断-timer-interrupts">5.4 时钟中断 Timer interrupts<a href="#54-时钟中断-timer-interrupts" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
 <p>分时的存在由 <strong>时钟（Timer/clock）</strong> 硬件发出的 <strong>时钟中断（Timer interrupt）</strong> 实现。xv6使用时钟中断去维护它的时钟和切换进程。在<code>usertrap</code>与<code>kerneltrap</code>中的<code>yield</code>就是导致线程切换的函数。xv6使用程序去模拟时钟。由于RISC-V要求时钟中断的处理代码必须要运行在机器模式中，所以它不能像其他<code>trap</code>中在SM中直接解决。<code>start.c</code>中初始化(<code>timerinit()</code>)了时钟并设置了出发中断的周期（1/10s）与一个scratch area，用来当作存放寄存器和重要的地址的空间地址保存在<code>mscratch</code>）。最后把<code>mtvec</code>设置成<code>timervec</code>并允许机器模式下的中断。</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="n">timerinit</span><span class="p">()</span>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="nf">timerinit</span><span class="p">()</span>
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
 </span></span><span class="line"><span class="cl">  <span class="c1">// 通过这个函数或渠道当前cpu的id，每个cpu都有自己的时钟
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="kt">int</span> <span class="n">id</span> <span class="o">=</span> <span class="n">r_mhartid</span><span class="p">();</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="kt">int</span> <span class="n">id</span> <span class="o">=</span> <span class="nf">r_mhartid</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="c1">// ask the CLINT for a timer interrupt.
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="kt">int</span> <span class="n">interval</span> <span class="o">=</span> <span class="mi">1000000</span><span class="p">;</span> <span class="c1">// cycles; about 1/10th second in qemu.
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="o">*</span><span class="p">(</span><span class="n">uint64</span><span class="o">*</span><span class="p">)</span><span class="n">CLINT_MTIMECMP</span><span class="p">(</span><span class="n">id</span><span class="p">)</span> <span class="o">=</span> <span class="o">*</span><span class="p">(</span><span class="n">uint64</span><span class="o">*</span><span class="p">)</span><span class="n">CLINT_MTIME</span> <span class="o">+</span> <span class="n">interval</span><span class="p">;</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="o">*</span><span class="p">(</span><span class="n">uint64</span><span class="o">*</span><span class="p">)</span><span class="nf">CLINT_MTIMECMP</span><span class="p">(</span><span class="n">id</span><span class="p">)</span> <span class="o">=</span> <span class="o">*</span><span class="p">(</span><span class="n">uint64</span><span class="o">*</span><span class="p">)</span><span class="n">CLINT_MTIME</span> <span class="o">+</span> <span class="n">interval</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="c1">//就是sscratch的机器模式版本的寄存器
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="c1">// prepare information in scratch[] for timervec.
@@ -363,19 +372,19 @@ SIP: Supervisor Interrupt Pending: CPU通过该寄存器去看什么中断进来
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="c1">// scratch[3] : address of CLINT MTIMECMP register.
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="c1">// scratch[4] : desired interval (in cycles) between timer interrupts.
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">uint64</span> <span class="o">*</span><span class="n">scratch</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">timer_scratch</span><span class="p">[</span><span class="n">id</span><span class="p">][</span><span class="mi">0</span><span class="p">];</span>
-</span></span><span class="line"><span class="cl">  <span class="n">scratch</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">CLINT_MTIMECMP</span><span class="p">(</span><span class="n">id</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="n">scratch</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="nf">CLINT_MTIMECMP</span><span class="p">(</span><span class="n">id</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="n">scratch</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="o">=</span> <span class="n">interval</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="c1">//这个函数把scratch写入内存
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">w_mscratch</span><span class="p">((</span><span class="n">uint64</span><span class="p">)</span><span class="n">scratch</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nf">w_mscratch</span><span class="p">((</span><span class="n">uint64</span><span class="p">)</span><span class="n">scratch</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="c1">//设置时钟中断处理， timervec是之前定义的一个函数，这里当作地址存入。
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">w_mtvec</span><span class="p">((</span><span class="n">uint64</span><span class="p">)</span><span class="n">timervec</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nf">w_mtvec</span><span class="p">((</span><span class="n">uint64</span><span class="p">)</span><span class="n">timervec</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="c1">// enable machine-mode interrupts.
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">w_mstatus</span><span class="p">(</span><span class="n">r_mstatus</span><span class="p">()</span> <span class="o">|</span> <span class="n">MSTATUS_MIE</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nf">w_mstatus</span><span class="p">(</span><span class="nf">r_mstatus</span><span class="p">()</span> <span class="o">|</span> <span class="n">MSTATUS_MIE</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="c1">// enable machine-mode timer interrupts.
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">w_mie</span><span class="p">(</span><span class="n">r_mie</span><span class="p">()</span> <span class="o">|</span> <span class="n">MIE_MTIE</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nf">w_mie</span><span class="p">(</span><span class="nf">r_mie</span><span class="p">()</span> <span class="o">|</span> <span class="n">MIE_MTIE</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p>     时钟中断以时间为单位被触发，无论CPU当前运行在内核或者用户空间，它都可以出现。所以对时钟中断的处理要很小心，防止内核的损坏。基本策略是：让RISC-V发出一个<strong>软件中断（Software interrupts）</strong>，走过正常的Trap处理流程，对内核进行保护。这个软件中断也会进入<code>devintr</code>处理。通过<code>scause</code>，<code>devintr</code>可以知道这实际上是一个时钟中断，然后返回<code>2</code>，在Trap处理函数中触发<code>yield</code>（无论<code>usertrap</code>还是<code>kerneltrap</code>都会检查<code>devintr</code>的返回值）。这个过程中，<code>timervec</code>会保存寄存器于scratch area中。并告诉硬件CLINT（通过内存映射的设备地址找到，这个地址保存在scratch area）什么时候去执行下一次中断，然后让RISC-V发出一个软件中断。这个软件中断会快速返回，之后<code>timervec</code>会恢复寄存器，并且返回，</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="c1">//devintr中处理时钟中断的部分：
@@ -384,14 +393,14 @@ SIP: Supervisor Interrupt Pending: CPU通过该寄存器去看什么中断进来
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// forwarded by timervec in kernelvec.S.
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>
 </span></span><span class="line"><span class="cl">    <span class="c1">//xv6支启动了1个CPU，即0
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span><span class="p">(</span><span class="n">cpuid</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">){</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span><span class="p">(</span><span class="nf">cpuid</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">){</span>
 </span></span><span class="line"><span class="cl">      <span class="c1">//增加ticks
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="n">clockintr</span><span class="p">();</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="nf">clockintr</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">    <span class="p">}</span>
 </span></span><span class="line"><span class="cl">    
 </span></span><span class="line"><span class="cl">    <span class="c1">// acknowledge the software interrupt by clearing
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// the SSIP bit in sip.
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">w_sip</span><span class="p">(</span><span class="n">r_sip</span><span class="p">()</span> <span class="o">&amp;</span> <span class="o">~</span><span class="mi">2</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nf">w_sip</span><span class="p">(</span><span class="nf">r_sip</span><span class="p">()</span> <span class="o">&amp;</span> <span class="o">~</span><span class="mi">2</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="mi">2</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
@@ -431,21 +440,21 @@ SIP: Supervisor Interrupt Pending: CPU通过该寄存器去看什么中断进来
 </span></span><span class="line"><span class="cl">    <span class="c1">// this is a supervisor external interrupt, via PLIC.
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>
 </span></span><span class="line"><span class="cl">    <span class="c1">// irq indicates which device interrupted.
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="kt">int</span> <span class="n">irq</span> <span class="o">=</span> <span class="n">plic_claim</span><span class="p">();</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="kt">int</span> <span class="n">irq</span> <span class="o">=</span> <span class="nf">plic_claim</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">irq</span> <span class="o">==</span> <span class="n">UART0_IRQ</span><span class="p">){</span>
-</span></span><span class="line"><span class="cl">      <span class="n">uartintr</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">      <span class="nf">uartintr</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">    <span class="p">}</span> <span class="k">else</span> <span class="k">if</span><span class="p">(</span><span class="n">irq</span> <span class="o">==</span> <span class="n">VIRTIO0_IRQ</span><span class="p">){</span>
-</span></span><span class="line"><span class="cl">      <span class="n">virtio_disk_intr</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">      <span class="nf">virtio_disk_intr</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">    <span class="p">}</span> <span class="k">else</span> <span class="k">if</span><span class="p">(</span><span class="n">irq</span><span class="p">){</span>
-</span></span><span class="line"><span class="cl">      <span class="n">printf</span><span class="p">(</span><span class="s">&#34;unexpected interrupt irq=%d</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">irq</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="nf">printf</span><span class="p">(</span><span class="s">&#34;unexpected interrupt irq=%d</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">irq</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="p">}</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">    <span class="c1">// the PLIC allows each device to raise at most one
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// interrupt at a time; tell the PLIC the device is
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// now allowed to interrupt again.
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span><span class="p">(</span><span class="n">irq</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">      <span class="n">plic_complete</span><span class="p">(</span><span class="n">irq</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="nf">plic_complete</span><span class="p">(</span><span class="n">irq</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">    <span class="c1">//..timer interrup...
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>
@@ -510,7 +519,7 @@ SIP: Supervisor Interrupt Pending: CPU通过该寄存器去看什么中断进来
 
 
 
-	<script src="https://hoooao.github.io/js/bundle.min.5a42c67b729ee2fa1059251688235399704707e04edb4e28c42c6f6dfa49d1d9.js" integrity="sha256-WkLGe3Ke4voQWSUWiCNTmXBHB+BO204oxCxvbfpJ0dk=" crossorigin="anonymous"></script>
+	<script src="https://hoooao.github.io/js/bundle.min.580988ed2982bcbb74a1773c7abea97b43e4c43b9324e10cda0813ec6ec4bb67.js" integrity="sha256-WAmI7SmCvLt0oXc8er6pe0PkxDuTJOEM2ggT7G7Eu2c=" crossorigin="anonymous"></script>
 	
 
 </body>

@@ -8,15 +8,27 @@
 	<meta name="theme-color" content="#494f5c">
 	<meta name="msapplication-TileColor" content="#494f5c">
 <meta itemprop="name" content="Chap 7: 调度 Scheduling">
-<meta itemprop="description" content="目录   导言  7.1 上下文切换 Code: Context switch  7.2 调度 Scheduling  7.3 函数 myproc(), mycpu()  7.4 睡眠和唤醒 Sleep and wakeup  7.5 代码：睡眠和唤醒 Code： Sleep and wakeup  7.6 代码：管道 Code: Pipe  7.7 代码：等待，退出，杀死 Code: Wait, exit, and kill  7.8 进程锁 Process Lock  7.9 补充 More  7.10 练习 Exercise   导言  OS希望在同时运行多个进程，除了使用多核处理器，CPU需要实现分时。在理想状态下，分时对于进程来说应当是透明的，也就是说进程不应当知道分时的进行，或者说，进程会认为自己独享一个CPU。这被叫做将进程多路复用（Multiplexing） 在CPU上。
- xv6通过让CPU在不同的进程之间切换实现多路复用。这种进程切换主要体现在两种情形之下:
-   一个进程调用了sleep让另一个进程开始运行，或者一个进程调用了wakeup让另一个睡眠的进程继续运行（7.5）。"><meta itemprop="datePublished" content="2022-07-23T16:09:15-04:00" />
+<meta itemprop="description" content="目录 导言 7.1 上下文切换 Code: Context switch 7.2 调度 Scheduling 7.3 函数 myproc(), mycpu() 7.4 睡眠和唤醒 Sleep and wakeup 7.5 代码：睡眠和唤醒 Code： Sleep and wakeup 7.6 代码：管道 Code: Pipe 7.7 代码：等待，退出，杀死 Code: Wait, exit, and kill 7.8 进程锁 Process Lock 7.9 补充 More 7.10 练习 Exercise 导言 OS希望在同时运行多个进程，除了使用多核处理器，CPU需要实现分时。在理想状态下，分时对于进程来说应当是透明的，也就是说进程不应当知道分时的进行，或者说，进程会认为自己独享一个CPU。这被叫做将进程多路复用（Multiplexing） 在CPU上。
+xv6通过让CPU在不同的进程之间切换实现多路复用。这种进程切换主要体现在两种情形之下:
+一个进程调用了sleep让另一个进程开始运行，或者一个进程调用了wakeup让另一个睡眠的进程继续运行（7.5）。
+强制的分时，即时钟中断，让每个进程都有机会运行。
+在真正实现这一特性时有六个困难：
+如何切换进程。 如何让切换的过程对进程透明。 需要解决多个CPU同时切换进程可能引发竞争问题。 进程在退出之后的资源释放（一个进程不可能完全释放自己）。 需要让每个内核都知道自己运行的进程是谁，这样才能在正确的核心上使用系统调用。 实现sleep与wakeup。 注：多路复用，调度，和分时没必要在下文中区分。
+7.1 上下文切换 Code: Context switch 进程之间的切换本质上就是它们的**上下文（Context）**的切换。上下文包括进程的寄存器/代码/栈（实际上都由寄存器决定）。
+Fig.1 跳转过程 进程之间的切换主要包括下面4点：
+从当前进程的用户空间跳转到它的内核线程（Trap）。"><meta itemprop="datePublished" content="2022-07-23T16:09:15-04:00" />
 <meta itemprop="dateModified" content="2022-07-23T16:09:15-04:00" />
-<meta itemprop="wordCount" content="1625">
+<meta itemprop="wordCount" content="1626">
 <meta itemprop="keywords" content="" /><meta property="og:title" content="Chap 7: 调度 Scheduling" />
-<meta property="og:description" content="目录   导言  7.1 上下文切换 Code: Context switch  7.2 调度 Scheduling  7.3 函数 myproc(), mycpu()  7.4 睡眠和唤醒 Sleep and wakeup  7.5 代码：睡眠和唤醒 Code： Sleep and wakeup  7.6 代码：管道 Code: Pipe  7.7 代码：等待，退出，杀死 Code: Wait, exit, and kill  7.8 进程锁 Process Lock  7.9 补充 More  7.10 练习 Exercise   导言  OS希望在同时运行多个进程，除了使用多核处理器，CPU需要实现分时。在理想状态下，分时对于进程来说应当是透明的，也就是说进程不应当知道分时的进行，或者说，进程会认为自己独享一个CPU。这被叫做将进程多路复用（Multiplexing） 在CPU上。
- xv6通过让CPU在不同的进程之间切换实现多路复用。这种进程切换主要体现在两种情形之下:
-   一个进程调用了sleep让另一个进程开始运行，或者一个进程调用了wakeup让另一个睡眠的进程继续运行（7.5）。" />
+<meta property="og:description" content="目录 导言 7.1 上下文切换 Code: Context switch 7.2 调度 Scheduling 7.3 函数 myproc(), mycpu() 7.4 睡眠和唤醒 Sleep and wakeup 7.5 代码：睡眠和唤醒 Code： Sleep and wakeup 7.6 代码：管道 Code: Pipe 7.7 代码：等待，退出，杀死 Code: Wait, exit, and kill 7.8 进程锁 Process Lock 7.9 补充 More 7.10 练习 Exercise 导言 OS希望在同时运行多个进程，除了使用多核处理器，CPU需要实现分时。在理想状态下，分时对于进程来说应当是透明的，也就是说进程不应当知道分时的进行，或者说，进程会认为自己独享一个CPU。这被叫做将进程多路复用（Multiplexing） 在CPU上。
+xv6通过让CPU在不同的进程之间切换实现多路复用。这种进程切换主要体现在两种情形之下:
+一个进程调用了sleep让另一个进程开始运行，或者一个进程调用了wakeup让另一个睡眠的进程继续运行（7.5）。
+强制的分时，即时钟中断，让每个进程都有机会运行。
+在真正实现这一特性时有六个困难：
+如何切换进程。 如何让切换的过程对进程透明。 需要解决多个CPU同时切换进程可能引发竞争问题。 进程在退出之后的资源释放（一个进程不可能完全释放自己）。 需要让每个内核都知道自己运行的进程是谁，这样才能在正确的核心上使用系统调用。 实现sleep与wakeup。 注：多路复用，调度，和分时没必要在下文中区分。
+7.1 上下文切换 Code: Context switch 进程之间的切换本质上就是它们的**上下文（Context）**的切换。上下文包括进程的寄存器/代码/栈（实际上都由寄存器决定）。
+Fig.1 跳转过程 进程之间的切换主要包括下面4点：
+从当前进程的用户空间跳转到它的内核线程（Trap）。" />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://hoooao.github.io/os/chap7/" /><meta property="article:section" content="os" />
 <meta property="article:published_time" content="2022-07-23T16:09:15-04:00" />
@@ -24,9 +36,15 @@
 
 <meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="Chap 7: 调度 Scheduling"/>
-<meta name="twitter:description" content="目录   导言  7.1 上下文切换 Code: Context switch  7.2 调度 Scheduling  7.3 函数 myproc(), mycpu()  7.4 睡眠和唤醒 Sleep and wakeup  7.5 代码：睡眠和唤醒 Code： Sleep and wakeup  7.6 代码：管道 Code: Pipe  7.7 代码：等待，退出，杀死 Code: Wait, exit, and kill  7.8 进程锁 Process Lock  7.9 补充 More  7.10 练习 Exercise   导言  OS希望在同时运行多个进程，除了使用多核处理器，CPU需要实现分时。在理想状态下，分时对于进程来说应当是透明的，也就是说进程不应当知道分时的进行，或者说，进程会认为自己独享一个CPU。这被叫做将进程多路复用（Multiplexing） 在CPU上。
- xv6通过让CPU在不同的进程之间切换实现多路复用。这种进程切换主要体现在两种情形之下:
-   一个进程调用了sleep让另一个进程开始运行，或者一个进程调用了wakeup让另一个睡眠的进程继续运行（7.5）。"/>
+<meta name="twitter:description" content="目录 导言 7.1 上下文切换 Code: Context switch 7.2 调度 Scheduling 7.3 函数 myproc(), mycpu() 7.4 睡眠和唤醒 Sleep and wakeup 7.5 代码：睡眠和唤醒 Code： Sleep and wakeup 7.6 代码：管道 Code: Pipe 7.7 代码：等待，退出，杀死 Code: Wait, exit, and kill 7.8 进程锁 Process Lock 7.9 补充 More 7.10 练习 Exercise 导言 OS希望在同时运行多个进程，除了使用多核处理器，CPU需要实现分时。在理想状态下，分时对于进程来说应当是透明的，也就是说进程不应当知道分时的进行，或者说，进程会认为自己独享一个CPU。这被叫做将进程多路复用（Multiplexing） 在CPU上。
+xv6通过让CPU在不同的进程之间切换实现多路复用。这种进程切换主要体现在两种情形之下:
+一个进程调用了sleep让另一个进程开始运行，或者一个进程调用了wakeup让另一个睡眠的进程继续运行（7.5）。
+强制的分时，即时钟中断，让每个进程都有机会运行。
+在真正实现这一特性时有六个困难：
+如何切换进程。 如何让切换的过程对进程透明。 需要解决多个CPU同时切换进程可能引发竞争问题。 进程在退出之后的资源释放（一个进程不可能完全释放自己）。 需要让每个内核都知道自己运行的进程是谁，这样才能在正确的核心上使用系统调用。 实现sleep与wakeup。 注：多路复用，调度，和分时没必要在下文中区分。
+7.1 上下文切换 Code: Context switch 进程之间的切换本质上就是它们的**上下文（Context）**的切换。上下文包括进程的寄存器/代码/栈（实际上都由寄存器决定）。
+Fig.1 跳转过程 进程之间的切换主要包括下面4点：
+从当前进程的用户空间跳转到它的内核线程（Trap）。"/>
 
 	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -199,33 +217,33 @@
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kt">void</span>
 </span></span><span class="line"><span class="cl"><span class="nf">yield</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
-</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">proc</span> <span class="o">*</span><span class="n">p</span> <span class="o">=</span> <span class="n">myproc</span><span class="p">();</span>
-</span></span><span class="line"><span class="cl">  <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">proc</span> <span class="o">*</span><span class="n">p</span> <span class="o">=</span> <span class="nf">myproc</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="c1">//切换状态
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">p</span><span class="o">-&gt;</span><span class="n">state</span> <span class="o">=</span> <span class="n">RUNNABLE</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="c1">//调用sched切换线程
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">sched</span><span class="p">();</span>
-</span></span><span class="line"><span class="cl">  <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nf">sched</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p><code>yield</code>继续调用<code>sched</code>，后者会多这个进程做一些检查，然后调用<code>swtch(&amp;p-&gt;context, &amp;mycpu()-&gt;context);</code>:第一个参数是当前进程的上下文，后者是<code>scheduler</code>的上下文。</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span>
 </span></span><span class="line"><span class="cl"><span class="nf">sched</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
 </span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">intena</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">proc</span> <span class="o">*</span><span class="n">p</span> <span class="o">=</span> <span class="n">myproc</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">proc</span> <span class="o">*</span><span class="n">p</span> <span class="o">=</span> <span class="nf">myproc</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="o">!</span><span class="n">holding</span><span class="p">(</span><span class="o">&amp;</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">))</span>
-</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;sched p-&gt;lock&#34;</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">mycpu</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">noff</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;sched locks&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="o">!</span><span class="nf">holding</span><span class="p">(</span><span class="o">&amp;</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">panic</span><span class="p">(</span><span class="s">&#34;sched p-&gt;lock&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="nf">mycpu</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">noff</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">panic</span><span class="p">(</span><span class="s">&#34;sched locks&#34;</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">state</span> <span class="o">==</span> <span class="n">RUNNING</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;sched running&#34;</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">intr_get</span><span class="p">())</span>
-</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;sched interruptible&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">panic</span><span class="p">(</span><span class="s">&#34;sched running&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="nf">intr_get</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">panic</span><span class="p">(</span><span class="s">&#34;sched interruptible&#34;</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">  <span class="n">intena</span> <span class="o">=</span> <span class="n">mycpu</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">intena</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">  <span class="n">swtch</span><span class="p">(</span><span class="o">&amp;</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">context</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">mycpu</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">context</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl">  <span class="n">mycpu</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">intena</span> <span class="o">=</span> <span class="n">intena</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="n">intena</span> <span class="o">=</span> <span class="nf">mycpu</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">intena</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">swtch</span><span class="p">(</span><span class="o">&amp;</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">context</span><span class="p">,</span> <span class="o">&amp;</span><span class="nf">mycpu</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">context</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">mycpu</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">intena</span> <span class="o">=</span> <span class="n">intena</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p>    <strong>思考</strong>：为什么<code>trapframe</code>和<code>context</code>看起来很像，前者甚至更早保存了更多的寄存器，还要用<code>context</code>？</p>
 <p>        因为两者保存的内容完全不一样：trapframe保存着进程用户空间在进入trap之前的状态，而后者是对进程内核空间状态的记录。两者必须协同才能实现进程切换。</p>
@@ -254,28 +272,28 @@ s线程实际上就是对<code>scheduler</code>函数的调用。那为什么说
 </span></span><span class="line"><span class="cl"><span class="nf">scheduler</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
 </span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">proc</span> <span class="o">*</span><span class="n">p</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">cpu</span> <span class="o">*</span><span class="n">c</span> <span class="o">=</span> <span class="n">mycpu</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">cpu</span> <span class="o">*</span><span class="n">c</span> <span class="o">=</span> <span class="nf">mycpu</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">  
 </span></span><span class="line"><span class="cl">  <span class="n">c</span><span class="o">-&gt;</span><span class="n">proc</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="k">for</span><span class="p">(;;){</span>
 </span></span><span class="line"><span class="cl">    <span class="c1">// Avoid deadlock by ensuring that devices can interrupt.
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">intr_on</span><span class="p">();</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nf">intr_on</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">    <span class="k">for</span><span class="p">(</span><span class="n">p</span> <span class="o">=</span> <span class="n">proc</span><span class="p">;</span> <span class="n">p</span> <span class="o">&lt;</span> <span class="o">&amp;</span><span class="n">proc</span><span class="p">[</span><span class="n">NPROC</span><span class="p">];</span> <span class="n">p</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">      <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="nf">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">      <span class="k">if</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">state</span> <span class="o">==</span> <span class="n">RUNNABLE</span><span class="p">)</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">        <span class="c1">// Switch to chosen process.  It is the process&#39;s job
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="c1">// to release its lock and then reacquire it
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="c1">// before jumping back to us.
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="n">p</span><span class="o">-&gt;</span><span class="n">state</span> <span class="o">=</span> <span class="n">RUNNING</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">        <span class="n">c</span><span class="o">-&gt;</span><span class="n">proc</span> <span class="o">=</span> <span class="n">p</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">        <span class="n">swtch</span><span class="p">(</span><span class="o">&amp;</span><span class="n">c</span><span class="o">-&gt;</span><span class="n">context</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">context</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">swtch</span><span class="p">(</span><span class="o">&amp;</span><span class="n">c</span><span class="o">-&gt;</span><span class="n">context</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">context</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">        <span class="c1">// Process is done running for now.
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="c1">// It should have changed its p-&gt;state before coming back.
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="n">c</span><span class="o">-&gt;</span><span class="n">proc</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">      <span class="p">}</span>
-</span></span><span class="line"><span class="cl">      <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="p">}</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
@@ -288,17 +306,17 @@ s线程实际上就是对<code>scheduler</code>函数的调用。那为什么说
 </span></span><span class="line"><span class="cl">  <span class="k">static</span> <span class="kt">int</span> <span class="n">first</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="c1">// Still holding p-&gt;lock from scheduler.
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">myproc</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="nf">myproc</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="k">if</span> <span class="p">(</span><span class="n">first</span><span class="p">)</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">    <span class="c1">// File system initialization must be run in the context of a
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// regular process (e.g., because it calls sleep), and thus cannot
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// be run from main().
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">first</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">    <span class="n">fsinit</span><span class="p">(</span><span class="n">ROOTDEV</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">fsinit</span><span class="p">(</span><span class="n">ROOTDEV</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">  <span class="n">usertrapret</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">usertrapret</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p>    一种去理解s的存在的视角是把它看作确保不变量在不为真的时候保证安全的代码。
 两个不变量的例子：</p>
@@ -339,7 +357,7 @@ s线程实际上就是对<code>scheduler</code>函数的调用。那为什么说
 </span></span><span class="line"><span class="cl"><span class="nf">cpuid</span><span class="p">()</span>
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
 </span></span><span class="line"><span class="cl">  <span class="c1">//读取tp
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="kt">int</span> <span class="n">id</span> <span class="o">=</span> <span class="n">r_tp</span><span class="p">();</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="kt">int</span> <span class="n">id</span> <span class="o">=</span> <span class="nf">r_tp</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="n">id</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span><span class="line"><span class="cl">
@@ -347,7 +365,7 @@ s线程实际上就是对<code>scheduler</code>函数的调用。那为什么说
 </span></span></span><span class="line"><span class="cl"><span class="c1">// Interrupts must be disabled.
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="k">struct</span> <span class="n">cpu</span><span class="o">*</span>
 </span></span><span class="line"><span class="cl"><span class="nf">mycpu</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">id</span> <span class="o">=</span> <span class="n">cpuid</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">id</span> <span class="o">=</span> <span class="nf">cpuid</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">  <span class="c1">//cpus是内核维护的一个cpu结构体数组
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">struct</span> <span class="n">cpu</span> <span class="o">*</span><span class="n">c</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">cpus</span><span class="p">[</span><span class="n">id</span><span class="p">];</span>
 </span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="n">c</span><span class="p">;</span>
@@ -357,11 +375,11 @@ s线程实际上就是对<code>scheduler</code>函数的调用。那为什么说
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="k">struct</span> <span class="n">proc</span><span class="o">*</span>
 </span></span><span class="line"><span class="cl"><span class="nf">myproc</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">  <span class="c1">//关闭中断
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">push_off</span><span class="p">();</span>
-</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">cpu</span> <span class="o">*</span><span class="n">c</span> <span class="o">=</span> <span class="n">mycpu</span><span class="p">();</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nf">push_off</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">cpu</span> <span class="o">*</span><span class="n">c</span> <span class="o">=</span> <span class="nf">mycpu</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">proc</span> <span class="o">*</span><span class="n">p</span> <span class="o">=</span> <span class="n">c</span><span class="o">-&gt;</span><span class="n">proc</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="c1">//视情况开启中断
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">pop_off</span><span class="p">();</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nf">pop_off</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="n">p</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p>它使用<code>push_off/pop_off</code>禁止中断并获取当前<code>proc</code>。使用<code>myproc</code>得到<code>proc</code>结构体后不需要关心它在哪</p>
@@ -383,9 +401,9 @@ s线程实际上就是对<code>scheduler</code>函数的调用。那为什么说
 </span></span><span class="line"><span class="cl"><span class="mi">106</span>   <span class="nf">V</span><span class="p">(</span><span class="k">struct</span> <span class="n">semaphore</span> <span class="o">*</span><span class="n">s</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl"><span class="mi">107</span>   <span class="p">{</span>
 </span></span><span class="line"><span class="cl">          <span class="c1">//通过锁来序列话对count的操作
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="mi">108</span>       <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="mi">108</span>       <span class="nf">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="mi">109</span>       <span class="n">s</span><span class="o">-&gt;</span><span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl"><span class="mi">110</span>       <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="mi">110</span>       <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="mi">111</span>   <span class="p">}</span>
 </span></span><span class="line"><span class="cl"><span class="mi">75</span>
 </span></span><span class="line"><span class="cl"><span class="mi">112</span>
@@ -395,67 +413,67 @@ s线程实际上就是对<code>scheduler</code>函数的调用。那为什么说
 </span></span><span class="line"><span class="cl">          <span class="c1">//通过自旋实现等待
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="mi">116</span>       <span class="k">while</span><span class="p">(</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">count</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl"><span class="mi">117</span>       <span class="p">;</span>
-</span></span><span class="line"><span class="cl"><span class="mi">118</span>       <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="mi">118</span>       <span class="nf">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="mi">119</span>       <span class="n">s</span><span class="o">-&gt;</span><span class="n">count</span> <span class="o">-=</span> <span class="mi">1</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl"><span class="mi">120</span>       <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="mi">120</span>       <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="mi">121</span>   <span class="p">}</span>
 </span></span></code></pre></div><p><code>semaphore</code>结构体中保存着一个锁和一个计数器<code>count</code>，下面有两个方法：<code>V</code>增加计数器，当计数器不是0的时候，<code>P</code>减少计数器。循环可以帮助<code>P</code>实现这一“等待”。但是缺点很明显：假设<code>V</code>很少运行，那么<code>P</code>会一直自旋，这一自旋行为是对性能的浪费，被叫做<strong>busy wait</strong> （不过有的设备驱动中存在这种自旋，因为设计者知道这一等待并不会等太久）。每当<code>V</code>运行之后<code>P</code>再开始运行效果会更好。参考下面的代码:</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="mi">1</span>  <span class="kt">void</span>
 </span></span><span class="line"><span class="cl"><span class="mi">2</span>  <span class="nf">V</span><span class="p">(</span><span class="k">struct</span> <span class="n">semaphore</span> <span class="o">*</span><span class="n">s</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl"><span class="mi">3</span>  <span class="p">{</span>
-</span></span><span class="line"><span class="cl"><span class="mi">4</span>     <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="mi">4</span>     <span class="nf">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="mi">5</span>     <span class="n">s</span><span class="o">-&gt;</span><span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl"><span class="mi">6</span>     <span class="n">wakeup</span><span class="p">(</span><span class="n">s</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl"><span class="mi">7</span>     <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="mi">6</span>     <span class="nf">wakeup</span><span class="p">(</span><span class="n">s</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="mi">7</span>     <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="mi">8</span>  <span class="p">}</span>
 </span></span><span class="line"><span class="cl"><span class="mi">9</span>  <span class="kt">void</span>
 </span></span><span class="line"><span class="cl"><span class="mi">10</span> <span class="nf">P</span><span class="p">(</span><span class="k">struct</span> <span class="n">semaphore</span> <span class="o">*</span><span class="n">s</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl"><span class="mi">11</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl"><span class="mi">12</span>   <span class="k">while</span><span class="p">(</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">count</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl"><span class="mi">13</span>    <span class="n">sleep</span><span class="p">(</span><span class="n">s</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl"><span class="mi">14</span>   <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="mi">13</span>    <span class="nf">sleep</span><span class="p">(</span><span class="n">s</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="mi">14</span>   <span class="nf">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="mi">15</span>   <span class="n">s</span><span class="o">-&gt;</span><span class="n">count</span> <span class="o">-=</span> <span class="mi">1</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl"><span class="mi">16</span>   <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="mi">16</span>   <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="mi">17</span> <span class="p">}</span>
 </span></span></code></pre></div><p>这里使用了<code>sleep</code>和<code>wakeup</code>函数: 当<code>P</code>发现计时器为0时就进入睡眠，直到<code>V</code>增加计数器并且通过某种方式唤醒<code>P</code>，<code>P</code>再开始运行。逻辑上似乎没什么问题，但是仍然需要考虑并发带来的问题：假如<code>P</code>刚运行完了12行，检查<code>count</code>为0，可是在进入睡眠之前，<code>V</code>在另一个CPU上增加了计数且调用了<code>wakeup</code>。由于<code>P</code>已经检查完了<code>count</code>，纵使<code>V</code>在<code>P</code>踏进睡眠之前增加了计数器且调用了唤醒，<code>P</code>仍会进入睡眠，这被叫做<strong>唤醒丢失（Lost wake-up）</strong>。如果<code>V</code>之后又运行了一次就问题不大：<code>P</code>会被叫醒并且归零计数器。但假如<code>V</code>再也不运行了，<code>P</code>会永远睡眠且不会终止运行。注：<code>sleep</code>和w<code>akeup</code>的参数是一个<strong>等待频道（Wait channel）</strong>，<code>sleep(s)</code>解释为该进程睡在<code>s</code>上，<code>wakeup(s)</code>将会唤醒所有睡在<code>s</code>上的进程，如果没有睡在<code>s</code>上的进程，就继续运行。</p>
 <p>    本质的问题实际上是不变量被破坏：即<code>P</code>永远只在<code>count==0</code>的时候睡眠。根据之前节的说明，目前直觉的解决方案似乎是使用一个锁来保护这个不变量。参考代码：</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="mi">300</span> <span class="kt">void</span>
 </span></span><span class="line"><span class="cl"><span class="mi">301</span> <span class="nf">V</span><span class="p">(</span><span class="k">struct</span> <span class="n">semaphore</span> <span class="o">*</span><span class="n">s</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl"><span class="mi">302</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl"><span class="mi">303</span>     <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="mi">303</span>     <span class="nf">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="mi">304</span>     <span class="n">s</span><span class="o">-&gt;</span><span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl"><span class="mi">305</span>     <span class="n">wakeup</span><span class="p">(</span><span class="n">s</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl"><span class="mi">306</span>     <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="mi">305</span>     <span class="nf">wakeup</span><span class="p">(</span><span class="n">s</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="mi">306</span>     <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="mi">307</span> <span class="p">}</span>
 </span></span><span class="line"><span class="cl"><span class="mi">308</span>
 </span></span><span class="line"><span class="cl"><span class="mi">309</span> <span class="kt">void</span>
 </span></span><span class="line"><span class="cl"><span class="mi">310</span> <span class="nf">P</span><span class="p">(</span><span class="k">struct</span> <span class="n">semaphore</span> <span class="o">*</span><span class="n">s</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl"><span class="mi">311</span> <span class="p">{</span>   <span class="c1">//移动锁的位置，保护不变量
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="mi">312</span>     <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="mi">312</span>     <span class="nf">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="mi">313</span>     <span class="k">while</span><span class="p">(</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">count</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl"><span class="mi">314</span>         <span class="n">sleep</span><span class="p">(</span><span class="n">s</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="mi">314</span>         <span class="nf">sleep</span><span class="p">(</span><span class="n">s</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="mi">315</span>     <span class="n">s</span><span class="o">-&gt;</span><span class="n">count</span> <span class="o">-=</span> <span class="mi">1</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl"><span class="mi">316</span>     <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="mi">316</span>     <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="mi">317</span> <span class="p">}</span>
 </span></span></code></pre></div><p>假设<code>P</code>已经获取了锁并处于运行314行之前的位置，此时假如<code>V</code>希望平行执行增加计数器，会获取锁而不能，便进入自旋。问题随之出现：虽然<code>P</code>在这个状态下可以保证不变量被保护时进入睡眠，但由于<code>P</code>在自旋，它也永远不会被唤醒。造成死锁。</p>
 <p>    不过现在解决的路径更清晰了：我们需要用锁保障不变量可以复原，即当<code>P</code>休眠时<code>count==0</code>，也需要<code>P</code>在睡眠后<code>V</code>仍然可以运行，即锁会被释放，让<code>V</code>停止自旋。参考代码：</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="mi">400</span> <span class="kt">void</span>
 </span></span><span class="line"><span class="cl"><span class="mi">401</span> <span class="nf">V</span><span class="p">(</span><span class="k">struct</span> <span class="n">semaphore</span> <span class="o">*</span><span class="n">s</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl"><span class="mi">402</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl"><span class="mi">403</span>     <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="mi">403</span>     <span class="nf">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="mi">404</span>     <span class="n">s</span><span class="o">-&gt;</span><span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl"><span class="mi">405</span>     <span class="n">wakeup</span><span class="p">(</span><span class="n">s</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl"><span class="mi">406</span>     <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="mi">405</span>     <span class="nf">wakeup</span><span class="p">(</span><span class="n">s</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="mi">406</span>     <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="mi">407</span> <span class="p">}</span>
 </span></span><span class="line"><span class="cl"><span class="mi">408</span>
 </span></span><span class="line"><span class="cl"><span class="mi">409</span> <span class="kt">void</span>
 </span></span><span class="line"><span class="cl"><span class="mi">410</span> <span class="nf">P</span><span class="p">(</span><span class="k">struct</span> <span class="n">semaphore</span> <span class="o">*</span><span class="n">s</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl"><span class="mi">411</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl"><span class="mi">412</span>     <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="mi">412</span>     <span class="nf">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="mi">413</span>     <span class="k">while</span><span class="p">(</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">count</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl"><span class="mi">414</span>         <span class="n">sleep</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="mi">414</span>         <span class="nf">sleep</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="mi">415</span>     <span class="n">s</span><span class="o">-&gt;</span><span class="n">count</span> <span class="o">-=</span> <span class="mi">1</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl"><span class="mi">416</span>     <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="mi">416</span>     <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="mi">417</span> <span class="p">}</span>
 </span></span></code></pre></div><p>这里修改了<code>sleep</code>函数，第一个参数仍然是<code>chan</code>，即等待频道，第二个参数是上述的锁<code>lk</code>。在<code>P</code>进入睡眠后，<code>sleep</code>函数会自动释放传入的锁，从而让<code>V</code>解除自旋。这个锁被叫做<strong>条件锁（Condition lock）</strong>，因为获取这个锁的原因是想要某个条件为真或修改这个条件。</p>
 <br>
@@ -470,23 +488,23 @@ s线程实际上就是对<code>scheduler</code>函数的调用。那为什么说
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span>
 </span></span><span class="line"><span class="cl"><span class="nf">sleep</span><span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="n">chan</span><span class="p">,</span> <span class="k">struct</span> <span class="n">spinlock</span> <span class="o">*</span><span class="n">lk</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
-</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">proc</span> <span class="o">*</span><span class="n">p</span> <span class="o">=</span> <span class="n">myproc</span><span class="p">();</span>
-</span></span><span class="line"><span class="cl">  <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span> 
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">proc</span> <span class="o">*</span><span class="n">p</span> <span class="o">=</span> <span class="nf">myproc</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span> 
 </span></span><span class="line"><span class="cl">  <span class="c1">//释放条件锁，允许wakeup
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">release</span><span class="p">(</span><span class="n">lk</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nf">release</span><span class="p">(</span><span class="n">lk</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="c1">//修改状态
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">p</span><span class="o">-&gt;</span><span class="n">chan</span> <span class="o">=</span> <span class="n">chan</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="n">p</span><span class="o">-&gt;</span><span class="n">state</span> <span class="o">=</span> <span class="n">SLEEPING</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="c1">//调度
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">sched</span><span class="p">();</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nf">sched</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="c1">//清理
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">p</span><span class="o">-&gt;</span><span class="n">chan</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="c1">//释放
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="c1">//再次获取条件锁
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">acquire</span><span class="p">(</span><span class="n">lk</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nf">acquire</span><span class="p">(</span><span class="n">lk</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p>一旦<code>lk</code>被释放，其他进程就可以去唤醒这个进程了，但是由于<code>p-&gt;lock</code>没有被释放，使用<code>wakeup</code>的进程会在某一时刻进入自旋，直到前者释放进程锁。<code>sleep</code>的过程：记录频道，改变进程的状态为<code>SLEEPING</code>，调用<code>sched</code>开始调度。</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span>
@@ -495,14 +513,14 @@ s线程实际上就是对<code>scheduler</code>函数的调用。那为什么说
 </span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">proc</span> <span class="o">*</span><span class="n">p</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="c1">//使用一个循环遍历所有进程
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">for</span><span class="p">(</span><span class="n">p</span> <span class="o">=</span> <span class="n">proc</span><span class="p">;</span> <span class="n">p</span> <span class="o">&lt;</span> <span class="o">&amp;</span><span class="n">proc</span><span class="p">[</span><span class="n">NPROC</span><span class="p">];</span> <span class="n">p</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">p</span> <span class="o">!=</span> <span class="n">myproc</span><span class="p">()){</span>
-</span></span><span class="line"><span class="cl">      <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">p</span> <span class="o">!=</span> <span class="nf">myproc</span><span class="p">()){</span>
+</span></span><span class="line"><span class="cl">      <span class="nf">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">      <span class="c1">//找到状态为睡眠并且频道一样的进程
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="k">if</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">state</span> <span class="o">==</span> <span class="n">SLEEPING</span> <span class="o">&amp;&amp;</span> <span class="n">p</span><span class="o">-&gt;</span><span class="n">chan</span> <span class="o">==</span> <span class="n">chan</span><span class="p">)</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">        <span class="c1">//唤醒（实质上就是把状态换成RUNNABLE参与调度）
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="n">p</span><span class="o">-&gt;</span><span class="n">state</span> <span class="o">=</span> <span class="n">RUNNABLE</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">      <span class="p">}</span>
-</span></span><span class="line"><span class="cl">      <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="p">}</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
@@ -531,27 +549,27 @@ s线程实际上就是对<code>scheduler</code>函数的调用。那为什么说
 </span></span><span class="line"><span class="cl"><span class="nf">pipewrite</span><span class="p">(</span><span class="k">struct</span> <span class="n">pipe</span> <span class="o">*</span><span class="n">pi</span><span class="p">,</span> <span class="n">uint64</span> <span class="n">addr</span><span class="p">,</span> <span class="kt">int</span> <span class="n">n</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
 </span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">proc</span> <span class="o">*</span><span class="n">pr</span> <span class="o">=</span> <span class="n">myproc</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">proc</span> <span class="o">*</span><span class="n">pr</span> <span class="o">=</span> <span class="nf">myproc</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">  <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">pi</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">pi</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="k">while</span><span class="p">(</span><span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">){</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">    <span class="c1">//省略：检查管道和进程信息
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    
 </span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">pi</span><span class="o">-&gt;</span><span class="n">nwrite</span> <span class="o">==</span> <span class="n">pi</span><span class="o">-&gt;</span><span class="n">nread</span> <span class="o">+</span> <span class="n">PIPESIZE</span><span class="p">){</span> <span class="c1">//DOC: pipewrite-full
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="c1">//这里分别用nread/nwrite作为chan
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="n">wakeup</span><span class="p">(</span><span class="o">&amp;</span><span class="n">pi</span><span class="o">-&gt;</span><span class="n">nread</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl">      <span class="n">sleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">pi</span><span class="o">-&gt;</span><span class="n">nwrite</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">pi</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="nf">wakeup</span><span class="p">(</span><span class="o">&amp;</span><span class="n">pi</span><span class="o">-&gt;</span><span class="n">nread</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="nf">sleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">pi</span><span class="o">-&gt;</span><span class="n">nwrite</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">pi</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">      <span class="kt">char</span> <span class="n">ch</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">      <span class="k">if</span><span class="p">(</span><span class="n">copyin</span><span class="p">(</span><span class="n">pr</span><span class="o">-&gt;</span><span class="n">pagetable</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">ch</span><span class="p">,</span> <span class="n">addr</span> <span class="o">+</span> <span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">      <span class="k">if</span><span class="p">(</span><span class="nf">copyin</span><span class="p">(</span><span class="n">pr</span><span class="o">-&gt;</span><span class="n">pagetable</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">ch</span><span class="p">,</span> <span class="n">addr</span> <span class="o">+</span> <span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl">        <span class="k">break</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">      <span class="n">pi</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">[</span><span class="n">pi</span><span class="o">-&gt;</span><span class="n">nwrite</span><span class="o">++</span> <span class="o">%</span> <span class="n">PIPESIZE</span><span class="p">]</span> <span class="o">=</span> <span class="n">ch</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">      <span class="n">i</span><span class="o">++</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">    <span class="p">}</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
-</span></span><span class="line"><span class="cl">  <span class="n">wakeup</span><span class="p">(</span><span class="o">&amp;</span><span class="n">pi</span><span class="o">-&gt;</span><span class="n">nread</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl">  <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">pi</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">wakeup</span><span class="p">(</span><span class="o">&amp;</span><span class="n">pi</span><span class="o">-&gt;</span><span class="n">nread</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">pi</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="n">i</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
@@ -560,27 +578,27 @@ s线程实际上就是对<code>scheduler</code>函数的调用。那为什么说
 </span></span><span class="line"><span class="cl"><span class="nf">piperead</span><span class="p">(</span><span class="k">struct</span> <span class="n">pipe</span> <span class="o">*</span><span class="n">pi</span><span class="p">,</span> <span class="n">uint64</span> <span class="n">addr</span><span class="p">,</span> <span class="kt">int</span> <span class="n">n</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
 </span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">i</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">proc</span> <span class="o">*</span><span class="n">pr</span> <span class="o">=</span> <span class="n">myproc</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">proc</span> <span class="o">*</span><span class="n">pr</span> <span class="o">=</span> <span class="nf">myproc</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">  <span class="kt">char</span> <span class="n">ch</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">  <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">pi</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">pi</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="c1">//循环用来处理虚假唤醒
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">while</span><span class="p">(</span><span class="n">pi</span><span class="o">-&gt;</span><span class="n">nread</span> <span class="o">==</span> <span class="n">pi</span><span class="o">-&gt;</span><span class="n">nwrite</span> <span class="o">&amp;&amp;</span> <span class="n">pi</span><span class="o">-&gt;</span><span class="n">writeopen</span><span class="p">){</span>  <span class="c1">//DOC: pipe-empty
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span><span class="p">(</span><span class="n">pr</span><span class="o">-&gt;</span><span class="n">killed</span><span class="p">){</span>
-</span></span><span class="line"><span class="cl">      <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">pi</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">pi</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">      <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">    <span class="p">}</span>
-</span></span><span class="line"><span class="cl">    <span class="n">sleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">pi</span><span class="o">-&gt;</span><span class="n">nread</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">pi</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span> <span class="c1">//DOC: piperead-sleep
+</span></span><span class="line"><span class="cl">    <span class="nf">sleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">pi</span><span class="o">-&gt;</span><span class="n">nread</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">pi</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span> <span class="c1">//DOC: piperead-sleep
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="p">}</span>
 </span></span><span class="line"><span class="cl">  <span class="k">for</span><span class="p">(</span><span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">){</span>  <span class="c1">//DOC: piperead-copy
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span><span class="p">(</span><span class="n">pi</span><span class="o">-&gt;</span><span class="n">nread</span> <span class="o">==</span> <span class="n">pi</span><span class="o">-&gt;</span><span class="n">nwrite</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl">      <span class="k">break</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">    <span class="n">ch</span> <span class="o">=</span> <span class="n">pi</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">[</span><span class="n">pi</span><span class="o">-&gt;</span><span class="n">nread</span><span class="o">++</span> <span class="o">%</span> <span class="n">PIPESIZE</span><span class="p">];</span>
-</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">copyout</span><span class="p">(</span><span class="n">pr</span><span class="o">-&gt;</span><span class="n">pagetable</span><span class="p">,</span> <span class="n">addr</span> <span class="o">+</span> <span class="n">i</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">ch</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="nf">copyout</span><span class="p">(</span><span class="n">pr</span><span class="o">-&gt;</span><span class="n">pagetable</span><span class="p">,</span> <span class="n">addr</span> <span class="o">+</span> <span class="n">i</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">ch</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl">      <span class="k">break</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
-</span></span><span class="line"><span class="cl">  <span class="n">wakeup</span><span class="p">(</span><span class="o">&amp;</span><span class="n">pi</span><span class="o">-&gt;</span><span class="n">nwrite</span><span class="p">);</span>  <span class="c1">//DOC: piperead-wakeup
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">pi</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">wakeup</span><span class="p">(</span><span class="o">&amp;</span><span class="n">pi</span><span class="o">-&gt;</span><span class="n">nwrite</span><span class="p">);</span>  <span class="c1">//DOC: piperead-wakeup
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">pi</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="n">i</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p>由于<code>piperead</code>进入自旋，<code>pipewrite</code>的释放使得它可以继续运行。同样地，<code>piperead</code>会获取管道的锁且检查一些属性，查看<code>data</code>是否为空。假如为空，那么会进入睡眠，等待下一次写入发生后被唤醒。如果不为空就开始读取数据，在读取完毕后释放锁并结束运行。</p>
@@ -601,9 +619,9 @@ s线程实际上就是对<code>scheduler</code>函数的调用。那为什么说
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
 </span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">proc</span> <span class="o">*</span><span class="n">np</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">havekids</span><span class="p">,</span> <span class="n">pid</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">proc</span> <span class="o">*</span><span class="n">p</span> <span class="o">=</span> <span class="n">myproc</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">proc</span> <span class="o">*</span><span class="n">p</span> <span class="o">=</span> <span class="nf">myproc</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">  <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">wait_lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">wait_lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="k">for</span><span class="p">(;;){</span>
 </span></span><span class="line"><span class="cl">    <span class="n">havekids</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
@@ -611,62 +629,62 @@ s线程实际上就是对<code>scheduler</code>函数的调用。那为什么说
 </span></span><span class="line"><span class="cl">        <span class="c1">//检索整个进程表，找到自己的子进程
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="k">if</span><span class="p">(</span><span class="n">np</span><span class="o">-&gt;</span><span class="n">parent</span> <span class="o">==</span> <span class="n">p</span><span class="p">){</span>
 </span></span><span class="line"><span class="cl">        <span class="c1">// make sure the child isn&#39;t still in exit() or swtch().
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">np</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="nf">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">np</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">        <span class="n">havekids</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">        <span class="c1">//检查子进程是否运行完毕
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="k">if</span><span class="p">(</span><span class="n">np</span><span class="o">-&gt;</span><span class="n">state</span> <span class="o">==</span> <span class="n">ZOMBIE</span><span class="p">){</span>
 </span></span><span class="line"><span class="cl">          <span class="c1">// Found one.
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>          <span class="n">pid</span> <span class="o">=</span> <span class="n">np</span><span class="o">-&gt;</span><span class="n">pid</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">          <span class="k">if</span><span class="p">(</span><span class="n">addr</span> <span class="o">!=</span> <span class="mi">0</span> <span class="o">&amp;&amp;</span> <span class="n">copyout</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">pagetable</span><span class="p">,</span> <span class="n">addr</span><span class="p">,</span> <span class="p">(</span><span class="kt">char</span> <span class="o">*</span><span class="p">)</span><span class="o">&amp;</span><span class="n">np</span><span class="o">-&gt;</span><span class="n">xstate</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">          <span class="k">if</span><span class="p">(</span><span class="n">addr</span> <span class="o">!=</span> <span class="mi">0</span> <span class="o">&amp;&amp;</span> <span class="nf">copyout</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">pagetable</span><span class="p">,</span> <span class="n">addr</span><span class="p">,</span> <span class="p">(</span><span class="kt">char</span> <span class="o">*</span><span class="p">)</span><span class="o">&amp;</span><span class="n">np</span><span class="o">-&gt;</span><span class="n">xstate</span><span class="p">,</span>
 </span></span><span class="line"><span class="cl">                                  <span class="k">sizeof</span><span class="p">(</span><span class="n">np</span><span class="o">-&gt;</span><span class="n">xstate</span><span class="p">))</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">            <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">np</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl">            <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">wait_lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">            <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">np</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">            <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">wait_lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">            <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">          <span class="p">}</span>
-</span></span><span class="line"><span class="cl">          <span class="n">freeproc</span><span class="p">(</span><span class="n">np</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl">          <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">np</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl">          <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">wait_lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">          <span class="nf">freeproc</span><span class="p">(</span><span class="n">np</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">          <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">np</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">          <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">wait_lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">          <span class="k">return</span> <span class="n">pid</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">        <span class="p">}</span>
-</span></span><span class="line"><span class="cl">        <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">np</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">np</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">      <span class="p">}</span>
 </span></span><span class="line"><span class="cl">    <span class="p">}</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">    <span class="c1">// 省略：不存在子进程的处理
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    
 </span></span><span class="line"><span class="cl">    <span class="c1">// Wait for a child to exit.
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">sleep</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">wait_lock</span><span class="p">);</span>  <span class="c1">//DOC: wait-sleep
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nf">sleep</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">wait_lock</span><span class="p">);</span>  <span class="c1">//DOC: wait-sleep
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="p">}</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p>调用<code>wait</code>的进程会在最开始获取<code>wait_lock</code>，用来保证<em>lost wakeup</em> 不会出现。当它发现有进程的父进程是自己并且状态为<code>ZOMBIE</code>时，便会释放该进程的资源，释放子进程的<code>lock</code>和<code>wait_lock</code>。但如果没有找到这样的进程，便会进入睡眠。<code>wait</code>会获取两个锁：<code>wait_lock</code>+子进程的<code>lock</code>，顺序是<code>wait_lock</code>，子进程的l<code>ock</code>，防止死锁。</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="n">exit</span><span class="p">(</span><span class="kt">int</span> <span class="n">status</span><span class="p">)</span>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="nf">exit</span><span class="p">(</span><span class="kt">int</span> <span class="n">status</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
-</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">proc</span> <span class="o">*</span><span class="n">p</span> <span class="o">=</span> <span class="n">myproc</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">proc</span> <span class="o">*</span><span class="n">p</span> <span class="o">=</span> <span class="nf">myproc</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">  <span class="c1">//initproc不能退出
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">(</span><span class="n">p</span> <span class="o">==</span> <span class="n">initproc</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;init exiting&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">panic</span><span class="p">(</span><span class="s">&#34;init exiting&#34;</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="c1">//省略：关闭打开的文件
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>
-</span></span><span class="line"><span class="cl">  <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">wait_lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">wait_lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="c1">// 把子进程交给init
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">reparent</span><span class="p">(</span><span class="n">p</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nf">reparent</span><span class="p">(</span><span class="n">p</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="c1">// Parent might be sleeping in wait().
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">wakeup</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">parent</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nf">wakeup</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">parent</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  
-</span></span><span class="line"><span class="cl">  <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="n">p</span><span class="o">-&gt;</span><span class="n">xstate</span> <span class="o">=</span> <span class="n">status</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="n">p</span><span class="o">-&gt;</span><span class="n">state</span> <span class="o">=</span> <span class="n">ZOMBIE</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">  <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">wait_lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">wait_lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="c1">// Jump into the scheduler, never to return.
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">sched</span><span class="p">();</span>
-</span></span><span class="line"><span class="cl">  <span class="n">panic</span><span class="p">(</span><span class="s">&#34;zombie exit&#34;</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nf">sched</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">panic</span><span class="p">(</span><span class="s">&#34;zombie exit&#34;</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p>    <code>exit</code>会冻结一些资源，并且调用<code>reparent</code>函数，把每一个子进程的父进程重新定向为<code>init</code>，唤醒可能存在的正在<code>sleep</code>的父进程，把当前进程的状态修改为<code>ZOMBIE</code>，调用<code>sched</code>。之后这个进程便不会参与调度了。<code>exit</code>一定会获取<code>p-&gt;lock</code>，这样可以保证在状态修改成<code>ZOMBIE</code>后不会在通过<code>swtch</code>切换进程之前直接被父进程清理（进程锁也是在<code>scheduler</code>被释放）。<code>exit</code>使用<code>wait</code>同样的锁顺序来保证无死锁。虽然<code>exit</code>在唤醒父进程之后才获取锁修改其状态，但是由于它有自己的进程锁并且父进程去要获取这个进程锁来释放其资源，父进程会进入自旋。即使在子进程获取锁之前父进程就被唤醒并且执行其循环体，由于子进程的状态不是<code>ZOMBIE</code>，父进程也不会对它进行操作。</p>
 <p>    <code>exit</code>可以终止自己的运行，<code>kill</code>可以让一个进程终止另一个进程。假如<code>kill</code>可以直接终止一个进程，那么可能导致一些错误，比如：</p>
@@ -680,7 +698,7 @@ s线程实际上就是对<code>scheduler</code>函数的调用。那为什么说
 </span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">proc</span> <span class="o">*</span><span class="n">p</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="k">for</span><span class="p">(</span><span class="n">p</span> <span class="o">=</span> <span class="n">proc</span><span class="p">;</span> <span class="n">p</span> <span class="o">&lt;</span> <span class="o">&amp;</span><span class="n">proc</span><span class="p">[</span><span class="n">NPROC</span><span class="p">];</span> <span class="n">p</span><span class="o">++</span><span class="p">){</span>
-</span></span><span class="line"><span class="cl">    <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">pid</span> <span class="o">==</span> <span class="n">pid</span><span class="p">){</span>
 </span></span><span class="line"><span class="cl">        <span class="c1">//修改killed属性并通过修改状态让该进程参与调度
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="n">p</span><span class="o">-&gt;</span><span class="n">killed</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
@@ -688,10 +706,10 @@ s线程实际上就是对<code>scheduler</code>函数的调用。那为什么说
 </span></span><span class="line"><span class="cl">        <span class="c1">// Wake process from sleep().
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="n">p</span><span class="o">-&gt;</span><span class="n">state</span> <span class="o">=</span> <span class="n">RUNNABLE</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">      <span class="p">}</span>
-</span></span><span class="line"><span class="cl">      <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">      <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">    <span class="p">}</span>
-</span></span><span class="line"><span class="cl">    <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
 </span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
@@ -822,7 +840,7 @@ locks). Replace the uses of sleep and wakeup in xv6 with semaphores. Judge the r
 
 
 
-	<script src="https://hoooao.github.io/js/bundle.min.5a42c67b729ee2fa1059251688235399704707e04edb4e28c42c6f6dfa49d1d9.js" integrity="sha256-WkLGe3Ke4voQWSUWiCNTmXBHB+BO204oxCxvbfpJ0dk=" crossorigin="anonymous"></script>
+	<script src="https://hoooao.github.io/js/bundle.min.580988ed2982bcbb74a1773c7abea97b43e4c43b9324e10cda0813ec6ec4bb67.js" integrity="sha256-WAmI7SmCvLt0oXc8er6pe0PkxDuTJOEM2ggT7G7Eu2c=" crossorigin="anonymous"></script>
 	
 
 </body>

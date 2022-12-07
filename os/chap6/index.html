@@ -8,17 +8,23 @@
 	<meta name="theme-color" content="#494f5c">
 	<meta name="msapplication-TileColor" content="#494f5c">
 <meta itemprop="name" content="Chap 6: 锁 Locking">
-<meta itemprop="description" content="目录   导言  6.1竞争冒险 Race condition  6.2 Code：锁 Code: Lock  6.3 锁的使用 Code: Using Locks  6.4 死锁和锁的顺序 Deadlock and lock ordering  6.5 锁和中断处理器 Locks and interrupt handlers  6.6 指令和内存顺序 Instruction and memory ordering  6.7 睡眠锁 Sleep-locks  6.7 UART中的锁 Case study  6.8 练习 Exercises   导言：  操作系统通常会 交错（Interleave） 运行不同的活动，这种交错主要由于3种行为
-   多核CPU共用ram。由于一台计算机中可以有多个CPU/核心，但是只有一个内存空间，这就导致多个CPU可能在同一时刻访问一个地址并修改。
-  即使在单核中，CPU也会进行分时，在不同的线程之间切换，而不同的线程可能会访问同一个数据。
-  设备中断。设备中断可能会在不恰当的时间发生，导致修改了它中断掉的代码正在使用的数据。"><meta itemprop="datePublished" content="2022-07-20T17:48:44-04:00" />
+<meta itemprop="description" content="目录 导言 6.1竞争冒险 Race condition 6.2 Code：锁 Code: Lock 6.3 锁的使用 Code: Using Locks 6.4 死锁和锁的顺序 Deadlock and lock ordering 6.5 锁和中断处理器 Locks and interrupt handlers 6.6 指令和内存顺序 Instruction and memory ordering 6.7 睡眠锁 Sleep-locks 6.7 UART中的锁 Case study 6.8 练习 Exercises 导言： 操作系统通常会 交错（Interleave） 运行不同的活动，这种交错主要由于3种行为
+多核CPU共用ram。由于一台计算机中可以有多个CPU/核心，但是只有一个内存空间，这就导致多个CPU可能在同一时刻访问一个地址并修改。
+即使在单核中，CPU也会进行分时，在不同的线程之间切换，而不同的线程可能会访问同一个数据。
+设备中断。设备中断可能会在不恰当的时间发生，导致修改了它中断掉的代码正在使用的数据。
+内核中有很多这样的例子。其中一个被共用的内存资源就是代码本身。比如多个CPU可能同时使用kalloc.c，后者会去修改那个记录着可用分页的自由表。当两个CPU同时调用其中函数的时候，内存的自由表的表头可能同时会被两个CPU获取。为了禁止这种并发导致的不合法行为，操作系统设计者通过并发控制（Concurrent control）解决。它的实现有多种，锁（Locks） 就是其中一种。一个锁保证了在一个瞬间只有一个CPU（进程）可以拥有它，使得被“锁住”的数据只能被这个CPU访问，从而实现对数据的保护。锁存在一个劣势：由于它会序列化并发的进程，也就是说多个进程访问同一个数据，后面的会等待前面的进程结束再运行。这让并发不再并发，降低性能。随意也随之出现了Lock-free Programming，即不需要锁的实现，但是更加复杂。
+6.1 竞争冒险 Race condition 举个例子：假设有函数push，用来给一个链表添加节点到头节点的位置上。
+struct element { int data; struct element *next; }; struct element *list = 0; void push(int data) { struct element *l; l = malloc(sizeof *l); //13 l-&gt;data = data; //14 l-&gt;next = list; //15 list = l; //16 } 假如现在有两个CPU共享一个链表并且几乎同时调用了这个方法。当它们都运行到第15行的时候，某个CPU会率先执行赋值操作，把新建的节点指向之前的头节点list。而在它执行第16行之前，另一个CPU也执行了第15行，让自己的新建的节点也一样指向了之前的头节点。这里就出现了不合法的行为：有两个新建的元素都指向了之前的头节点。当地一个CPU运行了16行之后，后一个CPU将会覆盖前者的修改，导致 更新丢失（Update lost）。"><meta itemprop="datePublished" content="2022-07-20T17:48:44-04:00" />
 <meta itemprop="dateModified" content="2022-07-20T17:48:44-04:00" />
 <meta itemprop="wordCount" content="752">
 <meta itemprop="keywords" content="" /><meta property="og:title" content="Chap 6: 锁 Locking" />
-<meta property="og:description" content="目录   导言  6.1竞争冒险 Race condition  6.2 Code：锁 Code: Lock  6.3 锁的使用 Code: Using Locks  6.4 死锁和锁的顺序 Deadlock and lock ordering  6.5 锁和中断处理器 Locks and interrupt handlers  6.6 指令和内存顺序 Instruction and memory ordering  6.7 睡眠锁 Sleep-locks  6.7 UART中的锁 Case study  6.8 练习 Exercises   导言：  操作系统通常会 交错（Interleave） 运行不同的活动，这种交错主要由于3种行为
-   多核CPU共用ram。由于一台计算机中可以有多个CPU/核心，但是只有一个内存空间，这就导致多个CPU可能在同一时刻访问一个地址并修改。
-  即使在单核中，CPU也会进行分时，在不同的线程之间切换，而不同的线程可能会访问同一个数据。
-  设备中断。设备中断可能会在不恰当的时间发生，导致修改了它中断掉的代码正在使用的数据。" />
+<meta property="og:description" content="目录 导言 6.1竞争冒险 Race condition 6.2 Code：锁 Code: Lock 6.3 锁的使用 Code: Using Locks 6.4 死锁和锁的顺序 Deadlock and lock ordering 6.5 锁和中断处理器 Locks and interrupt handlers 6.6 指令和内存顺序 Instruction and memory ordering 6.7 睡眠锁 Sleep-locks 6.7 UART中的锁 Case study 6.8 练习 Exercises 导言： 操作系统通常会 交错（Interleave） 运行不同的活动，这种交错主要由于3种行为
+多核CPU共用ram。由于一台计算机中可以有多个CPU/核心，但是只有一个内存空间，这就导致多个CPU可能在同一时刻访问一个地址并修改。
+即使在单核中，CPU也会进行分时，在不同的线程之间切换，而不同的线程可能会访问同一个数据。
+设备中断。设备中断可能会在不恰当的时间发生，导致修改了它中断掉的代码正在使用的数据。
+内核中有很多这样的例子。其中一个被共用的内存资源就是代码本身。比如多个CPU可能同时使用kalloc.c，后者会去修改那个记录着可用分页的自由表。当两个CPU同时调用其中函数的时候，内存的自由表的表头可能同时会被两个CPU获取。为了禁止这种并发导致的不合法行为，操作系统设计者通过并发控制（Concurrent control）解决。它的实现有多种，锁（Locks） 就是其中一种。一个锁保证了在一个瞬间只有一个CPU（进程）可以拥有它，使得被“锁住”的数据只能被这个CPU访问，从而实现对数据的保护。锁存在一个劣势：由于它会序列化并发的进程，也就是说多个进程访问同一个数据，后面的会等待前面的进程结束再运行。这让并发不再并发，降低性能。随意也随之出现了Lock-free Programming，即不需要锁的实现，但是更加复杂。
+6.1 竞争冒险 Race condition 举个例子：假设有函数push，用来给一个链表添加节点到头节点的位置上。
+struct element { int data; struct element *next; }; struct element *list = 0; void push(int data) { struct element *l; l = malloc(sizeof *l); //13 l-&gt;data = data; //14 l-&gt;next = list; //15 list = l; //16 } 假如现在有两个CPU共享一个链表并且几乎同时调用了这个方法。当它们都运行到第15行的时候，某个CPU会率先执行赋值操作，把新建的节点指向之前的头节点list。而在它执行第16行之前，另一个CPU也执行了第15行，让自己的新建的节点也一样指向了之前的头节点。这里就出现了不合法的行为：有两个新建的元素都指向了之前的头节点。当地一个CPU运行了16行之后，后一个CPU将会覆盖前者的修改，导致 更新丢失（Update lost）。" />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://hoooao.github.io/os/chap6/" /><meta property="article:section" content="os" />
 <meta property="article:published_time" content="2022-07-20T17:48:44-04:00" />
@@ -26,10 +32,13 @@
 
 <meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="Chap 6: 锁 Locking"/>
-<meta name="twitter:description" content="目录   导言  6.1竞争冒险 Race condition  6.2 Code：锁 Code: Lock  6.3 锁的使用 Code: Using Locks  6.4 死锁和锁的顺序 Deadlock and lock ordering  6.5 锁和中断处理器 Locks and interrupt handlers  6.6 指令和内存顺序 Instruction and memory ordering  6.7 睡眠锁 Sleep-locks  6.7 UART中的锁 Case study  6.8 练习 Exercises   导言：  操作系统通常会 交错（Interleave） 运行不同的活动，这种交错主要由于3种行为
-   多核CPU共用ram。由于一台计算机中可以有多个CPU/核心，但是只有一个内存空间，这就导致多个CPU可能在同一时刻访问一个地址并修改。
-  即使在单核中，CPU也会进行分时，在不同的线程之间切换，而不同的线程可能会访问同一个数据。
-  设备中断。设备中断可能会在不恰当的时间发生，导致修改了它中断掉的代码正在使用的数据。"/>
+<meta name="twitter:description" content="目录 导言 6.1竞争冒险 Race condition 6.2 Code：锁 Code: Lock 6.3 锁的使用 Code: Using Locks 6.4 死锁和锁的顺序 Deadlock and lock ordering 6.5 锁和中断处理器 Locks and interrupt handlers 6.6 指令和内存顺序 Instruction and memory ordering 6.7 睡眠锁 Sleep-locks 6.7 UART中的锁 Case study 6.8 练习 Exercises 导言： 操作系统通常会 交错（Interleave） 运行不同的活动，这种交错主要由于3种行为
+多核CPU共用ram。由于一台计算机中可以有多个CPU/核心，但是只有一个内存空间，这就导致多个CPU可能在同一时刻访问一个地址并修改。
+即使在单核中，CPU也会进行分时，在不同的线程之间切换，而不同的线程可能会访问同一个数据。
+设备中断。设备中断可能会在不恰当的时间发生，导致修改了它中断掉的代码正在使用的数据。
+内核中有很多这样的例子。其中一个被共用的内存资源就是代码本身。比如多个CPU可能同时使用kalloc.c，后者会去修改那个记录着可用分页的自由表。当两个CPU同时调用其中函数的时候，内存的自由表的表头可能同时会被两个CPU获取。为了禁止这种并发导致的不合法行为，操作系统设计者通过并发控制（Concurrent control）解决。它的实现有多种，锁（Locks） 就是其中一种。一个锁保证了在一个瞬间只有一个CPU（进程）可以拥有它，使得被“锁住”的数据只能被这个CPU访问，从而实现对数据的保护。锁存在一个劣势：由于它会序列化并发的进程，也就是说多个进程访问同一个数据，后面的会等待前面的进程结束再运行。这让并发不再并发，降低性能。随意也随之出现了Lock-free Programming，即不需要锁的实现，但是更加复杂。
+6.1 竞争冒险 Race condition 举个例子：假设有函数push，用来给一个链表添加节点到头节点的位置上。
+struct element { int data; struct element *next; }; struct element *list = 0; void push(int data) { struct element *l; l = malloc(sizeof *l); //13 l-&gt;data = data; //14 l-&gt;next = list; //15 list = l; //16 } 假如现在有两个CPU共享一个链表并且几乎同时调用了这个方法。当它们都运行到第15行的时候，某个CPU会率先执行赋值操作，把新建的节点指向之前的头节点list。而在它执行第16行之前，另一个CPU也执行了第15行，让自己的新建的节点也一样指向了之前的头节点。这里就出现了不合法的行为：有两个新建的元素都指向了之前的头节点。当地一个CPU运行了16行之后，后一个CPU将会覆盖前者的修改，导致 更新丢失（Update lost）。"/>
 
 	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -147,7 +156,7 @@
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
 </span></span><span class="line"><span class="cl">    <span class="k">struct</span> <span class="n">element</span> <span class="o">*</span><span class="n">l</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">    <span class="n">l</span> <span class="o">=</span> <span class="n">malloc</span><span class="p">(</span><span class="k">sizeof</span> <span class="o">*</span><span class="n">l</span><span class="p">);</span> <span class="c1">//13
+</span></span><span class="line"><span class="cl">    <span class="n">l</span> <span class="o">=</span> <span class="nf">malloc</span><span class="p">(</span><span class="k">sizeof</span> <span class="o">*</span><span class="n">l</span><span class="p">);</span> <span class="c1">//13
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">l</span><span class="o">-&gt;</span><span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="p">;</span>        <span class="c1">//14
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">l</span><span class="o">-&gt;</span><span class="n">next</span> <span class="o">=</span> <span class="n">list</span><span class="p">;</span>        <span class="c1">//15
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">list</span> <span class="o">=</span> <span class="n">l</span><span class="p">;</span>              <span class="c1">//16
@@ -168,13 +177,13 @@
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">push</span><span class="p">(</span><span class="kt">int</span> <span class="n">data</span><span class="p">)</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">    <span class="k">struct</span> <span class="n">element</span> <span class="o">*</span><span class="n">l</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">    <span class="n">l</span> <span class="o">=</span> <span class="n">malloc</span><span class="p">(</span><span class="k">sizeof</span> <span class="o">*</span><span class="n">l</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">l</span> <span class="o">=</span> <span class="nf">malloc</span><span class="p">(</span><span class="k">sizeof</span> <span class="o">*</span><span class="n">l</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="n">l</span><span class="o">-&gt;</span><span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">    <span class="c1">//关键部分
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">listlock</span><span class="p">);</span> 
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nf">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">listlock</span><span class="p">);</span> 
 </span></span><span class="line"><span class="cl">    <span class="n">l</span><span class="o">-&gt;</span><span class="n">next</span> <span class="o">=</span> <span class="n">list</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">    <span class="n">list</span> <span class="o">=</span> <span class="n">l</span><span class="p">;</span> 
-</span></span><span class="line"><span class="cl">    <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">listlock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">listlock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p>被锁住的部分（即<code>acquire(), release()</code>之间的代码）被叫做<strong>关键部分（Critical section）</strong>。这个例子中可以说“锁在保护<code>list</code>”。当我们说锁在保护某一数据的时候，实际上指的是锁在保护这一数据的 <strong>不变量（Invariant）</strong> 。这里说的不变量只是数据/数据结构的一种属性，而不是真正的某个值。在上面的例子中的不变量就是“<code>list</code>永远指向第一个元素，而所有元素都指向下一个元素”这一属性。被保护的意思不是说锁让不变量永远为真，而是说在不变量被破坏（不为真）到恢复（为真）的期间能正常运行。比如上面的例子中的<code>l-&gt;next = list;</code>就导致<code>list</code>并没有指向第一个元素，代表着不变量不为真，但是下一行又一次让<code>list</code>指向了第一个元素，即不变量得到了恢复。</p>
 <p>    锁的代价就是在序列化对关键部分的并发之后的性能降低。多个进程想要获取同一锁的情况叫做<strong>冲突（Conflict）<strong>或者</strong>锁竞争（Lock Contention）</strong>，内核的设计要避免出现过多的锁竞争.同时，获取锁和释放锁的位置也会影响性能。比如即使在<code>push</code>最开始就获取锁也是正确的，但是会造成更多指令被序列化。</p>
@@ -223,36 +232,36 @@
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kt">void</span>
 </span></span><span class="line"><span class="cl"><span class="nf">acquire</span><span class="p">(</span><span class="k">struct</span> <span class="n">spinlock</span> <span class="o">*</span><span class="n">lk</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
-</span></span><span class="line"><span class="cl">  <span class="n">push_off</span><span class="p">();</span> <span class="c1">// disable interrupts to avoid deadlock.
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">(</span><span class="n">holding</span><span class="p">(</span><span class="n">lk</span><span class="p">))</span>
-</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;acquire&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">push_off</span><span class="p">();</span> <span class="c1">// disable interrupts to avoid deadlock.
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">(</span><span class="nf">holding</span><span class="p">(</span><span class="n">lk</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">panic</span><span class="p">(</span><span class="s">&#34;acquire&#34;</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="c1">// On RISC-V, sync_lock_test_and_set turns into an atomic swap:
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="c1">//   a5 = 1
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="c1">//   s1 = &amp;lk-&gt;locked
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="c1">//   amoswap.w.aq a5, a5, (s1)
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="c1">// 这里就是“自旋的开始”
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">while</span><span class="p">(</span><span class="n">__sync_lock_test_and_set</span><span class="p">(</span><span class="o">&amp;</span><span class="n">lk</span><span class="o">-&gt;</span><span class="n">locked</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">while</span><span class="p">(</span><span class="nf">__sync_lock_test_and_set</span><span class="p">(</span><span class="o">&amp;</span><span class="n">lk</span><span class="o">-&gt;</span><span class="n">locked</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl">    <span class="p">;</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">  <span class="n">__sync_synchronize</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">__sync_synchronize</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="c1">// Record info about lock acquisition for holding() and debugging.
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">lk</span><span class="o">-&gt;</span><span class="n">cpu</span> <span class="o">=</span> <span class="n">mycpu</span><span class="p">();</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">lk</span><span class="o">-&gt;</span><span class="n">cpu</span> <span class="o">=</span> <span class="nf">mycpu</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p>在设置locked之后，acquire函数会去设置<code>lk-&gt;cpu</code>来为debug服务。<code>release()</code>有类似的实现，只不过方向和<code>acquire</code>完全相反。</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span>
 </span></span><span class="line"><span class="cl"><span class="nf">release</span><span class="p">(</span><span class="k">struct</span> <span class="n">spinlock</span> <span class="o">*</span><span class="n">lk</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
 </span></span><span class="line"><span class="cl">  <span class="c1">//微获取就释放
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">(</span><span class="o">!</span><span class="n">holding</span><span class="p">(</span><span class="n">lk</span><span class="p">))</span>
-</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;release&#34;</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">(</span><span class="o">!</span><span class="nf">holding</span><span class="p">(</span><span class="n">lk</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">panic</span><span class="p">(</span><span class="s">&#34;release&#34;</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="c1">//清空CPU
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">lk</span><span class="o">-&gt;</span><span class="n">cpu</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  
-</span></span><span class="line"><span class="cl">  <span class="n">__sync_synchronize</span><span class="p">();</span>
-</span></span><span class="line"><span class="cl">  <span class="n">__sync_lock_release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">lk</span><span class="o">-&gt;</span><span class="n">locked</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl">  <span class="n">pop_off</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">__sync_synchronize</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">__sync_lock_release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">lk</span><span class="o">-&gt;</span><span class="n">locked</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">pop_off</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p>它首先会清空l<code>k-&gt;cpu</code>，同样地它会调用一个函数<code>__sync_lock_release</code>来原子化地把<code>locked</code>换成0.后面这个函数同样封装了<code>amoswap</code>。不同于<code>acquire</code>, <code>release</code>不需要把n步合并成一步。但是这里仍然使用了这个<code>amoswap</code>是因为在某些情况下，<code>store</code>可能会分步进行，这取决于更多底层的实现。</p>
 <br>
@@ -323,29 +332,29 @@
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span>
 </span></span><span class="line"><span class="cl"><span class="nf">push_off</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
-</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">old</span> <span class="o">=</span> <span class="n">intr_get</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">old</span> <span class="o">=</span> <span class="nf">intr_get</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">  <span class="c1">//禁止中断
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">intr_off</span><span class="p">();</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nf">intr_off</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">  <span class="c1">//查看计数器
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">(</span><span class="n">mycpu</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">noff</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">    <span class="n">mycpu</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">intena</span> <span class="o">=</span> <span class="n">old</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">  <span class="n">mycpu</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">noff</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">(</span><span class="nf">mycpu</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">noff</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">mycpu</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">intena</span> <span class="o">=</span> <span class="n">old</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">mycpu</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">noff</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p>这个函数会首先禁止中断发生，增加<code>mycpu-&gt;noff</code>的值。禁止中断通过调用函数<code>intr_off</code>实现，底层是一个RISC-V的指令。<code>noff</code>就是上述的“计数器”。在修改<code>locked</code>之前修改<code>noff</code>很重要：假如顺序相反，那么可能在修改了<code>locked</code>还没有修改<code>noff</code>（禁止中断）之前有中断发生。正确的顺序防止窗口期存在。</p>
 <p>    <code>release</code>也是相似的，只不过完全相反，它会在<code>locked</code>修改之后调用<code>pop_off</code>并在检查<code>noff==0</code>后开启中断。</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span>
 </span></span><span class="line"><span class="cl"><span class="nf">pop_off</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
-</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">cpu</span> <span class="o">*</span><span class="n">c</span> <span class="o">=</span> <span class="n">mycpu</span><span class="p">();</span>
-</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">intr_get</span><span class="p">())</span>
-</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;pop_off - interruptible&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">cpu</span> <span class="o">*</span><span class="n">c</span> <span class="o">=</span> <span class="nf">mycpu</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="nf">intr_get</span><span class="p">())</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">panic</span><span class="p">(</span><span class="s">&#34;pop_off - interruptible&#34;</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">c</span><span class="o">-&gt;</span><span class="n">noff</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;pop_off&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">panic</span><span class="p">(</span><span class="s">&#34;pop_off&#34;</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="c1">//减少noff
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">c</span><span class="o">-&gt;</span><span class="n">noff</span> <span class="o">-=</span> <span class="mi">1</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">c</span><span class="o">-&gt;</span><span class="n">noff</span> <span class="o">==</span> <span class="mi">0</span> <span class="o">&amp;&amp;</span> <span class="n">c</span><span class="o">-&gt;</span><span class="n">intena</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl">  <span class="c1">//开启中断
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">intr_on</span><span class="p">();</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nf">intr_on</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p>由于一段代码可能会使用多个锁，<strong>noff</strong>这个计数器会在锁增加的过程中同样增加，保证即使有的锁被复原之后，计数器仍能保持一个安全的值（如果在中间的一个<strong>pop_off</strong>中发现<strong>noff!=0</strong>，那么中断仍然不会开启）。</p>
 <br>
@@ -357,7 +366,7 @@
 <br>
 <h2 id="66-指令和内存顺序-instruction-and-memory-ordering">6.6 指令和内存顺序 Instruction and memory ordering<a href="#66-指令和内存顺序-instruction-and-memory-ordering" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
 <p>    在一段连续的指令中，编译器可能为了优化把代码顺序打乱，CPU也可能不会按顺序依次执行代码，而优先执行某些指令。当然这些指令是相互独立的，也就是说这种不按顺序执行的结果一定是正确的。可是如果考虑锁存在的场景，这种重新排序可能让锁失效。比如：</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="mi">1</span> <span class="n">l</span> <span class="o">=</span> <span class="n">malloc</span><span class="p">(</span><span class="k">sizeof</span> <span class="o">*</span><span class="n">l</span><span class="p">);</span> 
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="mi">1</span> <span class="n">l</span> <span class="o">=</span> <span class="nf">malloc</span><span class="p">(</span><span class="k">sizeof</span> <span class="o">*</span><span class="n">l</span><span class="p">);</span> 
 </span></span><span class="line"><span class="cl"><span class="mi">2</span> <span class="n">l</span><span class="o">-&gt;</span><span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="p">;</span> 
 </span></span><span class="line"><span class="cl"><span class="mi">3</span> <span class="nf">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">listlock</span><span class="p">);</span> 
 </span></span><span class="line"><span class="cl"><span class="mi">4</span> <span class="n">l</span><span class="o">-&gt;</span><span class="n">next</span> <span class="o">=</span> <span class="n">list</span><span class="p">;</span> 
@@ -399,7 +408,7 @@
 </span></span><span class="line"><span class="cl"><span class="nf">uartputc</span><span class="p">(</span><span class="kt">int</span> <span class="n">c</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
 </span></span><span class="line"><span class="cl">    <span class="c1">//获取这个锁
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">uart_tx_lock</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nf">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">uart_tx_lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">panicked</span><span class="p">){</span>
 </span></span><span class="line"><span class="cl">    <span class="k">for</span><span class="p">(;;)</span>
@@ -409,12 +418,12 @@
 </span></span><span class="line"><span class="cl">  <span class="k">while</span><span class="p">(</span><span class="mi">1</span><span class="p">){</span>
 </span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">uart_tx_w</span> <span class="o">==</span> <span class="n">uart_tx_r</span> <span class="o">+</span> <span class="n">UART_TX_BUF_SIZE</span><span class="p">){</span>
 </span></span><span class="line"><span class="cl">        <span class="c1">//输入一个chan和lock 第七章内容
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="n">sleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">uart_tx_r</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">uart_tx_lock</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="nf">sleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">uart_tx_r</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">uart_tx_lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">      <span class="n">uart_tx_buf</span><span class="p">[</span><span class="n">uart_tx_w</span> <span class="o">%</span> <span class="n">UART_TX_BUF_SIZE</span><span class="p">]</span> <span class="o">=</span> <span class="n">c</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">      <span class="n">uart_tx_w</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">      <span class="n">uartstart</span><span class="p">();</span>
-</span></span><span class="line"><span class="cl">      <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">uart_tx_lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="nf">uartstart</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">      <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">uart_tx_lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">      <span class="k">return</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">    <span class="p">}</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
@@ -489,7 +498,7 @@ system call and changing its shared address space.</p>
 
 
 
-	<script src="https://hoooao.github.io/js/bundle.min.5a42c67b729ee2fa1059251688235399704707e04edb4e28c42c6f6dfa49d1d9.js" integrity="sha256-WkLGe3Ke4voQWSUWiCNTmXBHB+BO204oxCxvbfpJ0dk=" crossorigin="anonymous"></script>
+	<script src="https://hoooao.github.io/js/bundle.min.580988ed2982bcbb74a1773c7abea97b43e4c43b9324e10cda0813ec6ec4bb67.js" integrity="sha256-WAmI7SmCvLt0oXc8er6pe0PkxDuTJOEM2ggT7G7Eu2c=" crossorigin="anonymous"></script>
 	
 
 </body>

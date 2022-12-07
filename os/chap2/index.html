@@ -8,23 +8,33 @@
 	<meta name="theme-color" content="#494f5c">
 	<meta name="msapplication-TileColor" content="#494f5c">
 <meta itemprop="name" content="Chap 2: 操作系统组成 Operating system organization">
-<meta itemprop="description" content="目录    导言  2.1 抽象实体资源  2.2 用户模式，超级用户模式，和系统调用  2.3 内核组成  2.4 进程概述  2.5 xv6的启动与第一个进程  2.6 练习   导言：  OS 需要分时去给予每个进程资源，让他们都有机会运行。同时也要让每个进程相隔离，这样的话，某个进程的崩坏不会影响其他进程或者内核的运行。但是完全的隔离也是不理想的，因为我们希望实现进程之间的通信。综上OS必须要具备三个特性：复用（Multiplexing），隔离（Isolation），交互（Interaction）。 本章为OS的这三个特性做了综述。
- 2.1 抽象实体资源  OS的意义是值得思考的：为什么不可以让程序直接和硬件交互，就如一些嵌入式系统一般。实际上OS确实是不必要的，但是这种情况下，对于每个程序本身就会有更高的要求：每个程序必须“品行优良”，即程序之间必须要相互信任，并且每个程序必须自愿放弃资源供其他程序使用从而实现分时，而且程序不可以有Bug。但是这些情景是不现实的。OS的存在隔离了各个程序与软硬件，并且用抽象的方式把资源给到进程：比如I/O系统调用。即使不担心程序在无隔离的情况下会不稳定，这种分离和抽象也是更方便的。比如OS把与磁盘的交互抽象成了对fd和I/O的使用。同样地，这样的隔离使得只有OS可以去掌控硬件资源，比如通过切换CPU所执行的程序来实现分时，使得程序无法也不用去考虑分时：当一个进程进入了死循环时，其他进程仍然可以正常运行。可信计算基（TCB: Trusted Computing Base） 是指为实现计算机系统安全保护的所有安全保护机制的集合，kernel就是其中一种。
- Fig.1 抽象组成[1]    2.2 用户模式，超级用户模式，和系统调用  在强隔离（Strong Isolation） 中，一个进程的崩溃不会导致其他进程或者内核的崩溃，并且OS会清理崩溃进程且继续运行。为了实现这种强隔离，OS需要阻止进程去修改OS的数据结构，指令，以及其他进程的内存空间。RISC-V（xv6运行于的CPU）提供了三种权限，代表着三种不同的隔离强度：机器模式（MM：Machine Mode），超级用户模式（SM：Supervisor Mode），用户模式（UM：User Mode）。（注：不同的CPU支持不同的权限分级和名称。）寄存器MODE储存着指示当前模式的数据。
- 在MM中，CPU有使用指令的完全权限。CPU会在启动时位于MM去配置计算机。xv6仅有几行代码运行于MM用来启动自己，之后便切换到SM。
- 在SM中，CPU可以运行特权命令（Privileged Instruction），比如读写寄存器等。假如CPU在UM是，一个进程使用了这类特权命令，那么CPU会切换到SM来终止该进程：因为这个进程使用了它不应该去使用的命令。
- 程序只能使用UM中的命令，所以我们说程序在“用户空间”中运行。而因为kernel可以运行特权命令，所以我们说kernel“在SM下运行”，或“在kernel space中运行”。假如一个用户空间的程序希望执行一个特权指令，它需要发出一个系统调用到kernel：本质上仍然是kernel在运行这个指令。RISC-V提供了一个特殊的指令ecall用来把CPU切换到SM并访问kernel。之后kernel会通过检验这个系统调用的参数来决定是否运行它。注：访问kernel的入口（Trampoline：Chap 4）是由kernel自己决定，假若让程序指定入口，会导致跳过验证阶段直接执行。  2.3 内核组成  OS本身也是一个较大的程序，其本身的权限也需要被考量。其中一种方案是把整个OS放到kernel中，也就是宏内核（Monolithic Kernel）。这种方案给予了OS完整的硬件权限。
- 宏内核的优点：OS各个部分之间可以更好地协同，比如OS的文件系统和虚拟内存系统共用一个数据缓冲器（Buffer）。"><meta itemprop="datePublished" content="2022-06-07T17:25:02-04:00" />
+<meta itemprop="description" content="目录 导言 2.1 抽象实体资源 2.2 用户模式，超级用户模式，和系统调用 2.3 内核组成 2.4 进程概述 2.5 xv6的启动与第一个进程 2.6 练习 导言： OS 需要分时去给予每个进程资源，让他们都有机会运行。同时也要让每个进程相隔离，这样的话，某个进程的崩坏不会影响其他进程或者内核的运行。但是完全的隔离也是不理想的，因为我们希望实现进程之间的通信。综上OS必须要具备三个特性：复用（Multiplexing），隔离（Isolation），交互（Interaction）。 本章为OS的这三个特性做了综述。
+2.1 抽象实体资源 OS的意义是值得思考的：为什么不可以让程序直接和硬件交互，就如一些嵌入式系统一般。实际上OS确实是不必要的，但是这种情况下，对于每个程序本身就会有更高的要求：每个程序必须“品行优良”，即程序之间必须要相互信任，并且每个程序必须自愿放弃资源供其他程序使用从而实现分时，而且程序不可以有Bug。但是这些情景是不现实的。OS的存在隔离了各个程序与软硬件，并且用抽象的方式把资源给到进程：比如I/O系统调用。即使不担心程序在无隔离的情况下会不稳定，这种分离和抽象也是更方便的。比如OS把与磁盘的交互抽象成了对fd和I/O的使用。同样地，这样的隔离使得只有OS可以去掌控硬件资源，比如通过切换CPU所执行的程序来实现分时，使得程序无法也不用去考虑分时：当一个进程进入了死循环时，其他进程仍然可以正常运行。可信计算基（TCB: Trusted Computing Base） 是指为实现计算机系统安全保护的所有安全保护机制的集合，kernel就是其中一种。
+Fig.1 抽象组成[1] 2.2 用户模式，超级用户模式，和系统调用 在强隔离（Strong Isolation） 中，一个进程的崩溃不会导致其他进程或者内核的崩溃，并且OS会清理崩溃进程且继续运行。为了实现这种强隔离，OS需要阻止进程去修改OS的数据结构，指令，以及其他进程的内存空间。RISC-V（xv6运行于的CPU）提供了三种权限，代表着三种不同的隔离强度：机器模式（MM：Machine Mode），超级用户模式（SM：Supervisor Mode），用户模式（UM：User Mode）。（注：不同的CPU支持不同的权限分级和名称。）寄存器MODE储存着指示当前模式的数据。
+在MM中，CPU有使用指令的完全权限。CPU会在启动时位于MM去配置计算机。xv6仅有几行代码运行于MM用来启动自己，之后便切换到SM。
+在SM中，CPU可以运行特权命令（Privileged Instruction），比如读写寄存器等。假如CPU在UM是，一个进程使用了这类特权命令，那么CPU会切换到SM来终止该进程：因为这个进程使用了它不应该去使用的命令。
+程序只能使用UM中的命令，所以我们说程序在“用户空间”中运行。而因为kernel可以运行特权命令，所以我们说kernel“在SM下运行”，或“在kernel space中运行”。假如一个用户空间的程序希望执行一个特权指令，它需要发出一个系统调用到kernel：本质上仍然是kernel在运行这个指令。RISC-V提供了一个特殊的指令ecall用来把CPU切换到SM并访问kernel。之后kernel会通过检验这个系统调用的参数来决定是否运行它。注：访问kernel的入口（Trampoline：Chap 4）是由kernel自己决定，假若让程序指定入口，会导致跳过验证阶段直接执行。 2.3 内核组成 OS本身也是一个较大的程序，其本身的权限也需要被考量。其中一种方案是把整个OS放到kernel中，也就是宏内核（Monolithic Kernel）。这种方案给予了OS完整的硬件权限。
+宏内核的优点：OS各个部分之间可以更好地协同，比如OS的文件系统和虚拟内存系统共用一个数据缓冲器（Buffer）。
+宏内核的缺点：OS各个部分之间的接口会更加复杂，这让设计者更容易写出Bug。在核空间（Kernel space）的bug可能会导致整个kernel，OS的崩溃。
+另一种方案，微内核（Microkernel），解决了宏内核的缺点。在这种实现中，kernel只包含OS中的一小部分，大部分OS运行于用户空间。如图所示，这台电脑的一部分OS将会运行于kernel之外，例如文件系统：由于文件系统提供文件相关的服务（Services），它被叫做“文件服务器（Server）”，作为一个独立的进程存在。通过kernel提供的 跨进程通信（IPC：Inter-Process communication） 机制，一个进程可以向各种服务器发送请求，并接收响应。微内核的内核实现中只有一些启动进程，发送消息，访问硬件的的函数/接口。这种特性让微内核更小更简单，例如Minix的内核仅有不到6,000行代码[3]。xv6使用宏内核的实现，但是由于它提供的服务很少，所以代码量不高。
+Fig.2 微内核[2] 2.4 进程概述 之前把进程定义为一个正在运行的程序，但更准确地说，进程是一个隔离单元（Unit of Isolation）。针对进程的抽象/隔离阻止一个进程进入其他进程的内存空间，CPU，fd等。同时也阻止进程进入kernel。
+当kernel开启了一个进程后，它给予这个进程：UM/SM Flag （代表这个进程的运行权限），地址空间（Address Space），线程分时（Time-slicing of Threads）。其中最重要的就是地址空间。Kernel为了加强进程之间的分隔，会使得一个进程认为自己有一台私有的电脑。这是通过给进程一个只属于它的内存系统（地址空间）实现的：别的进程无法访问这一地址空间。xv6，和大多类Unix操作系统，使用分页表（PT：Page Table） 给予进程内存空间。RISC-V下的PT记录着这个进程的虚拟内存（Virtual memory）地址和这些虚拟内存对应的物理内存（Physical memory）。类似fd，PT也是被kernel管理/维护的。
+RISC-V的指针，与x86_64相同，也是64bits。但是当硬件去找虚拟内存和物理层内存的对应关系的时候，只会对比64bits中的后39位，而xv6使用这39位中的后38位。换句话说，xv6中最多只有2^38 - 1个地址。（MAXVA: 0x3fffffffff）。"><meta itemprop="datePublished" content="2022-06-07T17:25:02-04:00" />
 <meta itemprop="dateModified" content="2022-06-07T17:25:02-04:00" />
 <meta itemprop="wordCount" content="116">
 <meta itemprop="keywords" content="" /><meta property="og:title" content="Chap 2: 操作系统组成 Operating system organization" />
-<meta property="og:description" content="目录    导言  2.1 抽象实体资源  2.2 用户模式，超级用户模式，和系统调用  2.3 内核组成  2.4 进程概述  2.5 xv6的启动与第一个进程  2.6 练习   导言：  OS 需要分时去给予每个进程资源，让他们都有机会运行。同时也要让每个进程相隔离，这样的话，某个进程的崩坏不会影响其他进程或者内核的运行。但是完全的隔离也是不理想的，因为我们希望实现进程之间的通信。综上OS必须要具备三个特性：复用（Multiplexing），隔离（Isolation），交互（Interaction）。 本章为OS的这三个特性做了综述。
- 2.1 抽象实体资源  OS的意义是值得思考的：为什么不可以让程序直接和硬件交互，就如一些嵌入式系统一般。实际上OS确实是不必要的，但是这种情况下，对于每个程序本身就会有更高的要求：每个程序必须“品行优良”，即程序之间必须要相互信任，并且每个程序必须自愿放弃资源供其他程序使用从而实现分时，而且程序不可以有Bug。但是这些情景是不现实的。OS的存在隔离了各个程序与软硬件，并且用抽象的方式把资源给到进程：比如I/O系统调用。即使不担心程序在无隔离的情况下会不稳定，这种分离和抽象也是更方便的。比如OS把与磁盘的交互抽象成了对fd和I/O的使用。同样地，这样的隔离使得只有OS可以去掌控硬件资源，比如通过切换CPU所执行的程序来实现分时，使得程序无法也不用去考虑分时：当一个进程进入了死循环时，其他进程仍然可以正常运行。可信计算基（TCB: Trusted Computing Base） 是指为实现计算机系统安全保护的所有安全保护机制的集合，kernel就是其中一种。
- Fig.1 抽象组成[1]    2.2 用户模式，超级用户模式，和系统调用  在强隔离（Strong Isolation） 中，一个进程的崩溃不会导致其他进程或者内核的崩溃，并且OS会清理崩溃进程且继续运行。为了实现这种强隔离，OS需要阻止进程去修改OS的数据结构，指令，以及其他进程的内存空间。RISC-V（xv6运行于的CPU）提供了三种权限，代表着三种不同的隔离强度：机器模式（MM：Machine Mode），超级用户模式（SM：Supervisor Mode），用户模式（UM：User Mode）。（注：不同的CPU支持不同的权限分级和名称。）寄存器MODE储存着指示当前模式的数据。
- 在MM中，CPU有使用指令的完全权限。CPU会在启动时位于MM去配置计算机。xv6仅有几行代码运行于MM用来启动自己，之后便切换到SM。
- 在SM中，CPU可以运行特权命令（Privileged Instruction），比如读写寄存器等。假如CPU在UM是，一个进程使用了这类特权命令，那么CPU会切换到SM来终止该进程：因为这个进程使用了它不应该去使用的命令。
- 程序只能使用UM中的命令，所以我们说程序在“用户空间”中运行。而因为kernel可以运行特权命令，所以我们说kernel“在SM下运行”，或“在kernel space中运行”。假如一个用户空间的程序希望执行一个特权指令，它需要发出一个系统调用到kernel：本质上仍然是kernel在运行这个指令。RISC-V提供了一个特殊的指令ecall用来把CPU切换到SM并访问kernel。之后kernel会通过检验这个系统调用的参数来决定是否运行它。注：访问kernel的入口（Trampoline：Chap 4）是由kernel自己决定，假若让程序指定入口，会导致跳过验证阶段直接执行。  2.3 内核组成  OS本身也是一个较大的程序，其本身的权限也需要被考量。其中一种方案是把整个OS放到kernel中，也就是宏内核（Monolithic Kernel）。这种方案给予了OS完整的硬件权限。
- 宏内核的优点：OS各个部分之间可以更好地协同，比如OS的文件系统和虚拟内存系统共用一个数据缓冲器（Buffer）。" />
+<meta property="og:description" content="目录 导言 2.1 抽象实体资源 2.2 用户模式，超级用户模式，和系统调用 2.3 内核组成 2.4 进程概述 2.5 xv6的启动与第一个进程 2.6 练习 导言： OS 需要分时去给予每个进程资源，让他们都有机会运行。同时也要让每个进程相隔离，这样的话，某个进程的崩坏不会影响其他进程或者内核的运行。但是完全的隔离也是不理想的，因为我们希望实现进程之间的通信。综上OS必须要具备三个特性：复用（Multiplexing），隔离（Isolation），交互（Interaction）。 本章为OS的这三个特性做了综述。
+2.1 抽象实体资源 OS的意义是值得思考的：为什么不可以让程序直接和硬件交互，就如一些嵌入式系统一般。实际上OS确实是不必要的，但是这种情况下，对于每个程序本身就会有更高的要求：每个程序必须“品行优良”，即程序之间必须要相互信任，并且每个程序必须自愿放弃资源供其他程序使用从而实现分时，而且程序不可以有Bug。但是这些情景是不现实的。OS的存在隔离了各个程序与软硬件，并且用抽象的方式把资源给到进程：比如I/O系统调用。即使不担心程序在无隔离的情况下会不稳定，这种分离和抽象也是更方便的。比如OS把与磁盘的交互抽象成了对fd和I/O的使用。同样地，这样的隔离使得只有OS可以去掌控硬件资源，比如通过切换CPU所执行的程序来实现分时，使得程序无法也不用去考虑分时：当一个进程进入了死循环时，其他进程仍然可以正常运行。可信计算基（TCB: Trusted Computing Base） 是指为实现计算机系统安全保护的所有安全保护机制的集合，kernel就是其中一种。
+Fig.1 抽象组成[1] 2.2 用户模式，超级用户模式，和系统调用 在强隔离（Strong Isolation） 中，一个进程的崩溃不会导致其他进程或者内核的崩溃，并且OS会清理崩溃进程且继续运行。为了实现这种强隔离，OS需要阻止进程去修改OS的数据结构，指令，以及其他进程的内存空间。RISC-V（xv6运行于的CPU）提供了三种权限，代表着三种不同的隔离强度：机器模式（MM：Machine Mode），超级用户模式（SM：Supervisor Mode），用户模式（UM：User Mode）。（注：不同的CPU支持不同的权限分级和名称。）寄存器MODE储存着指示当前模式的数据。
+在MM中，CPU有使用指令的完全权限。CPU会在启动时位于MM去配置计算机。xv6仅有几行代码运行于MM用来启动自己，之后便切换到SM。
+在SM中，CPU可以运行特权命令（Privileged Instruction），比如读写寄存器等。假如CPU在UM是，一个进程使用了这类特权命令，那么CPU会切换到SM来终止该进程：因为这个进程使用了它不应该去使用的命令。
+程序只能使用UM中的命令，所以我们说程序在“用户空间”中运行。而因为kernel可以运行特权命令，所以我们说kernel“在SM下运行”，或“在kernel space中运行”。假如一个用户空间的程序希望执行一个特权指令，它需要发出一个系统调用到kernel：本质上仍然是kernel在运行这个指令。RISC-V提供了一个特殊的指令ecall用来把CPU切换到SM并访问kernel。之后kernel会通过检验这个系统调用的参数来决定是否运行它。注：访问kernel的入口（Trampoline：Chap 4）是由kernel自己决定，假若让程序指定入口，会导致跳过验证阶段直接执行。 2.3 内核组成 OS本身也是一个较大的程序，其本身的权限也需要被考量。其中一种方案是把整个OS放到kernel中，也就是宏内核（Monolithic Kernel）。这种方案给予了OS完整的硬件权限。
+宏内核的优点：OS各个部分之间可以更好地协同，比如OS的文件系统和虚拟内存系统共用一个数据缓冲器（Buffer）。
+宏内核的缺点：OS各个部分之间的接口会更加复杂，这让设计者更容易写出Bug。在核空间（Kernel space）的bug可能会导致整个kernel，OS的崩溃。
+另一种方案，微内核（Microkernel），解决了宏内核的缺点。在这种实现中，kernel只包含OS中的一小部分，大部分OS运行于用户空间。如图所示，这台电脑的一部分OS将会运行于kernel之外，例如文件系统：由于文件系统提供文件相关的服务（Services），它被叫做“文件服务器（Server）”，作为一个独立的进程存在。通过kernel提供的 跨进程通信（IPC：Inter-Process communication） 机制，一个进程可以向各种服务器发送请求，并接收响应。微内核的内核实现中只有一些启动进程，发送消息，访问硬件的的函数/接口。这种特性让微内核更小更简单，例如Minix的内核仅有不到6,000行代码[3]。xv6使用宏内核的实现，但是由于它提供的服务很少，所以代码量不高。
+Fig.2 微内核[2] 2.4 进程概述 之前把进程定义为一个正在运行的程序，但更准确地说，进程是一个隔离单元（Unit of Isolation）。针对进程的抽象/隔离阻止一个进程进入其他进程的内存空间，CPU，fd等。同时也阻止进程进入kernel。
+当kernel开启了一个进程后，它给予这个进程：UM/SM Flag （代表这个进程的运行权限），地址空间（Address Space），线程分时（Time-slicing of Threads）。其中最重要的就是地址空间。Kernel为了加强进程之间的分隔，会使得一个进程认为自己有一台私有的电脑。这是通过给进程一个只属于它的内存系统（地址空间）实现的：别的进程无法访问这一地址空间。xv6，和大多类Unix操作系统，使用分页表（PT：Page Table） 给予进程内存空间。RISC-V下的PT记录着这个进程的虚拟内存（Virtual memory）地址和这些虚拟内存对应的物理内存（Physical memory）。类似fd，PT也是被kernel管理/维护的。
+RISC-V的指针，与x86_64相同，也是64bits。但是当硬件去找虚拟内存和物理层内存的对应关系的时候，只会对比64bits中的后39位，而xv6使用这39位中的后38位。换句话说，xv6中最多只有2^38 - 1个地址。（MAXVA: 0x3fffffffff）。" />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://hoooao.github.io/os/chap2/" /><meta property="article:section" content="os" />
 <meta property="article:published_time" content="2022-06-07T17:25:02-04:00" />
@@ -32,13 +42,18 @@
 
 <meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="Chap 2: 操作系统组成 Operating system organization"/>
-<meta name="twitter:description" content="目录    导言  2.1 抽象实体资源  2.2 用户模式，超级用户模式，和系统调用  2.3 内核组成  2.4 进程概述  2.5 xv6的启动与第一个进程  2.6 练习   导言：  OS 需要分时去给予每个进程资源，让他们都有机会运行。同时也要让每个进程相隔离，这样的话，某个进程的崩坏不会影响其他进程或者内核的运行。但是完全的隔离也是不理想的，因为我们希望实现进程之间的通信。综上OS必须要具备三个特性：复用（Multiplexing），隔离（Isolation），交互（Interaction）。 本章为OS的这三个特性做了综述。
- 2.1 抽象实体资源  OS的意义是值得思考的：为什么不可以让程序直接和硬件交互，就如一些嵌入式系统一般。实际上OS确实是不必要的，但是这种情况下，对于每个程序本身就会有更高的要求：每个程序必须“品行优良”，即程序之间必须要相互信任，并且每个程序必须自愿放弃资源供其他程序使用从而实现分时，而且程序不可以有Bug。但是这些情景是不现实的。OS的存在隔离了各个程序与软硬件，并且用抽象的方式把资源给到进程：比如I/O系统调用。即使不担心程序在无隔离的情况下会不稳定，这种分离和抽象也是更方便的。比如OS把与磁盘的交互抽象成了对fd和I/O的使用。同样地，这样的隔离使得只有OS可以去掌控硬件资源，比如通过切换CPU所执行的程序来实现分时，使得程序无法也不用去考虑分时：当一个进程进入了死循环时，其他进程仍然可以正常运行。可信计算基（TCB: Trusted Computing Base） 是指为实现计算机系统安全保护的所有安全保护机制的集合，kernel就是其中一种。
- Fig.1 抽象组成[1]    2.2 用户模式，超级用户模式，和系统调用  在强隔离（Strong Isolation） 中，一个进程的崩溃不会导致其他进程或者内核的崩溃，并且OS会清理崩溃进程且继续运行。为了实现这种强隔离，OS需要阻止进程去修改OS的数据结构，指令，以及其他进程的内存空间。RISC-V（xv6运行于的CPU）提供了三种权限，代表着三种不同的隔离强度：机器模式（MM：Machine Mode），超级用户模式（SM：Supervisor Mode），用户模式（UM：User Mode）。（注：不同的CPU支持不同的权限分级和名称。）寄存器MODE储存着指示当前模式的数据。
- 在MM中，CPU有使用指令的完全权限。CPU会在启动时位于MM去配置计算机。xv6仅有几行代码运行于MM用来启动自己，之后便切换到SM。
- 在SM中，CPU可以运行特权命令（Privileged Instruction），比如读写寄存器等。假如CPU在UM是，一个进程使用了这类特权命令，那么CPU会切换到SM来终止该进程：因为这个进程使用了它不应该去使用的命令。
- 程序只能使用UM中的命令，所以我们说程序在“用户空间”中运行。而因为kernel可以运行特权命令，所以我们说kernel“在SM下运行”，或“在kernel space中运行”。假如一个用户空间的程序希望执行一个特权指令，它需要发出一个系统调用到kernel：本质上仍然是kernel在运行这个指令。RISC-V提供了一个特殊的指令ecall用来把CPU切换到SM并访问kernel。之后kernel会通过检验这个系统调用的参数来决定是否运行它。注：访问kernel的入口（Trampoline：Chap 4）是由kernel自己决定，假若让程序指定入口，会导致跳过验证阶段直接执行。  2.3 内核组成  OS本身也是一个较大的程序，其本身的权限也需要被考量。其中一种方案是把整个OS放到kernel中，也就是宏内核（Monolithic Kernel）。这种方案给予了OS完整的硬件权限。
- 宏内核的优点：OS各个部分之间可以更好地协同，比如OS的文件系统和虚拟内存系统共用一个数据缓冲器（Buffer）。"/>
+<meta name="twitter:description" content="目录 导言 2.1 抽象实体资源 2.2 用户模式，超级用户模式，和系统调用 2.3 内核组成 2.4 进程概述 2.5 xv6的启动与第一个进程 2.6 练习 导言： OS 需要分时去给予每个进程资源，让他们都有机会运行。同时也要让每个进程相隔离，这样的话，某个进程的崩坏不会影响其他进程或者内核的运行。但是完全的隔离也是不理想的，因为我们希望实现进程之间的通信。综上OS必须要具备三个特性：复用（Multiplexing），隔离（Isolation），交互（Interaction）。 本章为OS的这三个特性做了综述。
+2.1 抽象实体资源 OS的意义是值得思考的：为什么不可以让程序直接和硬件交互，就如一些嵌入式系统一般。实际上OS确实是不必要的，但是这种情况下，对于每个程序本身就会有更高的要求：每个程序必须“品行优良”，即程序之间必须要相互信任，并且每个程序必须自愿放弃资源供其他程序使用从而实现分时，而且程序不可以有Bug。但是这些情景是不现实的。OS的存在隔离了各个程序与软硬件，并且用抽象的方式把资源给到进程：比如I/O系统调用。即使不担心程序在无隔离的情况下会不稳定，这种分离和抽象也是更方便的。比如OS把与磁盘的交互抽象成了对fd和I/O的使用。同样地，这样的隔离使得只有OS可以去掌控硬件资源，比如通过切换CPU所执行的程序来实现分时，使得程序无法也不用去考虑分时：当一个进程进入了死循环时，其他进程仍然可以正常运行。可信计算基（TCB: Trusted Computing Base） 是指为实现计算机系统安全保护的所有安全保护机制的集合，kernel就是其中一种。
+Fig.1 抽象组成[1] 2.2 用户模式，超级用户模式，和系统调用 在强隔离（Strong Isolation） 中，一个进程的崩溃不会导致其他进程或者内核的崩溃，并且OS会清理崩溃进程且继续运行。为了实现这种强隔离，OS需要阻止进程去修改OS的数据结构，指令，以及其他进程的内存空间。RISC-V（xv6运行于的CPU）提供了三种权限，代表着三种不同的隔离强度：机器模式（MM：Machine Mode），超级用户模式（SM：Supervisor Mode），用户模式（UM：User Mode）。（注：不同的CPU支持不同的权限分级和名称。）寄存器MODE储存着指示当前模式的数据。
+在MM中，CPU有使用指令的完全权限。CPU会在启动时位于MM去配置计算机。xv6仅有几行代码运行于MM用来启动自己，之后便切换到SM。
+在SM中，CPU可以运行特权命令（Privileged Instruction），比如读写寄存器等。假如CPU在UM是，一个进程使用了这类特权命令，那么CPU会切换到SM来终止该进程：因为这个进程使用了它不应该去使用的命令。
+程序只能使用UM中的命令，所以我们说程序在“用户空间”中运行。而因为kernel可以运行特权命令，所以我们说kernel“在SM下运行”，或“在kernel space中运行”。假如一个用户空间的程序希望执行一个特权指令，它需要发出一个系统调用到kernel：本质上仍然是kernel在运行这个指令。RISC-V提供了一个特殊的指令ecall用来把CPU切换到SM并访问kernel。之后kernel会通过检验这个系统调用的参数来决定是否运行它。注：访问kernel的入口（Trampoline：Chap 4）是由kernel自己决定，假若让程序指定入口，会导致跳过验证阶段直接执行。 2.3 内核组成 OS本身也是一个较大的程序，其本身的权限也需要被考量。其中一种方案是把整个OS放到kernel中，也就是宏内核（Monolithic Kernel）。这种方案给予了OS完整的硬件权限。
+宏内核的优点：OS各个部分之间可以更好地协同，比如OS的文件系统和虚拟内存系统共用一个数据缓冲器（Buffer）。
+宏内核的缺点：OS各个部分之间的接口会更加复杂，这让设计者更容易写出Bug。在核空间（Kernel space）的bug可能会导致整个kernel，OS的崩溃。
+另一种方案，微内核（Microkernel），解决了宏内核的缺点。在这种实现中，kernel只包含OS中的一小部分，大部分OS运行于用户空间。如图所示，这台电脑的一部分OS将会运行于kernel之外，例如文件系统：由于文件系统提供文件相关的服务（Services），它被叫做“文件服务器（Server）”，作为一个独立的进程存在。通过kernel提供的 跨进程通信（IPC：Inter-Process communication） 机制，一个进程可以向各种服务器发送请求，并接收响应。微内核的内核实现中只有一些启动进程，发送消息，访问硬件的的函数/接口。这种特性让微内核更小更简单，例如Minix的内核仅有不到6,000行代码[3]。xv6使用宏内核的实现，但是由于它提供的服务很少，所以代码量不高。
+Fig.2 微内核[2] 2.4 进程概述 之前把进程定义为一个正在运行的程序，但更准确地说，进程是一个隔离单元（Unit of Isolation）。针对进程的抽象/隔离阻止一个进程进入其他进程的内存空间，CPU，fd等。同时也阻止进程进入kernel。
+当kernel开启了一个进程后，它给予这个进程：UM/SM Flag （代表这个进程的运行权限），地址空间（Address Space），线程分时（Time-slicing of Threads）。其中最重要的就是地址空间。Kernel为了加强进程之间的分隔，会使得一个进程认为自己有一台私有的电脑。这是通过给进程一个只属于它的内存系统（地址空间）实现的：别的进程无法访问这一地址空间。xv6，和大多类Unix操作系统，使用分页表（PT：Page Table） 给予进程内存空间。RISC-V下的PT记录着这个进程的虚拟内存（Virtual memory）地址和这些虚拟内存对应的物理内存（Physical memory）。类似fd，PT也是被kernel管理/维护的。
+RISC-V的指针，与x86_64相同，也是64bits。但是当硬件去找虚拟内存和物理层内存的对应关系的时候，只会对比64bits中的后39位，而xv6使用这39位中的后38位。换句话说，xv6中最多只有2^38 - 1个地址。（MAXVA: 0x3fffffffff）。"/>
 
 	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -129,7 +144,7 @@
 <p>     OS的意义是值得思考的：为什么不可以让程序直接和硬件交互，就如一些嵌入式系统一般。实际上OS确实是不必要的，但是这种情况下，对于每个程序本身就会有更高的要求：每个程序必须“品行优良”，即程序之间必须要相互信任，并且每个程序必须自愿放弃资源供其他程序使用从而实现分时，而且程序不可以有Bug。但是这些情景是不现实的。OS的存在隔离了各个程序与软硬件，并且用抽象的方式把资源给到进程：比如I/O系统调用。即使不担心程序在无隔离的情况下会不稳定，这种分离和抽象也是更方便的。比如OS把与磁盘的交互抽象成了对fd和I/O的使用。同样地，这样的隔离使得只有OS可以去掌控硬件资源，比如通过切换CPU所执行的程序来实现分时，使得程序无法也不用去考虑分时：当一个进程进入了死循环时，其他进程仍然可以正常运行。<strong>可信计算基（TCB: Trusted Computing Base）</strong> 是指为实现计算机系统安全保护的所有安全保护机制的集合，kernel就是其中一种。</p>
 <figure>
 <div style="text-align:center">
-<img src="https://scimos.com/wp-content/uploads/2020/07/ABSTRACTION-LAYERS-e1594137453801.png" alt="" style="width:60%; background: rgba(255, 255, 255, .5)">
+<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/03/Computer_abstraction_layers.svg/844px-Computer_abstraction_layers.svg.png" alt="" style="width:60%; background: rgba(255, 255, 255, .5)">
 <figcaption><b>Fig.1 抽象组成[1]</b></figcaption>
 </div>
 </figure>
@@ -141,7 +156,7 @@
 <br>
 <br>
 <h2 id="22-用户模式超级用户模式和系统调用">2.2 用户模式，超级用户模式，和系统调用<a href="#22-用户模式超级用户模式和系统调用" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
-<p>     在<strong>强隔离（Strong Isolation）</strong> 中，一个进程的崩溃不会导致其他进程或者内核的崩溃，并且OS会清理崩溃进程且继续运行。为了实现这种强隔离，OS需要阻止进程去修改OS的数据结构，指令，以及其他进程的内存空间。RISC-V（xv6运行于的CPU）提供了三种权限，代表着三种不同的隔离强度：<strong>机器模式（MM：Machine Mode），超级用户模式（SM：Supervisor Mode），用户模式（UM：User Mode）</strong>。（注：不同的CPU支持不同的权限分级和名称。）寄存器MODE储存着指示当前模式的数据。</p>
+<p>     在<strong>强隔离（Strong Isolation）</strong> 中，一个进程的崩溃不会导致其他进程或者内核的崩溃，并且OS会清理崩溃进程且继续运行。为了实现这种强隔离，OS需要阻止进程去修改OS的数据结构，指令，以及其他进程的内存空间。RISC-V（xv6运行于的CPU）提供了三种权限，代表着三种不同的隔离强度：<strong>机器模式（MM：Machine Mode），超级用户模式（SM：Supervisor Mode），用户模式（UM：User Mode）</strong>。（注：不同的CPU支持不同的权限分级和名称。）寄存器<code>MODE</code>储存着指示当前模式的数据。</p>
 <p>     在MM中，CPU有使用指令的完全权限。CPU会在启动时位于MM去配置计算机。xv6仅有几行代码运行于MM用来启动自己，之后便切换到SM。</p>
 <p>     在SM中，CPU可以运行<strong>特权命令（Privileged Instruction）</strong>，比如读写寄存器等。假如CPU在UM是，一个进程使用了这类特权命令，那么CPU会切换到SM来终止该进程：因为这个进程使用了它不应该去使用的命令。</p>
 <p>     程序只能使用UM中的命令，所以我们说程序在“用户空间”中运行。而因为kernel可以运行特权命令，所以我们说kernel“在SM下运行”，或“在kernel space中运行”。假如一个用户空间的程序希望执行一个特权指令，它需要发出一个系统调用到kernel：本质上仍然是kernel在运行这个指令。RISC-V提供了一个特殊的指令<code>ecall</code>用来把CPU切换到SM并访问kernel。之后kernel会通过检验这个系统调用的参数来决定是否运行它。注：访问kernel的入口（Trampoline：Chap 4）是由kernel自己决定，假若让程序指定入口，会导致跳过验证阶段直接执行。
@@ -184,7 +199,7 @@
 </div>
 </figure>
 <p>    Kernel保存着进程的信息。在xv6的kernel中，进程的信息通过一个结构体<code>struct proc </code>保存如PT，fd表，等信息和状态。比如<code>p-&gt;state</code> 标记进程是否被分配，准备运行，运行中，等待I/O，或正在退出；<code> p-&gt;pagetable</code>指向PT的地址。</p>
-<p>    每一个进程都有一个<strong>线程（Thread）</strong> 去执行它的指令。一个线程可以被<strong>挂起（Suspended），恢复（Resume）</strong>：CPU实际上通过挂起进程的线程并且恢复另一个进程的线程来实现分时。每一个进程都有两个<strong>栈（Stack）</strong>：<strong>用户栈（User stack），内核栈（Kernel stack）</strong> （内核栈的地址被保存在上述的结构体中）。当一个线程在执行用户模式的指令的时候，内核栈是空的，用户栈保存本地变量，返回地址等。而当线程使用内核栈的时候，用户栈的内容会被保存：两个栈相隔，即使用户栈遭到破坏也不会导致内核受损。当使用一个系统调用的时候，进程会使用<code>ecall</code>指令（由RISC-V提供）。之后CPU会从UM转换到SM。此时本线程的<strong>程序计数器（Program Pointer）</strong> （实际上就是xv86中的<strong>指令指针寄存器（Instruction Pointer）</strong>）会指向kernel提供的一个入口地址。入口地址后的指令切换线程使用的栈为内核栈。在执行完内核指令（系统调用）后，通过调用指令<code>sret</code>，kernel切换回用户模式，并且让程序计数器指会跳转之前的的指令地址并继续运行。</p>
+<p>    每一个进程都有一个<strong>线程（Thread）</strong> 去执行它的指令。一个线程可以被<strong>挂起（Suspended），恢复（Resume）</strong>：CPU实际上通过挂起进程的线程并且恢复另一个进程的线程来实现分时。每一个进程都有两个<strong>栈（Stack）</strong>：<strong>用户栈（User stack），内核栈（Kernel stack）</strong> （内核栈的地址被保存在上述的结构体中），或者说有两个进程：用户空间进程和内核空间进程。当一个线程在执行用户模式的指令的时候，内核栈是空的，用户栈保存本地变量，返回地址等。而当线程使用内核栈的时候，用户栈的内容会被保存：两个栈相隔，即使用户栈遭到破坏也不会导致内核受损。当使用一个系统调用的时候，进程会使用<code>ecall</code>指令（由RISC-V提供）。之后CPU会从UM转换到SM。此时本线程的<strong>程序计数器（Program Pointer）</strong> （实际上就是xv86中的<strong>指令指针寄存器（Instruction Pointer）</strong>）会指向kernel提供的一个入口地址。入口地址后的指令切换线程使用的栈为内核栈。在执行完内核指令（系统调用）后，通过调用指令<code>sret</code>，kernel切换回用户模式，并且让程序计数器指会跳转之前的的指令地址并继续运行。</p>
 <br>
 <br>
 <br>
@@ -214,7 +229,7 @@
 <br>
 <blockquote>
 <h3 id="参考">参考:<a href="#参考" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h3>
-<p>    [1] 抽象组成：https://scimos.com/2020/07/07/layers-of-abstraction/</p>
+<p>    [1] 抽象组成：https://upload.wikimedia.org/wikipedia/commons/e/ec/Kernel-microkernel.svg</p>
 <p>    [2] 微内核：https://upload.wikimedia.org/wikipedia/commons/e/ec/Kernel-microkernel.svg</p>
 <p>    [3] Minix: <a href="https://en.wikipedia.org/wiki/Minix_3">https://en.wikipedia.org/wiki/Minix_3</a></p>
 <p>    [4] 内存布局： <a href="https://1480285644-files.gitbook.io/~/files/v0/b/gitbook-legacy-files/o/assets%2F-M13JlZNu0b_edmxHTQk%2F-M4bjWmlwcbXIswV6aVw%2F-M4bjy4gBSfcyAryJi1p%2Fimage.png?alt=media&amp;token=f65768be-4c27-4c03-9552-455484e7b41a">https://1480285644-files.gitbook.io/~/files/v0/b/gitbook-legacy-files/o/assets%2F-M13JlZNu0b_edmxHTQk%2F-M4bjWmlwcbXIswV6aVw%2F-M4bjy4gBSfcyAryJi1p%2Fimage.png?alt=media&amp;token=f65768be-4c27-4c03-9552-455484e7b41a</a></p>
@@ -248,7 +263,7 @@
 
 
 
-	<script src="https://hoooao.github.io/js/bundle.min.5a42c67b729ee2fa1059251688235399704707e04edb4e28c42c6f6dfa49d1d9.js" integrity="sha256-WkLGe3Ke4voQWSUWiCNTmXBHB+BO204oxCxvbfpJ0dk=" crossorigin="anonymous"></script>
+	<script src="https://hoooao.github.io/js/bundle.min.580988ed2982bcbb74a1773c7abea97b43e4c43b9324e10cda0813ec6ec4bb67.js" integrity="sha256-WAmI7SmCvLt0oXc8er6pe0PkxDuTJOEM2ggT7G7Eu2c=" crossorigin="anonymous"></script>
 	
 
 </body>

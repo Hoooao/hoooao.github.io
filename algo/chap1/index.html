@@ -8,11 +8,15 @@
 	<meta name="theme-color" content="#494f5c">
 	<meta name="msapplication-TileColor" content="#494f5c">
 <meta itemprop="name" content="Chap1: 基础算法 Basics">
-<meta itemprop="description" content="目录   导言  1.1 排序  1.2 二分  1.2.1 整数二分   1.2.2 浮点数二分    1.3 高精度   1.3.1 高精度加法  1.3.2 高精度减法  1.3.3 高精度乘法  1.3.4 高精度除法    1.4 前缀和与差分   1.4.1 一维前缀和  1.4.2 二维（矩阵）前缀和  1.4.3 一维差分  1.4.4 矩阵差分    1.5 双指针  1.6 位运算  1.7 离散化  1.8 区间合并   导言：  本章主要介绍一些常用的基础算法：包括排序、二分、高精度、前缀和与差分、双指针算法、位运算、离散化、区间合并等内容。"><meta itemprop="datePublished" content="2022-07-31T10:51:16-04:00" />
+<meta itemprop="description" content="目录 导言 1.1 排序 1.2 二分 1.2.1 整数二分 1.2.2 浮点数二分 1.3 高精度 1.3.1 高精度加法 1.3.2 高精度减法 1.3.3 高精度乘法 1.3.4 高精度除法 1.4 前缀和与差分 1.4.1 一维前缀和 1.4.2 二维（矩阵）前缀和 1.4.3 一维差分 1.4.4 矩阵差分 1.5 双指针 1.6 位运算 1.7 离散化 1.8 区间合并 导言： 本章主要介绍一些常用的基础算法：包括排序、二分、高精度、前缀和与差分、双指针算法、位运算、离散化、区间合并等内容。
+1.1 排序 快速排序：
+int arr[N]; void quick_sort(int arr[],int l,int r){ if(l&gt;=r) return; //从左右端点两侧开始，因为下面do/while int i=l-1,j=r&#43;1; //x取中间值可以防止边界问题 int x = arr[l &#43; r &gt;&gt; 1]; while(i&lt;j){ do(i&#43;&#43;);while(arr[i]&lt;x); do(j--);while(arr[j]&gt;x); //交换 //这里的判断很重要，因为很可能会再一次循环中i&gt;j //比如当j=i&#43;2，i&#43;&#43;之后arr[i]碰巧&lt;x，会再次i&#43;&#43;，然后j--就会导致i&gt;j //i&gt;j之后必然swap，所以没有这个if一定会出错。 if (i &lt; j) swap(arr[i], arr[j]); } quick_sort(arr,l,j); quick_sort(arr,j&#43;1,r); } 归并排序"><meta itemprop="datePublished" content="2022-07-31T10:51:16-04:00" />
 <meta itemprop="dateModified" content="2022-07-31T10:51:16-04:00" />
-<meta itemprop="wordCount" content="1482">
+<meta itemprop="wordCount" content="1484">
 <meta itemprop="keywords" content="" /><meta property="og:title" content="Chap1: 基础算法 Basics" />
-<meta property="og:description" content="目录   导言  1.1 排序  1.2 二分  1.2.1 整数二分   1.2.2 浮点数二分    1.3 高精度   1.3.1 高精度加法  1.3.2 高精度减法  1.3.3 高精度乘法  1.3.4 高精度除法    1.4 前缀和与差分   1.4.1 一维前缀和  1.4.2 二维（矩阵）前缀和  1.4.3 一维差分  1.4.4 矩阵差分    1.5 双指针  1.6 位运算  1.7 离散化  1.8 区间合并   导言：  本章主要介绍一些常用的基础算法：包括排序、二分、高精度、前缀和与差分、双指针算法、位运算、离散化、区间合并等内容。" />
+<meta property="og:description" content="目录 导言 1.1 排序 1.2 二分 1.2.1 整数二分 1.2.2 浮点数二分 1.3 高精度 1.3.1 高精度加法 1.3.2 高精度减法 1.3.3 高精度乘法 1.3.4 高精度除法 1.4 前缀和与差分 1.4.1 一维前缀和 1.4.2 二维（矩阵）前缀和 1.4.3 一维差分 1.4.4 矩阵差分 1.5 双指针 1.6 位运算 1.7 离散化 1.8 区间合并 导言： 本章主要介绍一些常用的基础算法：包括排序、二分、高精度、前缀和与差分、双指针算法、位运算、离散化、区间合并等内容。
+1.1 排序 快速排序：
+int arr[N]; void quick_sort(int arr[],int l,int r){ if(l&gt;=r) return; //从左右端点两侧开始，因为下面do/while int i=l-1,j=r&#43;1; //x取中间值可以防止边界问题 int x = arr[l &#43; r &gt;&gt; 1]; while(i&lt;j){ do(i&#43;&#43;);while(arr[i]&lt;x); do(j--);while(arr[j]&gt;x); //交换 //这里的判断很重要，因为很可能会再一次循环中i&gt;j //比如当j=i&#43;2，i&#43;&#43;之后arr[i]碰巧&lt;x，会再次i&#43;&#43;，然后j--就会导致i&gt;j //i&gt;j之后必然swap，所以没有这个if一定会出错。 if (i &lt; j) swap(arr[i], arr[j]); } quick_sort(arr,l,j); quick_sort(arr,j&#43;1,r); } 归并排序" />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://hoooao.github.io/algo/chap1/" /><meta property="article:section" content="algo" />
 <meta property="article:published_time" content="2022-07-31T10:51:16-04:00" />
@@ -20,7 +24,9 @@
 
 <meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="Chap1: 基础算法 Basics"/>
-<meta name="twitter:description" content="目录   导言  1.1 排序  1.2 二分  1.2.1 整数二分   1.2.2 浮点数二分    1.3 高精度   1.3.1 高精度加法  1.3.2 高精度减法  1.3.3 高精度乘法  1.3.4 高精度除法    1.4 前缀和与差分   1.4.1 一维前缀和  1.4.2 二维（矩阵）前缀和  1.4.3 一维差分  1.4.4 矩阵差分    1.5 双指针  1.6 位运算  1.7 离散化  1.8 区间合并   导言：  本章主要介绍一些常用的基础算法：包括排序、二分、高精度、前缀和与差分、双指针算法、位运算、离散化、区间合并等内容。"/>
+<meta name="twitter:description" content="目录 导言 1.1 排序 1.2 二分 1.2.1 整数二分 1.2.2 浮点数二分 1.3 高精度 1.3.1 高精度加法 1.3.2 高精度减法 1.3.3 高精度乘法 1.3.4 高精度除法 1.4 前缀和与差分 1.4.1 一维前缀和 1.4.2 二维（矩阵）前缀和 1.4.3 一维差分 1.4.4 矩阵差分 1.5 双指针 1.6 位运算 1.7 离散化 1.8 区间合并 导言： 本章主要介绍一些常用的基础算法：包括排序、二分、高精度、前缀和与差分、双指针算法、位运算、离散化、区间合并等内容。
+1.1 排序 快速排序：
+int arr[N]; void quick_sort(int arr[],int l,int r){ if(l&gt;=r) return; //从左右端点两侧开始，因为下面do/while int i=l-1,j=r&#43;1; //x取中间值可以防止边界问题 int x = arr[l &#43; r &gt;&gt; 1]; while(i&lt;j){ do(i&#43;&#43;);while(arr[i]&lt;x); do(j--);while(arr[j]&gt;x); //交换 //这里的判断很重要，因为很可能会再一次循环中i&gt;j //比如当j=i&#43;2，i&#43;&#43;之后arr[i]碰巧&lt;x，会再次i&#43;&#43;，然后j--就会导致i&gt;j //i&gt;j之后必然swap，所以没有这个if一定会出错。 if (i &lt; j) swap(arr[i], arr[j]); } quick_sort(arr,l,j); quick_sort(arr,j&#43;1,r); } 归并排序"/>
 
 	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -826,7 +832,7 @@ $−10^9\leq x\leq 10^9$,</p>
 
 
 
-	<script src="https://hoooao.github.io/js/bundle.min.5a42c67b729ee2fa1059251688235399704707e04edb4e28c42c6f6dfa49d1d9.js" integrity="sha256-WkLGe3Ke4voQWSUWiCNTmXBHB+BO204oxCxvbfpJ0dk=" crossorigin="anonymous"></script>
+	<script src="https://hoooao.github.io/js/bundle.min.580988ed2982bcbb74a1773c7abea97b43e4c43b9324e10cda0813ec6ec4bb67.js" integrity="sha256-WAmI7SmCvLt0oXc8er6pe0PkxDuTJOEM2ggT7G7Eu2c=" crossorigin="anonymous"></script>
 	
 
 </body>

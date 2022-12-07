@@ -8,11 +8,23 @@
 	<meta name="theme-color" content="#494f5c">
 	<meta name="msapplication-TileColor" content="#494f5c">
 <meta itemprop="name" content="Chap 8: 文件系统 File system">
-<meta itemprop="description" content="目录   导言  8.1 概述 Overview  8.2 缓存缓冲层 Buffer cache layer  8.3 代码：缓存缓冲 Buffer cache  8.4 日志层 Logging Layer  8.5 日志设计 Log Design  8.6 代码：日志 Code：logging  8.7 代码：Block分配器 Code：Block Allocator  8.8 Inode层 Inode layer  8.9 代码：Inode Code：Inode  8.10 代码：Inode 内容 Code：Inode content  8.11 代码：目录层 Code：Directory layer  8.12 代码：路径名称 Code：Path names  8.13 文件描述符层 File descriptor layer  8."><meta itemprop="datePublished" content="2022-07-30T21:51:42-04:00" />
+<meta itemprop="description" content="目录 导言 8.1 概述 Overview 8.2 缓存缓冲层 Buffer cache layer 8.3 代码：缓存缓冲 Buffer cache 8.4 日志层 Logging Layer 8.5 日志设计 Log Design 8.6 代码：日志 Code：logging 8.7 代码：Block分配器 Code：Block Allocator 8.8 Inode层 Inode layer 8.9 代码：Inode Code：Inode 8.10 代码：Inode 内容 Code：Inode content 8.11 代码：目录层 Code：Directory layer 8.12 代码：路径名称 Code：Path names 8.13 文件描述符层 File descriptor layer 8.14 代码：系统调用 Code：System calls 8.15 练习 Exercises 导言： 一个文件系统的目的是储存和组织数据，把这些数据供给与多个进程和用户，同时也要保证重启后数据的保留。 创建一个文件系统有几个难点：
+文件系统需要有一个在磁盘上的树类结构去储存文件目录和文件本身。并且也要知道哪些磁盘块（block/sector）是被占用的，哪些是可以使用的。
+文件系统必须有崩溃修复机制。也就是说在崩溃发生，比如断电，重启后，文件系统必须正常工作。不然可能造成类似并行错误的发生。
+不同的进程可能会同时去访问一个文件，所以需要保证并发时文件系统也能正常运行。
+从磁盘中获取数据很慢，所以文件系统必须在内存中有对部分常用的磁盘内容缓存。
+本章解释xv6是如何解决这些困难的。
+8.1 概述 Overview xv6的文件系统有7层:"><meta itemprop="datePublished" content="2022-07-30T21:51:42-04:00" />
 <meta itemprop="dateModified" content="2022-07-30T21:51:42-04:00" />
 <meta itemprop="wordCount" content="2472">
 <meta itemprop="keywords" content="" /><meta property="og:title" content="Chap 8: 文件系统 File system" />
-<meta property="og:description" content="目录   导言  8.1 概述 Overview  8.2 缓存缓冲层 Buffer cache layer  8.3 代码：缓存缓冲 Buffer cache  8.4 日志层 Logging Layer  8.5 日志设计 Log Design  8.6 代码：日志 Code：logging  8.7 代码：Block分配器 Code：Block Allocator  8.8 Inode层 Inode layer  8.9 代码：Inode Code：Inode  8.10 代码：Inode 内容 Code：Inode content  8.11 代码：目录层 Code：Directory layer  8.12 代码：路径名称 Code：Path names  8.13 文件描述符层 File descriptor layer  8." />
+<meta property="og:description" content="目录 导言 8.1 概述 Overview 8.2 缓存缓冲层 Buffer cache layer 8.3 代码：缓存缓冲 Buffer cache 8.4 日志层 Logging Layer 8.5 日志设计 Log Design 8.6 代码：日志 Code：logging 8.7 代码：Block分配器 Code：Block Allocator 8.8 Inode层 Inode layer 8.9 代码：Inode Code：Inode 8.10 代码：Inode 内容 Code：Inode content 8.11 代码：目录层 Code：Directory layer 8.12 代码：路径名称 Code：Path names 8.13 文件描述符层 File descriptor layer 8.14 代码：系统调用 Code：System calls 8.15 练习 Exercises 导言： 一个文件系统的目的是储存和组织数据，把这些数据供给与多个进程和用户，同时也要保证重启后数据的保留。 创建一个文件系统有几个难点：
+文件系统需要有一个在磁盘上的树类结构去储存文件目录和文件本身。并且也要知道哪些磁盘块（block/sector）是被占用的，哪些是可以使用的。
+文件系统必须有崩溃修复机制。也就是说在崩溃发生，比如断电，重启后，文件系统必须正常工作。不然可能造成类似并行错误的发生。
+不同的进程可能会同时去访问一个文件，所以需要保证并发时文件系统也能正常运行。
+从磁盘中获取数据很慢，所以文件系统必须在内存中有对部分常用的磁盘内容缓存。
+本章解释xv6是如何解决这些困难的。
+8.1 概述 Overview xv6的文件系统有7层:" />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://hoooao.github.io/os/chap8/" /><meta property="article:section" content="os" />
 <meta property="article:published_time" content="2022-07-30T21:51:42-04:00" />
@@ -20,7 +32,13 @@
 
 <meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="Chap 8: 文件系统 File system"/>
-<meta name="twitter:description" content="目录   导言  8.1 概述 Overview  8.2 缓存缓冲层 Buffer cache layer  8.3 代码：缓存缓冲 Buffer cache  8.4 日志层 Logging Layer  8.5 日志设计 Log Design  8.6 代码：日志 Code：logging  8.7 代码：Block分配器 Code：Block Allocator  8.8 Inode层 Inode layer  8.9 代码：Inode Code：Inode  8.10 代码：Inode 内容 Code：Inode content  8.11 代码：目录层 Code：Directory layer  8.12 代码：路径名称 Code：Path names  8.13 文件描述符层 File descriptor layer  8."/>
+<meta name="twitter:description" content="目录 导言 8.1 概述 Overview 8.2 缓存缓冲层 Buffer cache layer 8.3 代码：缓存缓冲 Buffer cache 8.4 日志层 Logging Layer 8.5 日志设计 Log Design 8.6 代码：日志 Code：logging 8.7 代码：Block分配器 Code：Block Allocator 8.8 Inode层 Inode layer 8.9 代码：Inode Code：Inode 8.10 代码：Inode 内容 Code：Inode content 8.11 代码：目录层 Code：Directory layer 8.12 代码：路径名称 Code：Path names 8.13 文件描述符层 File descriptor layer 8.14 代码：系统调用 Code：System calls 8.15 练习 Exercises 导言： 一个文件系统的目的是储存和组织数据，把这些数据供给与多个进程和用户，同时也要保证重启后数据的保留。 创建一个文件系统有几个难点：
+文件系统需要有一个在磁盘上的树类结构去储存文件目录和文件本身。并且也要知道哪些磁盘块（block/sector）是被占用的，哪些是可以使用的。
+文件系统必须有崩溃修复机制。也就是说在崩溃发生，比如断电，重启后，文件系统必须正常工作。不然可能造成类似并行错误的发生。
+不同的进程可能会同时去访问一个文件，所以需要保证并发时文件系统也能正常运行。
+从磁盘中获取数据很慢，所以文件系统必须在内存中有对部分常用的磁盘内容缓存。
+本章解释xv6是如何解决这些困难的。
+8.1 概述 Overview xv6的文件系统有7层:"/>
 
 	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -217,14 +235,14 @@
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
 </span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">buf</span> <span class="o">*</span><span class="n">b</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">  <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">bcache</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">bcache</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="c1">// Is the block already cached?
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">for</span><span class="p">(</span><span class="n">b</span> <span class="o">=</span> <span class="n">bcache</span><span class="p">.</span><span class="n">head</span><span class="p">.</span><span class="n">next</span><span class="p">;</span> <span class="n">b</span> <span class="o">!=</span> <span class="o">&amp;</span><span class="n">bcache</span><span class="p">.</span><span class="n">head</span><span class="p">;</span> <span class="n">b</span> <span class="o">=</span> <span class="n">b</span><span class="o">-&gt;</span><span class="n">next</span><span class="p">){</span>
 </span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">b</span><span class="o">-&gt;</span><span class="n">dev</span> <span class="o">==</span> <span class="n">dev</span> <span class="o">&amp;&amp;</span> <span class="n">b</span><span class="o">-&gt;</span><span class="n">blockno</span> <span class="o">==</span> <span class="n">blockno</span><span class="p">){</span>
 </span></span><span class="line"><span class="cl">      <span class="n">b</span><span class="o">-&gt;</span><span class="n">refcnt</span><span class="o">++</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">      <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">bcache</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl">      <span class="n">acquiresleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">b</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">bcache</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="nf">acquiresleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">b</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">      <span class="k">return</span> <span class="n">b</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">    <span class="p">}</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
@@ -237,12 +255,12 @@
 </span></span><span class="line"><span class="cl">      <span class="n">b</span><span class="o">-&gt;</span><span class="n">blockno</span> <span class="o">=</span> <span class="n">blockno</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">      <span class="n">b</span><span class="o">-&gt;</span><span class="n">valid</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">      <span class="n">b</span><span class="o">-&gt;</span><span class="n">refcnt</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">      <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">bcache</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl">      <span class="n">acquiresleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">b</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">bcache</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="nf">acquiresleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">b</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">      <span class="k">return</span> <span class="n">b</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">    <span class="p">}</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
-</span></span><span class="line"><span class="cl">  <span class="n">panic</span><span class="p">(</span><span class="s">&#34;bget: no buffers&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">panic</span><span class="p">(</span><span class="s">&#34;bget: no buffers&#34;</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p><code>bget</code>会先去<code>bcache</code>中找传入的blockno是否存在，如果存在则直接返回，注意这个循环是从头部开始正序遍历，因为假设bread可能是来访问一个已经被载入缓存的block的。但是假如目标复制品不存在，就需要放弃一个保存的复制品了。注意这里的循环是从尾部（由于是一个环形链表，尾部在头部之前）开始遍历到头部来找<code>refcnt</code>，也就是对于有多少个指针指向这个buf的计数，为0的buf，如果有就把这个buf替换成新的buf的信息（<code>device，sector number</code>等），如果没有，就崩溃。在返回这个buf之前，<code>bget</code>会为它开启<code>sleeplock</code>，这样就保证了只有使用<code>bread</code>的进程可以使用这个buf。
 在<code>bread</code>得到一个buf之后，假如<code>valid</code>没有被设置，也就是说得到的是一个全新的buf，<code>bread</code>会通过调用函数 <code>virtio_disk_rw</code>从磁盘中把目标block的内容读取进来。</p>
@@ -251,20 +269,20 @@
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span>
 </span></span><span class="line"><span class="cl"><span class="nf">bwrite</span><span class="p">(</span><span class="k">struct</span> <span class="n">buf</span> <span class="o">*</span><span class="n">b</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
-</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="o">!</span><span class="n">holdingsleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">b</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">))</span>
-</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;bwrite&#34;</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl">  <span class="n">virtio_disk_rw</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="o">!</span><span class="nf">holdingsleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">b</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">panic</span><span class="p">(</span><span class="s">&#34;bwrite&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">virtio_disk_rw</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p>把做出的修改写回到磁盘中去。同样地，它也使用了<code>virtio_disk_rw</code>。注意，调用<code>bwrite</code>之前，b的<code>sleeplock</code>一定是在被获取的状态，不然的话将会无法成功写入：因为程序无法保证这一写入是否被并发破坏。虽然在<code>bwrite</code>中没有释放这个锁，有专门的<code>bresle</code>函数用来释放这个锁。</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span>
 </span></span><span class="line"><span class="cl"><span class="nf">brelse</span><span class="p">(</span><span class="k">struct</span> <span class="n">buf</span> <span class="o">*</span><span class="n">b</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
-</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="o">!</span><span class="n">holdingsleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">b</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">))</span>
-</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;brelse&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="o">!</span><span class="nf">holdingsleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">b</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">panic</span><span class="p">(</span><span class="s">&#34;brelse&#34;</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">  <span class="n">releasesleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">b</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">releasesleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">b</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">  <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">bcache</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">bcache</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="n">b</span><span class="o">-&gt;</span><span class="n">refcnt</span><span class="o">--</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="k">if</span> <span class="p">(</span><span class="n">b</span><span class="o">-&gt;</span><span class="n">refcnt</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">    <span class="c1">// no one is waiting for it.
@@ -276,7 +294,7 @@
 </span></span><span class="line"><span class="cl">    <span class="n">bcache</span><span class="p">.</span><span class="n">head</span><span class="p">.</span><span class="n">next</span> <span class="o">=</span> <span class="n">b</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
 </span></span><span class="line"><span class="cl">  
-</span></span><span class="line"><span class="cl">  <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">bcache</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">bcache</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p>除了会把这个锁释放掉，该函数也会把这个buf移动到<code>bcache</code>的最前面，这样规范了最久没用的buf一定在末尾，使得<code>bget</code>的性能得到优化。注：当<code>refcnt</code>不为0，证明有别的进程也在使用这个指针，不会切换buf的位置；所以先释放睡眠锁再<code>b-&gt;refcnt--</code>也是安全的：别的进程肯定不会运行切换buf位置的代码</p>
 <br>
@@ -325,14 +343,14 @@
 <br>
 <h2 id="86-代码日志-codelogging">8.6 代码：日志 Code：logging<a href="#86-代码日志-codelogging" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
 <p>    所有写入磁盘的系统调用大致是这样的（所有操作都在<code>begin_op(),end_op()</code>之间）：</p>
-<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl">  <span class="n">begin_op</span><span class="p">();</span>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl">  <span class="nf">begin_op</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">  <span class="p">...</span>
-</span></span><span class="line"><span class="cl">  <span class="n">bp</span> <span class="o">=</span> <span class="n">bread</span><span class="p">(...);</span>
+</span></span><span class="line"><span class="cl">  <span class="n">bp</span> <span class="o">=</span> <span class="nf">bread</span><span class="p">(...);</span>
 </span></span><span class="line"><span class="cl">  <span class="n">bp</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">[...]</span> <span class="o">=</span> <span class="p">...;</span>
 </span></span><span class="line"><span class="cl">  <span class="c1">//不使用bwrite，而是log_write
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">log_write</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nf">log_write</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="p">...</span>
-</span></span><span class="line"><span class="cl">  <span class="n">end_op</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">end_op</span><span class="p">();</span>
 </span></span></code></pre></div><p><strong>注</strong>：这里涉及的&quot;日志&quot;实际上有两个：内存中log结构体，和磁盘上真正的log区域。由于后者本质上也是磁盘内容，前者可以理解为后者的“复制品”，用来同步修改。</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="k">struct</span> <span class="n">log</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">spinlock</span> <span class="n">lock</span><span class="p">;</span>
@@ -352,22 +370,22 @@
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span>
 </span></span><span class="line"><span class="cl"><span class="nf">begin_op</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
-</span></span><span class="line"><span class="cl">  <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">log</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">log</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="k">while</span><span class="p">(</span><span class="mi">1</span><span class="p">){</span>
 </span></span><span class="line"><span class="cl">    <span class="c1">//committing只是一个bit
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span><span class="p">(</span><span class="n">log</span><span class="p">.</span><span class="n">committing</span><span class="p">){</span>
 </span></span><span class="line"><span class="cl">      <span class="c1">//等待提交完毕后的唤醒
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="n">sleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">log</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">log</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="nf">sleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">log</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">log</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">      <span class="c1">//LOGSIZE=30，MAXOPBLOCKS=10
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="c1">//这里检查预留问题
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="p">}</span> <span class="k">else</span> <span class="k">if</span><span class="p">(</span><span class="n">log</span><span class="p">.</span><span class="n">lh</span><span class="p">.</span><span class="n">n</span> <span class="o">+</span> <span class="p">(</span><span class="n">log</span><span class="p">.</span><span class="n">outstanding</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="n">MAXOPBLOCKS</span> <span class="o">&gt;</span> <span class="n">LOGSIZE</span><span class="p">){</span>
 </span></span><span class="line"><span class="cl">      <span class="c1">// this op might exhaust log space; wait for commit.
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="c1">//如果剩余空间不够，就睡眠
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="n">sleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">log</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">log</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="nf">sleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">log</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">log</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">      <span class="n">log</span><span class="p">.</span><span class="n">outstanding</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">      <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">log</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">log</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">      <span class="k">break</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">    <span class="p">}</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
@@ -378,11 +396,11 @@
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
 </span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">i</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">  <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">log</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">log</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="k">if</span> <span class="p">(</span><span class="n">log</span><span class="p">.</span><span class="n">lh</span><span class="p">.</span><span class="n">n</span> <span class="o">&gt;=</span> <span class="n">LOGSIZE</span> <span class="o">||</span> <span class="n">log</span><span class="p">.</span><span class="n">lh</span><span class="p">.</span><span class="n">n</span> <span class="o">&gt;=</span> <span class="n">log</span><span class="p">.</span><span class="n">size</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;too big a transaction&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">panic</span><span class="p">(</span><span class="s">&#34;too big a transaction&#34;</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="k">if</span> <span class="p">(</span><span class="n">log</span><span class="p">.</span><span class="n">outstanding</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;log_write outside of trans&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">panic</span><span class="p">(</span><span class="s">&#34;log_write outside of trans&#34;</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="k">for</span> <span class="p">(</span><span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">log</span><span class="p">.</span><span class="n">lh</span><span class="p">.</span><span class="n">n</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">log</span><span class="p">.</span><span class="n">lh</span><span class="p">.</span><span class="n">block</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="n">b</span><span class="o">-&gt;</span><span class="n">blockno</span><span class="p">)</span>   <span class="c1">// log absorption
@@ -390,16 +408,16 @@
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
 </span></span><span class="line"><span class="cl">  <span class="n">log</span><span class="p">.</span><span class="n">lh</span><span class="p">.</span><span class="n">block</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">b</span><span class="o">-&gt;</span><span class="n">blockno</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="k">if</span> <span class="p">(</span><span class="n">i</span> <span class="o">==</span> <span class="n">log</span><span class="p">.</span><span class="n">lh</span><span class="p">.</span><span class="n">n</span><span class="p">)</span> <span class="p">{</span>  <span class="c1">// Add new block to log?
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">bpin</span><span class="p">(</span><span class="n">b</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nf">bpin</span><span class="p">(</span><span class="n">b</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="n">log</span><span class="p">.</span><span class="n">lh</span><span class="p">.</span><span class="n">n</span><span class="o">++</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
 </span></span></code></pre></div><p>    <code>log_write()</code>会把一个block的编号写入header的block数组中。假如这个编号已经存在了，那么不会把这个编号再次记录在数组末尾，这一机制叫做<strong>Absorption</strong>：它节省了空间的同时也会提高效率因为只会有一个block的复制品会被读写。如果不存在的话就添加到末尾。最终对于新添加的block，<code>log_write</code>会把它通过<code>bpin</code>“钉”在bcache中，后者实际上就是给这个block/buf添加了一个refcnt。这样保证了该block不会再次被读取：在这个block被提交修改之前，所有进程都应当能看到它的最新状态。</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span>
 </span></span><span class="line"><span class="cl"><span class="nf">bpin</span><span class="p">(</span><span class="k">struct</span> <span class="n">buf</span> <span class="o">*</span><span class="n">b</span><span class="p">)</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">  <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">bcache</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">bcache</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="n">b</span><span class="o">-&gt;</span><span class="n">refcnt</span><span class="o">++</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">  <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">bcache</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">bcache</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p><code>end_op()</code>减少<code>outstanding-=1</code>。假如<code>outstanding==0</code>，就可以commit了。</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span>
@@ -407,10 +425,10 @@
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
 </span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">do_commit</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">  <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">log</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">log</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="n">log</span><span class="p">.</span><span class="n">outstanding</span> <span class="o">-=</span> <span class="mi">1</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">log</span><span class="p">.</span><span class="n">committing</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;log.committing&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">panic</span><span class="p">(</span><span class="s">&#34;log.committing&#34;</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">log</span><span class="p">.</span><span class="n">outstanding</span> <span class="o">==</span> <span class="mi">0</span><span class="p">){</span>
 </span></span><span class="line"><span class="cl">    <span class="n">do_commit</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">    <span class="n">log</span><span class="p">.</span><span class="n">committing</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
@@ -418,18 +436,18 @@
 </span></span><span class="line"><span class="cl">    <span class="c1">// begin_op() may be waiting for log space,
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// and decrementing log.outstanding has decreased
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// the amount of reserved space.
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">wakeup</span><span class="p">(</span><span class="o">&amp;</span><span class="n">log</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nf">wakeup</span><span class="p">(</span><span class="o">&amp;</span><span class="n">log</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
-</span></span><span class="line"><span class="cl">  <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">log</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">log</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">do_commit</span><span class="p">){</span>
 </span></span><span class="line"><span class="cl">    <span class="c1">// call commit w/o holding locks, since not allowed
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// to sleep with locks.
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">commit</span><span class="p">();</span>
-</span></span><span class="line"><span class="cl">    <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">log</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nf">commit</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">log</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="n">log</span><span class="p">.</span><span class="n">committing</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">    <span class="n">wakeup</span><span class="p">(</span><span class="o">&amp;</span><span class="n">log</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl">    <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">log</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">wakeup</span><span class="p">(</span><span class="o">&amp;</span><span class="n">log</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">log</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p>调用<code>commit()</code>。</p>
@@ -437,11 +455,11 @@
 </span></span><span class="line"><span class="cl"><span class="nf">commit</span><span class="p">()</span>
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
 </span></span><span class="line"><span class="cl">  <span class="k">if</span> <span class="p">(</span><span class="n">log</span><span class="p">.</span><span class="n">lh</span><span class="p">.</span><span class="n">n</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">    <span class="n">write_log</span><span class="p">();</span>     <span class="c1">// Write modified blocks from cache to log
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">write_head</span><span class="p">();</span>    <span class="c1">// Write header to disk -- the real commit：在这个函数调用bwrite写入header的瞬间 
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">install_trans</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span> <span class="c1">// Now install writes to home locations
+</span></span><span class="line"><span class="cl">    <span class="nf">write_log</span><span class="p">();</span>     <span class="c1">// Write modified blocks from cache to log
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nf">write_head</span><span class="p">();</span>    <span class="c1">// Write header to disk -- the real commit：在这个函数调用bwrite写入header的瞬间 
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nf">install_trans</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span> <span class="c1">// Now install writes to home locations
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">log</span><span class="p">.</span><span class="n">lh</span><span class="p">.</span><span class="n">n</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">    <span class="n">write_head</span><span class="p">();</span>    <span class="c1">// Erase the transaction from the log
+</span></span><span class="line"><span class="cl">    <span class="nf">write_head</span><span class="p">();</span>    <span class="c1">// Erase the transaction from the log
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="p">}</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p><code>commit</code>首先会把log结构体中记录的所有block的复制品从<code>bcache</code>拷贝到<strong>磁盘</strong>上的log的对应位置，然后把log结构体的head放入<strong>真</strong><code>log.head</code>。最后调用<code>install_trans(0)</code>把真log中的数据同步到block们的原始位置。然后把两个log（磁盘上的和结构体）初始化。<strong>注</strong>：<code>outstanding</code>预留出的空间在<code>log_write</code>中被实际使用，<code>end_op</code>中减小<code>outstanding</code>并不会有什么影响：在<code>begin_op</code>中比较的是<code>log.lh.n + (log.outstanding+1)*MAXOPBLOCKS &gt; LOGSIZE</code>；由于这个交易已经被记录在了内存中的log里面，不用担心不会提交。</p>
@@ -469,22 +487,22 @@
 </span></span><span class="line"><span class="cl">    <span class="c1">//sb: superblock
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">//把一个bitmap block读入内存
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">//BBLOCK是一个宏函数，计算当前的bitmap的block num
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">bp</span> <span class="o">=</span> <span class="n">bread</span><span class="p">(</span><span class="n">dev</span><span class="p">,</span> <span class="n">BBLOCK</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">sb</span><span class="p">));</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">bp</span> <span class="o">=</span> <span class="nf">bread</span><span class="p">(</span><span class="n">dev</span><span class="p">,</span> <span class="nf">BBLOCK</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">sb</span><span class="p">));</span>
 </span></span><span class="line"><span class="cl">    <span class="k">for</span><span class="p">(</span><span class="n">bi</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">bi</span> <span class="o">&lt;</span> <span class="n">BPB</span> <span class="o">&amp;&amp;</span> <span class="n">b</span> <span class="o">+</span> <span class="n">bi</span> <span class="o">&lt;</span> <span class="n">sb</span><span class="p">.</span><span class="n">size</span><span class="p">;</span> <span class="n">bi</span><span class="o">++</span><span class="p">){</span>
 </span></span><span class="line"><span class="cl">      <span class="c1">//使用位运算，以bits为单位检索
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="n">m</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="p">(</span><span class="n">bi</span> <span class="o">%</span> <span class="mi">8</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">      <span class="k">if</span><span class="p">((</span><span class="n">bp</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">[</span><span class="n">bi</span><span class="o">/</span><span class="mi">8</span><span class="p">]</span> <span class="o">&amp;</span> <span class="n">m</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">){</span>  <span class="c1">// Is block free?
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="n">bp</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">[</span><span class="n">bi</span><span class="o">/</span><span class="mi">8</span><span class="p">]</span> <span class="o">|=</span> <span class="n">m</span><span class="p">;</span>  <span class="c1">// Mark block in use.
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="n">log_write</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl">        <span class="n">brelse</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="nf">log_write</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">brelse</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">        <span class="c1">//归零这个block；bi被用作偏移量
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="n">bzero</span><span class="p">(</span><span class="n">dev</span><span class="p">,</span> <span class="n">b</span> <span class="o">+</span> <span class="n">bi</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="nf">bzero</span><span class="p">(</span><span class="n">dev</span><span class="p">,</span> <span class="n">b</span> <span class="o">+</span> <span class="n">bi</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="n">b</span> <span class="o">+</span> <span class="n">bi</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">      <span class="p">}</span>
 </span></span><span class="line"><span class="cl">    <span class="p">}</span>
-</span></span><span class="line"><span class="cl">    <span class="n">brelse</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">brelse</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
-</span></span><span class="line"><span class="cl">  <span class="n">panic</span><span class="p">(</span><span class="s">&#34;balloc: out of blocks&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">panic</span><span class="p">(</span><span class="s">&#34;balloc: out of blocks&#34;</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p><code>balloc</code>通过双重循环遍历bitsmap的所有bits：外部循环遍历所有bitmap block，内部循环遍历当前bitmap block中对应的所有block的<strong>BPB（bits-per-block）</strong> bits。如果找到了可用的block，将会把这个block归零并返回。<strong>注</strong>：这里使用了压位：虽然bitsmap看起来像是一个布尔容器因为它指明一个block“是否”可以使用，但是bool类型占1Bytes；由于布尔类型只是1/0，这里把它们压缩成了1bits。在循环内部也通过位运算间接地一个bit一个bit检查。BPB=BSIZE*8的意义就是以bit为单位遍历。</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="c1">// Free a disk block.
@@ -494,15 +512,15 @@
 </span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">buf</span> <span class="o">*</span><span class="n">bp</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">bi</span><span class="p">,</span> <span class="n">m</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">  <span class="n">bp</span> <span class="o">=</span> <span class="n">bread</span><span class="p">(</span><span class="n">dev</span><span class="p">,</span> <span class="n">BBLOCK</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">sb</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">  <span class="n">bp</span> <span class="o">=</span> <span class="nf">bread</span><span class="p">(</span><span class="n">dev</span><span class="p">,</span> <span class="nf">BBLOCK</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">sb</span><span class="p">));</span>
 </span></span><span class="line"><span class="cl">  <span class="n">bi</span> <span class="o">=</span> <span class="n">b</span> <span class="o">%</span> <span class="n">BPB</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="c1">//同样进行位运算
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">m</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="p">(</span><span class="n">bi</span> <span class="o">%</span> <span class="mi">8</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">((</span><span class="n">bp</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">[</span><span class="n">bi</span><span class="o">/</span><span class="mi">8</span><span class="p">]</span> <span class="o">&amp;</span> <span class="n">m</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;freeing free block&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">panic</span><span class="p">(</span><span class="s">&#34;freeing free block&#34;</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="n">bp</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">[</span><span class="n">bi</span><span class="o">/</span><span class="mi">8</span><span class="p">]</span> <span class="o">&amp;=</span> <span class="o">~</span><span class="n">m</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">  <span class="n">log_write</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl">  <span class="n">brelse</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">log_write</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">brelse</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p><code>bfree</code>找到传入的block的对应的bitmap，然后清空目标bit。这两个函数必须在提交的过程中被使用。</p>
 <br>
@@ -585,18 +603,18 @@
 </span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">dinode</span> <span class="o">*</span><span class="n">dip</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="k">for</span><span class="p">(</span><span class="n">inum</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span> <span class="n">inum</span> <span class="o">&lt;</span> <span class="n">sb</span><span class="p">.</span><span class="n">ninodes</span><span class="p">;</span> <span class="n">inum</span><span class="o">++</span><span class="p">){</span>
-</span></span><span class="line"><span class="cl">    <span class="n">bp</span> <span class="o">=</span> <span class="n">bread</span><span class="p">(</span><span class="n">dev</span><span class="p">,</span> <span class="n">IBLOCK</span><span class="p">(</span><span class="n">inum</span><span class="p">,</span> <span class="n">sb</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">    <span class="n">bp</span> <span class="o">=</span> <span class="nf">bread</span><span class="p">(</span><span class="n">dev</span><span class="p">,</span> <span class="nf">IBLOCK</span><span class="p">(</span><span class="n">inum</span><span class="p">,</span> <span class="n">sb</span><span class="p">));</span>
 </span></span><span class="line"><span class="cl">    <span class="n">dip</span> <span class="o">=</span> <span class="p">(</span><span class="k">struct</span> <span class="n">dinode</span><span class="o">*</span><span class="p">)</span><span class="n">bp</span><span class="o">-&gt;</span><span class="n">data</span> <span class="o">+</span> <span class="n">inum</span><span class="o">%</span><span class="n">IPB</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">dip</span><span class="o">-&gt;</span><span class="n">type</span> <span class="o">==</span> <span class="mi">0</span><span class="p">){</span>  <span class="c1">// a free inode
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="n">memset</span><span class="p">(</span><span class="n">dip</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="o">*</span><span class="n">dip</span><span class="p">));</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="nf">memset</span><span class="p">(</span><span class="n">dip</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="o">*</span><span class="n">dip</span><span class="p">));</span>
 </span></span><span class="line"><span class="cl">      <span class="n">dip</span><span class="o">-&gt;</span><span class="n">type</span> <span class="o">=</span> <span class="n">type</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">      <span class="n">log_write</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>   <span class="c1">// mark it allocated on the disk
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="n">brelse</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl">      <span class="k">return</span> <span class="n">iget</span><span class="p">(</span><span class="n">dev</span><span class="p">,</span> <span class="n">inum</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="nf">log_write</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>   <span class="c1">// mark it allocated on the disk
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="nf">brelse</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="k">return</span> <span class="nf">iget</span><span class="p">(</span><span class="n">dev</span><span class="p">,</span> <span class="n">inum</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="p">}</span>
-</span></span><span class="line"><span class="cl">    <span class="n">brelse</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">brelse</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
-</span></span><span class="line"><span class="cl">  <span class="n">panic</span><span class="p">(</span><span class="s">&#34;ialloc: no inodes&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">panic</span><span class="p">(</span><span class="s">&#34;ialloc: no inodes&#34;</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p>类似<code>balloc</code>，它会遍历inode block中的inode，直到找到一个<code>type==0</code>的inode，（这些被遍历的inode实际上是从磁盘上复制过来的inode，以<code>dinode</code>结构体的形式临时保存在内存）也就是可以被使用的inode。它会把这个inode内容归零0，修改为目标type，记录inum，返回<code>iget</code>返回的值，也就是一个inode结构体。虽然这个函数中没有使用lock，也不用担心会出现类似“多个进程同时分配了一个inode情况”，因为在使用<code>bread</code>把整个inode block加载到内存的行为已经规避了并发问题。</p>
 <p>    <code>iget</code>遍历<code>itable</code>去找目标inode是否已经存在于itable中了</p>
@@ -605,14 +623,14 @@
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
 </span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">inode</span> <span class="o">*</span><span class="n">ip</span><span class="p">,</span> <span class="o">*</span><span class="n">empty</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">  <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">itable</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">itable</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="c1">// Is the inode already in the table?
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">empty</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="k">for</span><span class="p">(</span><span class="n">ip</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">itable</span><span class="p">.</span><span class="n">inode</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span> <span class="n">ip</span> <span class="o">&lt;</span> <span class="o">&amp;</span><span class="n">itable</span><span class="p">.</span><span class="n">inode</span><span class="p">[</span><span class="n">NINODE</span><span class="p">];</span> <span class="n">ip</span><span class="o">++</span><span class="p">){</span>
 </span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">ref</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="o">&amp;&amp;</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">dev</span> <span class="o">==</span> <span class="n">dev</span> <span class="o">&amp;&amp;</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">inum</span> <span class="o">==</span> <span class="n">inum</span><span class="p">){</span>
 </span></span><span class="line"><span class="cl">      <span class="n">ip</span><span class="o">-&gt;</span><span class="n">ref</span><span class="o">++</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">      <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">itable</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">itable</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">      <span class="k">return</span> <span class="n">ip</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">    <span class="p">}</span>
 </span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">empty</span> <span class="o">==</span> <span class="mi">0</span> <span class="o">&amp;&amp;</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">ref</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>    <span class="c1">// Remember empty slot.
@@ -621,14 +639,14 @@
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="c1">// Recycle an inode entry.
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">(</span><span class="n">empty</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;iget: no inodes&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">panic</span><span class="p">(</span><span class="s">&#34;iget: no inodes&#34;</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="n">ip</span> <span class="o">=</span> <span class="n">empty</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="n">ip</span><span class="o">-&gt;</span><span class="n">dev</span> <span class="o">=</span> <span class="n">dev</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="n">ip</span><span class="o">-&gt;</span><span class="n">inum</span> <span class="o">=</span> <span class="n">inum</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="n">ip</span><span class="o">-&gt;</span><span class="n">ref</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="n">ip</span><span class="o">-&gt;</span><span class="n">valid</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">  <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">itable</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">itable</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="n">ip</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
@@ -641,61 +659,61 @@
 </span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">dinode</span> <span class="o">*</span><span class="n">dip</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">ip</span> <span class="o">==</span> <span class="mi">0</span> <span class="o">||</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">ref</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;ilock&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">panic</span><span class="p">(</span><span class="s">&#34;ilock&#34;</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">  <span class="n">acquiresleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">acquiresleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">valid</span> <span class="o">==</span> <span class="mi">0</span><span class="p">){</span>
-</span></span><span class="line"><span class="cl">    <span class="n">bp</span> <span class="o">=</span> <span class="n">bread</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">dev</span><span class="p">,</span> <span class="n">IBLOCK</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">inum</span><span class="p">,</span> <span class="n">sb</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">    <span class="n">bp</span> <span class="o">=</span> <span class="nf">bread</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">dev</span><span class="p">,</span> <span class="nf">IBLOCK</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">inum</span><span class="p">,</span> <span class="n">sb</span><span class="p">));</span>
 </span></span><span class="line"><span class="cl">    <span class="n">dip</span> <span class="o">=</span> <span class="p">(</span><span class="k">struct</span> <span class="n">dinode</span><span class="o">*</span><span class="p">)</span><span class="n">bp</span><span class="o">-&gt;</span><span class="n">data</span> <span class="o">+</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">inum</span><span class="o">%</span><span class="n">IPB</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">    <span class="n">ip</span><span class="o">-&gt;</span><span class="n">type</span> <span class="o">=</span> <span class="n">dip</span><span class="o">-&gt;</span><span class="n">type</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">    <span class="n">ip</span><span class="o">-&gt;</span><span class="n">major</span> <span class="o">=</span> <span class="n">dip</span><span class="o">-&gt;</span><span class="n">major</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">    <span class="n">ip</span><span class="o">-&gt;</span><span class="n">minor</span> <span class="o">=</span> <span class="n">dip</span><span class="o">-&gt;</span><span class="n">minor</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">    <span class="n">ip</span><span class="o">-&gt;</span><span class="n">nlink</span> <span class="o">=</span> <span class="n">dip</span><span class="o">-&gt;</span><span class="n">nlink</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">    <span class="n">ip</span><span class="o">-&gt;</span><span class="n">size</span> <span class="o">=</span> <span class="n">dip</span><span class="o">-&gt;</span><span class="n">size</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">    <span class="n">memmove</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">addrs</span><span class="p">,</span> <span class="n">dip</span><span class="o">-&gt;</span><span class="n">addrs</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">addrs</span><span class="p">));</span>
-</span></span><span class="line"><span class="cl">    <span class="n">brelse</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">memmove</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">addrs</span><span class="p">,</span> <span class="n">dip</span><span class="o">-&gt;</span><span class="n">addrs</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">addrs</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">brelse</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="n">ip</span><span class="o">-&gt;</span><span class="n">valid</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">type</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">      <span class="n">panic</span><span class="p">(</span><span class="s">&#34;ilock: no type&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="nf">panic</span><span class="p">(</span><span class="s">&#34;ilock: no type&#34;</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p><code>ilock</code>不释放<code>sleeplock</code>，所以在完成对inode操作后进程必须调用<code>iunlock</code>，释放<code>sleeplock</code>，唤醒其他想使用这个inode的进程。</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span>
 </span></span><span class="line"><span class="cl"><span class="nf">iunlock</span><span class="p">(</span><span class="k">struct</span> <span class="n">inode</span> <span class="o">*</span><span class="n">ip</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
-</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">ip</span> <span class="o">==</span> <span class="mi">0</span> <span class="o">||</span> <span class="o">!</span><span class="n">holdingsleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">)</span> <span class="o">||</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">ref</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;iunlock&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">ip</span> <span class="o">==</span> <span class="mi">0</span> <span class="o">||</span> <span class="o">!</span><span class="nf">holdingsleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">)</span> <span class="o">||</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">ref</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">panic</span><span class="p">(</span><span class="s">&#34;iunlock&#34;</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">  <span class="n">releasesleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">releasesleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p><code>iput</code>会释放传入的c指针，并且给原来指向的inode的<code>ref--</code>。当<code>ref==0</code>，<code>itable</code>中的该inode结构体就可能被重新利用</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span>
 </span></span><span class="line"><span class="cl"><span class="nf">iput</span><span class="p">(</span><span class="k">struct</span> <span class="n">inode</span> <span class="o">*</span><span class="n">ip</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
-</span></span><span class="line"><span class="cl">  <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">itable</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">itable</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">ref</span> <span class="o">==</span> <span class="mi">1</span> <span class="o">&amp;&amp;</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">valid</span> <span class="o">&amp;&amp;</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">nlink</span> <span class="o">==</span> <span class="mi">0</span><span class="p">){</span>
 </span></span><span class="line"><span class="cl">    <span class="c1">// inode has no links and no other references: truncate and free.
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>
 </span></span><span class="line"><span class="cl">    <span class="c1">// ip-&gt;ref == 1 means no other process can have ip locked,
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// so this acquiresleep() won&#39;t block (or deadlock).
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">acquiresleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nf">acquiresleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">    <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">itable</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">itable</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">    <span class="n">itrunc</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">itrunc</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="n">ip</span><span class="o">-&gt;</span><span class="n">type</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">    <span class="n">iupdate</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">iupdate</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="n">ip</span><span class="o">-&gt;</span><span class="n">valid</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">    <span class="n">releasesleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">releasesleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">    <span class="n">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">itable</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">acquire</span><span class="p">(</span><span class="o">&amp;</span><span class="n">itable</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="n">ip</span><span class="o">-&gt;</span><span class="n">ref</span><span class="o">--</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">  <span class="n">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">itable</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">itable</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p>如果此时这个inode <code>ip-&gt;ref == 1 &amp;&amp; ip-&gt;valid &amp;&amp; ip-&gt;nlink == 0</code>，那么这个inode和它的内容blocks同时还会自磁盘上被释放。<code>itrunc</code>用来把文件内容删除，释放其内容blocks，修改inode type。</p>
 <p>    可以看到<code>iput</code>同时也有清理inode的职责。思考一个情景：线程A调用了<code>iput</code>并且最终释放了inode，而此时有线程B在ilock中等待使用这个被A释放了的inode。这是不可能的，因为<code>input</code>唯一会清理input的前提就是 <code>ip-&gt;ref == 1</code>，而这个<strong>1</strong>必然是调用<code>iput</code>的线程A。假如B也在使用这个inode，那么这个inode的<code>ref</code>就不可能是1了，所以不成立。也不用担心别的进程调用<code>ialloc</code>在当前进程释放inode的期间把这个inode分配出去，因为只有在<code>type=0</code>的时候inode才可能被分配，而input在把<code>type</code>变成0之后仍然有锁，唯一的小问题是调用ialloc的进程可能会睡眠一会(从调用<code>iupdate</code>到释放锁期间：只有在<code>iupdate</code>之后别的进程才能发现这个inode可用了)。</p>
@@ -736,7 +754,7 @@
 </span></span><span class="line"><span class="cl">  <span class="c1">//如果目标block在前十二个block中
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">(</span><span class="n">bn</span> <span class="o">&lt;</span> <span class="n">NDIRECT</span><span class="p">){</span>
 </span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">((</span><span class="n">addr</span> <span class="o">=</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">addrs</span><span class="p">[</span><span class="n">bn</span><span class="p">])</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">      <span class="n">ip</span><span class="o">-&gt;</span><span class="n">addrs</span><span class="p">[</span><span class="n">bn</span><span class="p">]</span> <span class="o">=</span> <span class="n">addr</span> <span class="o">=</span> <span class="n">balloc</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">dev</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="n">ip</span><span class="o">-&gt;</span><span class="n">addrs</span><span class="p">[</span><span class="n">bn</span><span class="p">]</span> <span class="o">=</span> <span class="n">addr</span> <span class="o">=</span> <span class="nf">balloc</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">dev</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">addr</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
 </span></span><span class="line"><span class="cl">  <span class="c1">//作为offset
@@ -746,21 +764,21 @@
 </span></span><span class="line"><span class="cl">    <span class="c1">// Load indirect block, allocating if necessary.
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">//==0代表第13个block没有被分配
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span><span class="p">((</span><span class="n">addr</span> <span class="o">=</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">addrs</span><span class="p">[</span><span class="n">NDIRECT</span><span class="p">])</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">      <span class="n">ip</span><span class="o">-&gt;</span><span class="n">addrs</span><span class="p">[</span><span class="n">NDIRECT</span><span class="p">]</span> <span class="o">=</span> <span class="n">addr</span> <span class="o">=</span> <span class="n">balloc</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">dev</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="n">ip</span><span class="o">-&gt;</span><span class="n">addrs</span><span class="p">[</span><span class="n">NDIRECT</span><span class="p">]</span> <span class="o">=</span> <span class="n">addr</span> <span class="o">=</span> <span class="nf">balloc</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">dev</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="c1">//获取第13个block
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">bp</span> <span class="o">=</span> <span class="n">bread</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">dev</span><span class="p">,</span> <span class="n">addr</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">bp</span> <span class="o">=</span> <span class="nf">bread</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">dev</span><span class="p">,</span> <span class="n">addr</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="n">a</span> <span class="o">=</span> <span class="p">(</span><span class="n">uint</span><span class="o">*</span><span class="p">)</span><span class="n">bp</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">    <span class="c1">//遍历间接block
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">//不存在就创建
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span><span class="p">((</span><span class="n">addr</span> <span class="o">=</span> <span class="n">a</span><span class="p">[</span><span class="n">bn</span><span class="p">])</span> <span class="o">==</span> <span class="mi">0</span><span class="p">){</span>
-</span></span><span class="line"><span class="cl">      <span class="n">a</span><span class="p">[</span><span class="n">bn</span><span class="p">]</span> <span class="o">=</span> <span class="n">addr</span> <span class="o">=</span> <span class="n">balloc</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">dev</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl">      <span class="n">log_write</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="n">a</span><span class="p">[</span><span class="n">bn</span><span class="p">]</span> <span class="o">=</span> <span class="n">addr</span> <span class="o">=</span> <span class="nf">balloc</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">dev</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="nf">log_write</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="p">}</span>
-</span></span><span class="line"><span class="cl">    <span class="n">brelse</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">brelse</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">addr</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">  <span class="n">panic</span><span class="p">(</span><span class="s">&#34;bmap: out of range&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">panic</span><span class="p">(</span><span class="s">&#34;bmap: out of range&#34;</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p>它首先检查目标block是否为前12个，若不是，则需要把第13个block载入，然后再从中找。如果目标block不存在，<code>bmap</code>还会分配一个block。如果<code>addr[bn]/a[bn]</code>中的元素值为0，证明这个位置上还没有分配一个block。<code>bmap</code>遇到这种情况会分配一个block，并且修改0为刚分配的block的number。</p>
 <p>    <code>itrunc</code>首先会释放前12个block，然后再释放间接blocks</p>
@@ -778,16 +796,16 @@
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="k">for</span><span class="p">(</span><span class="n">tot</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span> <span class="n">tot</span><span class="o">&lt;</span><span class="n">n</span><span class="p">;</span> <span class="n">tot</span><span class="o">+=</span><span class="n">m</span><span class="p">,</span> <span class="n">off</span><span class="o">+=</span><span class="n">m</span><span class="p">,</span> <span class="n">dst</span><span class="o">+=</span><span class="n">m</span><span class="p">){</span>
 </span></span><span class="line"><span class="cl">    <span class="c1">//使用bmap获取目标block
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">bp</span> <span class="o">=</span> <span class="n">bread</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">dev</span><span class="p">,</span> <span class="n">bmap</span><span class="p">(</span><span class="n">ip</span><span class="p">,</span> <span class="n">off</span><span class="o">/</span><span class="n">BSIZE</span><span class="p">));</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">bp</span> <span class="o">=</span> <span class="nf">bread</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">dev</span><span class="p">,</span> <span class="nf">bmap</span><span class="p">(</span><span class="n">ip</span><span class="p">,</span> <span class="n">off</span><span class="o">/</span><span class="n">BSIZE</span><span class="p">));</span>
 </span></span><span class="line"><span class="cl">    <span class="c1">//读取最大值为1个block
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">m</span> <span class="o">=</span> <span class="n">min</span><span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="n">tot</span><span class="p">,</span> <span class="n">BSIZE</span> <span class="o">-</span> <span class="n">off</span><span class="o">%</span><span class="n">BSIZE</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">m</span> <span class="o">=</span> <span class="nf">min</span><span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="n">tot</span><span class="p">,</span> <span class="n">BSIZE</span> <span class="o">-</span> <span class="n">off</span><span class="o">%</span><span class="n">BSIZE</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="c1">//复制回用户空间
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span><span class="p">(</span><span class="n">either_copyout</span><span class="p">(</span><span class="n">user_dst</span><span class="p">,</span> <span class="n">dst</span><span class="p">,</span> <span class="n">bp</span><span class="o">-&gt;</span><span class="n">data</span> <span class="o">+</span> <span class="p">(</span><span class="n">off</span> <span class="o">%</span> <span class="n">BSIZE</span><span class="p">),</span> <span class="n">m</span><span class="p">)</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">      <span class="n">brelse</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span><span class="p">(</span><span class="nf">either_copyout</span><span class="p">(</span><span class="n">user_dst</span><span class="p">,</span> <span class="n">dst</span><span class="p">,</span> <span class="n">bp</span><span class="o">-&gt;</span><span class="n">data</span> <span class="o">+</span> <span class="p">(</span><span class="n">off</span> <span class="o">%</span> <span class="n">BSIZE</span><span class="p">),</span> <span class="n">m</span><span class="p">)</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">      <span class="nf">brelse</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">      <span class="n">tot</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">      <span class="k">break</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">    <span class="p">}</span>
-</span></span><span class="line"><span class="cl">    <span class="n">brelse</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">brelse</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
 </span></span><span class="line"><span class="cl">  <span class="c1">//tot为总读取量
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">return</span> <span class="n">tot</span><span class="p">;</span>
@@ -805,19 +823,19 @@
 </span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="k">for</span><span class="p">(</span><span class="n">tot</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span> <span class="n">tot</span><span class="o">&lt;</span><span class="n">n</span><span class="p">;</span> <span class="n">tot</span><span class="o">+=</span><span class="n">m</span><span class="p">,</span> <span class="n">off</span><span class="o">+=</span><span class="n">m</span><span class="p">,</span> <span class="n">src</span><span class="o">+=</span><span class="n">m</span><span class="p">){</span>
-</span></span><span class="line"><span class="cl">    <span class="n">bp</span> <span class="o">=</span> <span class="n">bread</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">dev</span><span class="p">,</span> <span class="n">bmap</span><span class="p">(</span><span class="n">ip</span><span class="p">,</span> <span class="n">off</span><span class="o">/</span><span class="n">BSIZE</span><span class="p">));</span>
-</span></span><span class="line"><span class="cl">    <span class="n">m</span> <span class="o">=</span> <span class="n">min</span><span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="n">tot</span><span class="p">,</span> <span class="n">BSIZE</span> <span class="o">-</span> <span class="n">off</span><span class="o">%</span><span class="n">BSIZE</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">either_copyin</span><span class="p">(</span><span class="n">bp</span><span class="o">-&gt;</span><span class="n">data</span> <span class="o">+</span> <span class="p">(</span><span class="n">off</span> <span class="o">%</span> <span class="n">BSIZE</span><span class="p">),</span> <span class="n">user_src</span><span class="p">,</span> <span class="n">src</span><span class="p">,</span> <span class="n">m</span><span class="p">)</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">      <span class="n">brelse</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">bp</span> <span class="o">=</span> <span class="nf">bread</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">dev</span><span class="p">,</span> <span class="nf">bmap</span><span class="p">(</span><span class="n">ip</span><span class="p">,</span> <span class="n">off</span><span class="o">/</span><span class="n">BSIZE</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">    <span class="n">m</span> <span class="o">=</span> <span class="nf">min</span><span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="n">tot</span><span class="p">,</span> <span class="n">BSIZE</span> <span class="o">-</span> <span class="n">off</span><span class="o">%</span><span class="n">BSIZE</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="nf">either_copyin</span><span class="p">(</span><span class="n">bp</span><span class="o">-&gt;</span><span class="n">data</span> <span class="o">+</span> <span class="p">(</span><span class="n">off</span> <span class="o">%</span> <span class="n">BSIZE</span><span class="p">),</span> <span class="n">user_src</span><span class="p">,</span> <span class="n">src</span><span class="p">,</span> <span class="n">m</span><span class="p">)</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">      <span class="nf">brelse</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">      <span class="k">break</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">    <span class="p">}</span>
-</span></span><span class="line"><span class="cl">    <span class="n">log_write</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl">    <span class="n">brelse</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">log_write</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">brelse</span><span class="p">(</span><span class="n">bp</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">off</span> <span class="o">&gt;</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">size</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl">    <span class="n">ip</span><span class="o">-&gt;</span><span class="n">size</span> <span class="o">=</span> <span class="n">off</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">  <span class="n">iupdate</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">iupdate</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="n">tot</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
@@ -851,21 +869,21 @@
 </span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">dirent</span> <span class="n">de</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">dp</span><span class="o">-&gt;</span><span class="n">type</span> <span class="o">!=</span> <span class="n">T_DIR</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;dirlookup not DIR&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">panic</span><span class="p">(</span><span class="s">&#34;dirlookup not DIR&#34;</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="k">for</span><span class="p">(</span><span class="n">off</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">off</span> <span class="o">&lt;</span> <span class="n">dp</span><span class="o">-&gt;</span><span class="n">size</span><span class="p">;</span> <span class="n">off</span> <span class="o">+=</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">de</span><span class="p">)){</span>
 </span></span><span class="line"><span class="cl">    <span class="c1">//在内核中调用，不用关心用户空间地址
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span><span class="p">(</span><span class="n">readi</span><span class="p">(</span><span class="n">dp</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">(</span><span class="n">uint64</span><span class="p">)</span><span class="o">&amp;</span><span class="n">de</span><span class="p">,</span> <span class="n">off</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">de</span><span class="p">))</span> <span class="o">!=</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">de</span><span class="p">))</span>
-</span></span><span class="line"><span class="cl">      <span class="n">panic</span><span class="p">(</span><span class="s">&#34;dirlookup read&#34;</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span><span class="p">(</span><span class="nf">readi</span><span class="p">(</span><span class="n">dp</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">(</span><span class="n">uint64</span><span class="p">)</span><span class="o">&amp;</span><span class="n">de</span><span class="p">,</span> <span class="n">off</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">de</span><span class="p">))</span> <span class="o">!=</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">de</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">      <span class="nf">panic</span><span class="p">(</span><span class="s">&#34;dirlookup read&#34;</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">de</span><span class="p">.</span><span class="n">inum</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl">      <span class="k">continue</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">namecmp</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">de</span><span class="p">.</span><span class="n">name</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="nf">namecmp</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">de</span><span class="p">.</span><span class="n">name</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">){</span>
 </span></span><span class="line"><span class="cl">      <span class="c1">// entry matches path element
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="k">if</span><span class="p">(</span><span class="n">poff</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl">        <span class="c1">//填入off
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="o">*</span><span class="n">poff</span> <span class="o">=</span> <span class="n">off</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">      <span class="n">inum</span> <span class="o">=</span> <span class="n">de</span><span class="p">.</span><span class="n">inum</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">      <span class="k">return</span> <span class="n">iget</span><span class="p">(</span><span class="n">dp</span><span class="o">-&gt;</span><span class="n">dev</span><span class="p">,</span> <span class="n">inum</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="k">return</span> <span class="nf">iget</span><span class="p">(</span><span class="n">dp</span><span class="o">-&gt;</span><span class="n">dev</span><span class="p">,</span> <span class="n">inum</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="p">}</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
 </span></span><span class="line"><span class="cl">
@@ -880,24 +898,24 @@
 </span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">inode</span> <span class="o">*</span><span class="n">ip</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="c1">// 检查重名;ip的唯一用处
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">((</span><span class="n">ip</span> <span class="o">=</span> <span class="n">dirlookup</span><span class="p">(</span><span class="n">dp</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">){</span>
-</span></span><span class="line"><span class="cl">    <span class="n">iput</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">((</span><span class="n">ip</span> <span class="o">=</span> <span class="nf">dirlookup</span><span class="p">(</span><span class="n">dp</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">iput</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="c1">// 找空着的条目，dirent结构体
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">for</span><span class="p">(</span><span class="n">off</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">off</span> <span class="o">&lt;</span> <span class="n">dp</span><span class="o">-&gt;</span><span class="n">size</span><span class="p">;</span> <span class="n">off</span> <span class="o">+=</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">de</span><span class="p">)){</span>
-</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">readi</span><span class="p">(</span><span class="n">dp</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">(</span><span class="n">uint64</span><span class="p">)</span><span class="o">&amp;</span><span class="n">de</span><span class="p">,</span> <span class="n">off</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">de</span><span class="p">))</span> <span class="o">!=</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">de</span><span class="p">))</span>
-</span></span><span class="line"><span class="cl">      <span class="n">panic</span><span class="p">(</span><span class="s">&#34;dirlink read&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="nf">readi</span><span class="p">(</span><span class="n">dp</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">(</span><span class="n">uint64</span><span class="p">)</span><span class="o">&amp;</span><span class="n">de</span><span class="p">,</span> <span class="n">off</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">de</span><span class="p">))</span> <span class="o">!=</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">de</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">      <span class="nf">panic</span><span class="p">(</span><span class="s">&#34;dirlink read&#34;</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">de</span><span class="p">.</span><span class="n">inum</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl">      <span class="k">break</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">  <span class="n">strncpy</span><span class="p">(</span><span class="n">de</span><span class="p">.</span><span class="n">name</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">DIRSIZ</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">strncpy</span><span class="p">(</span><span class="n">de</span><span class="p">.</span><span class="n">name</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">DIRSIZ</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="n">de</span><span class="p">.</span><span class="n">inum</span> <span class="o">=</span> <span class="n">inum</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="c1">//更新磁盘上的目录的内容block
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">(</span><span class="n">writei</span><span class="p">(</span><span class="n">dp</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">(</span><span class="n">uint64</span><span class="p">)</span><span class="o">&amp;</span><span class="n">de</span><span class="p">,</span> <span class="n">off</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">de</span><span class="p">))</span> <span class="o">!=</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">de</span><span class="p">))</span>
-</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;dirlink&#34;</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">(</span><span class="nf">writei</span><span class="p">(</span><span class="n">dp</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">(</span><span class="n">uint64</span><span class="p">)</span><span class="o">&amp;</span><span class="n">de</span><span class="p">,</span> <span class="n">off</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">de</span><span class="p">))</span> <span class="o">!=</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">de</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">panic</span><span class="p">(</span><span class="s">&#34;dirlink&#34;</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
@@ -915,13 +933,13 @@
 </span></span><span class="line"><span class="cl"><span class="nf">namei</span><span class="p">(</span><span class="kt">char</span> <span class="o">*</span><span class="n">path</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
 </span></span><span class="line"><span class="cl">  <span class="kt">char</span> <span class="n">name</span><span class="p">[</span><span class="n">DIRSIZ</span><span class="p">];</span>
-</span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="n">namex</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">name</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="nf">namex</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">name</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl"><span class="k">struct</span> <span class="n">inode</span><span class="o">*</span>
 </span></span><span class="line"><span class="cl"><span class="nf">nameiparent</span><span class="p">(</span><span class="kt">char</span> <span class="o">*</span><span class="n">path</span><span class="p">,</span> <span class="kt">char</span> <span class="o">*</span><span class="n">name</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
-</span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="n">namex</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">name</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="nf">namex</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">name</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p>前者返回这条路径中最终的inode地址，后者返回这条路径中最终的inode的前一个inode，两者都会把最终的路径元素放入<code>name</code>。它们都是对<code>namex</code>的封装:</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="k">static</span> <span class="k">struct</span> <span class="n">inode</span><span class="o">*</span>
@@ -931,36 +949,36 @@
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="c1">//检查路径开头
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">(</span><span class="o">*</span><span class="n">path</span> <span class="o">==</span> <span class="sc">&#39;/&#39;</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">    <span class="n">ip</span> <span class="o">=</span> <span class="n">iget</span><span class="p">(</span><span class="n">ROOTDEV</span><span class="p">,</span> <span class="n">ROOTINO</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ip</span> <span class="o">=</span> <span class="nf">iget</span><span class="p">(</span><span class="n">ROOTDEV</span><span class="p">,</span> <span class="n">ROOTINO</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="k">else</span>
-</span></span><span class="line"><span class="cl">    <span class="n">ip</span> <span class="o">=</span> <span class="n">idup</span><span class="p">(</span><span class="n">myproc</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">cwd</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">ip</span> <span class="o">=</span> <span class="nf">idup</span><span class="p">(</span><span class="nf">myproc</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">cwd</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="c1">//skipelem把下一个元素的名称放入name
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="c1">//并且把不包含下一个元素之后的路径返回path
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">while</span><span class="p">((</span><span class="n">path</span> <span class="o">=</span> <span class="n">skipelem</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">name</span><span class="p">))</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">){</span>
-</span></span><span class="line"><span class="cl">    <span class="n">ilock</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">while</span><span class="p">((</span><span class="n">path</span> <span class="o">=</span> <span class="nf">skipelem</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">name</span><span class="p">))</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">ilock</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="c1">//检查inode类型，必须是目录
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">type</span> <span class="o">!=</span> <span class="n">T_DIR</span><span class="p">){</span>
-</span></span><span class="line"><span class="cl">      <span class="n">iunlockput</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="nf">iunlockput</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">      <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">    <span class="p">}</span>
 </span></span><span class="line"><span class="cl">    <span class="c1">//如果设置了nameiparent bits，并且path值为null
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span><span class="p">(</span><span class="n">nameiparent</span> <span class="o">&amp;&amp;</span> <span class="o">*</span><span class="n">path</span> <span class="o">==</span> <span class="sc">&#39;\0&#39;</span><span class="p">){</span>
 </span></span><span class="line"><span class="cl">      <span class="c1">// 此时ip中的是倒数第二个路径元素，是一个目录
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="n">iunlock</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="nf">iunlock</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">      <span class="k">return</span> <span class="n">ip</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">    <span class="p">}</span>
 </span></span><span class="line"><span class="cl">    <span class="c1">//获取下一个路径元素的inode
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span><span class="p">((</span><span class="n">next</span> <span class="o">=</span> <span class="n">dirlookup</span><span class="p">(</span><span class="n">ip</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span> <span class="o">==</span> <span class="mi">0</span><span class="p">){</span>
-</span></span><span class="line"><span class="cl">      <span class="n">iunlockput</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span><span class="p">((</span><span class="n">next</span> <span class="o">=</span> <span class="nf">dirlookup</span><span class="p">(</span><span class="n">ip</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span> <span class="o">==</span> <span class="mi">0</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">      <span class="nf">iunlockput</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">      <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">    <span class="p">}</span>
-</span></span><span class="line"><span class="cl">    <span class="n">iunlockput</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">iunlockput</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="c1">//更新inode
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">ip</span> <span class="o">=</span> <span class="n">next</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
 </span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">nameiparent</span><span class="p">){</span>
-</span></span><span class="line"><span class="cl">    <span class="n">iput</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">iput</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
 </span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="n">ip</span><span class="p">;</span>
@@ -1004,18 +1022,18 @@
 </span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="c1">//类型判断
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">(</span><span class="n">f</span><span class="o">-&gt;</span><span class="n">type</span> <span class="o">==</span> <span class="n">FD_PIPE</span><span class="p">){</span>
-</span></span><span class="line"><span class="cl">    <span class="n">r</span> <span class="o">=</span> <span class="n">piperead</span><span class="p">(</span><span class="n">f</span><span class="o">-&gt;</span><span class="n">pipe</span><span class="p">,</span> <span class="n">addr</span><span class="p">,</span> <span class="n">n</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">r</span> <span class="o">=</span> <span class="nf">piperead</span><span class="p">(</span><span class="n">f</span><span class="o">-&gt;</span><span class="n">pipe</span><span class="p">,</span> <span class="n">addr</span><span class="p">,</span> <span class="n">n</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span> <span class="k">else</span> <span class="k">if</span><span class="p">(</span><span class="n">f</span><span class="o">-&gt;</span><span class="n">type</span> <span class="o">==</span> <span class="n">FD_DEVICE</span><span class="p">){</span>
 </span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">f</span><span class="o">-&gt;</span><span class="n">major</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="o">||</span> <span class="n">f</span><span class="o">-&gt;</span><span class="n">major</span> <span class="o">&gt;=</span> <span class="n">NDEV</span> <span class="o">||</span> <span class="o">!</span><span class="n">devsw</span><span class="p">[</span><span class="n">f</span><span class="o">-&gt;</span><span class="n">major</span><span class="p">].</span><span class="n">read</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl">      <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">    <span class="n">r</span> <span class="o">=</span> <span class="n">devsw</span><span class="p">[</span><span class="n">f</span><span class="o">-&gt;</span><span class="n">major</span><span class="p">].</span><span class="n">read</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">addr</span><span class="p">,</span> <span class="n">n</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">r</span> <span class="o">=</span> <span class="n">devsw</span><span class="p">[</span><span class="n">f</span><span class="o">-&gt;</span><span class="n">major</span><span class="p">].</span><span class="nf">read</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">addr</span><span class="p">,</span> <span class="n">n</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span> <span class="k">else</span> <span class="k">if</span><span class="p">(</span><span class="n">f</span><span class="o">-&gt;</span><span class="n">type</span> <span class="o">==</span> <span class="n">FD_INODE</span><span class="p">){</span>
-</span></span><span class="line"><span class="cl">    <span class="n">ilock</span><span class="p">(</span><span class="n">f</span><span class="o">-&gt;</span><span class="n">ip</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">((</span><span class="n">r</span> <span class="o">=</span> <span class="n">readi</span><span class="p">(</span><span class="n">f</span><span class="o">-&gt;</span><span class="n">ip</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">addr</span><span class="p">,</span> <span class="n">f</span><span class="o">-&gt;</span><span class="n">off</span><span class="p">,</span> <span class="n">n</span><span class="p">))</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">ilock</span><span class="p">(</span><span class="n">f</span><span class="o">-&gt;</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">((</span><span class="n">r</span> <span class="o">=</span> <span class="nf">readi</span><span class="p">(</span><span class="n">f</span><span class="o">-&gt;</span><span class="n">ip</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">addr</span><span class="p">,</span> <span class="n">f</span><span class="o">-&gt;</span><span class="n">off</span><span class="p">,</span> <span class="n">n</span><span class="p">))</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl">      <span class="n">f</span><span class="o">-&gt;</span><span class="n">off</span> <span class="o">+=</span> <span class="n">r</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">    <span class="n">iunlock</span><span class="p">(</span><span class="n">f</span><span class="o">-&gt;</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">iunlock</span><span class="p">(</span><span class="n">f</span><span class="o">-&gt;</span><span class="n">ip</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;fileread&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">panic</span><span class="p">(</span><span class="s">&#34;fileread&#34;</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="n">r</span><span class="p">;</span>
@@ -1036,48 +1054,48 @@
 </span></span><span class="line"><span class="cl">  <span class="kt">char</span> <span class="n">name</span><span class="p">[</span><span class="n">DIRSIZ</span><span class="p">],</span> <span class="n">new</span><span class="p">[</span><span class="n">MAXPATH</span><span class="p">],</span> <span class="n">old</span><span class="p">[</span><span class="n">MAXPATH</span><span class="p">];</span>
 </span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">inode</span> <span class="o">*</span><span class="n">dp</span><span class="p">,</span> <span class="o">*</span><span class="n">ip</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="c1">//获取参数
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">(</span><span class="n">argstr</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">old</span><span class="p">,</span> <span class="n">MAXPATH</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="o">||</span> <span class="n">argstr</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">new</span><span class="p">,</span> <span class="n">MAXPATH</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">(</span><span class="nf">argstr</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">old</span><span class="p">,</span> <span class="n">MAXPATH</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="o">||</span> <span class="nf">argstr</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">new</span><span class="p">,</span> <span class="n">MAXPATH</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="c1">//开始交易
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">begin_op</span><span class="p">();</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nf">begin_op</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">  <span class="c1">//获取目标inode
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">((</span><span class="n">ip</span> <span class="o">=</span> <span class="n">namei</span><span class="p">(</span><span class="n">old</span><span class="p">))</span> <span class="o">==</span> <span class="mi">0</span><span class="p">){</span>
-</span></span><span class="line"><span class="cl">    <span class="n">end_op</span><span class="p">();</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">((</span><span class="n">ip</span> <span class="o">=</span> <span class="nf">namei</span><span class="p">(</span><span class="n">old</span><span class="p">))</span> <span class="o">==</span> <span class="mi">0</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">end_op</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">  <span class="n">ilock</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">ilock</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">type</span> <span class="o">==</span> <span class="n">T_DIR</span><span class="p">){</span>
-</span></span><span class="line"><span class="cl">    <span class="n">iunlockput</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl">    <span class="n">end_op</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">iunlockput</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">end_op</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
 </span></span><span class="line"><span class="cl">  <span class="c1">//更新
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">ip</span><span class="o">-&gt;</span><span class="n">nlink</span><span class="o">++</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">  <span class="n">iupdate</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl">  <span class="n">iunlock</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">iupdate</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">iunlock</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="c1">//获取目标目录
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">((</span><span class="n">dp</span> <span class="o">=</span> <span class="n">nameiparent</span><span class="p">(</span><span class="n">new</span><span class="p">,</span> <span class="n">name</span><span class="p">))</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">((</span><span class="n">dp</span> <span class="o">=</span> <span class="nf">nameiparent</span><span class="p">(</span><span class="n">new</span><span class="p">,</span> <span class="n">name</span><span class="p">))</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl">    <span class="k">goto</span> <span class="n">bad</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">  <span class="n">ilock</span><span class="p">(</span><span class="n">dp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">ilock</span><span class="p">(</span><span class="n">dp</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="c1">//填入目录
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">(</span><span class="n">dp</span><span class="o">-&gt;</span><span class="n">dev</span> <span class="o">!=</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">dev</span> <span class="o">||</span> <span class="n">dirlink</span><span class="p">(</span><span class="n">dp</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">inum</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">){</span>
-</span></span><span class="line"><span class="cl">    <span class="n">iunlockput</span><span class="p">(</span><span class="n">dp</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">(</span><span class="n">dp</span><span class="o">-&gt;</span><span class="n">dev</span> <span class="o">!=</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">dev</span> <span class="o">||</span> <span class="nf">dirlink</span><span class="p">(</span><span class="n">dp</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">inum</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">iunlockput</span><span class="p">(</span><span class="n">dp</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="k">goto</span> <span class="n">bad</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
-</span></span><span class="line"><span class="cl">  <span class="n">iunlockput</span><span class="p">(</span><span class="n">dp</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl">  <span class="n">iput</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">iunlockput</span><span class="p">(</span><span class="n">dp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">iput</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="c1">//结束交易
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">end_op</span><span class="p">();</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nf">end_op</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl"><span class="nl">bad</span><span class="p">:</span>
-</span></span><span class="line"><span class="cl">  <span class="n">ilock</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">ilock</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="n">ip</span><span class="o">-&gt;</span><span class="n">nlink</span><span class="o">--</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">  <span class="n">iupdate</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl">  <span class="n">iunlockput</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl">  <span class="n">end_op</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">iupdate</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">iunlockput</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">end_op</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p><code>sys_link</code>接受两个参数，<code>new，old</code>（两个都是路径，而非只是目录名）：把<code>old</code>所指向的节点连接到<code>new</code>所指向的目录：即给一个节点创建新的链接（不会断开之前的链接）。这个系统调用首先会读取传入的参数并且通过<code>begin_op()</code>开始交易。在交易内部，会首先把<code>old</code>所指向的inode读取到进程中，如果这个inode是一个目录，则不处理，反之则继续：为<code>new</code>增加这个inode的<code>nlink</code>。然后找到<code>new</code>所在的目录：获取目录之后就可以真正地创建链接了<code>dirlink(dp, name, ip-&gt;inum)</code>。这里有一个问题：可以看到目标inode的<code>nlink</code>实际上在真正被链接之前就增加了，若崩溃发生或许会导致<code>nlink</code>和实际上的链接数量对不上（如果这个链接是第一个链接，那么会造成这个inode从文件系统中丢失（被标记为已使用但没有任何dirent指向））。但这实际上是不会发生的：由于存在交易/提交的机制，这些对于不同的block的修改要么都发生，要么都不发生，即原子化。</p>
@@ -1088,41 +1106,41 @@
 </span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">inode</span> <span class="o">*</span><span class="n">ip</span><span class="p">,</span> <span class="o">*</span><span class="n">dp</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="kt">char</span> <span class="n">name</span><span class="p">[</span><span class="n">DIRSIZ</span><span class="p">];</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">((</span><span class="n">dp</span> <span class="o">=</span> <span class="n">nameiparent</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">name</span><span class="p">))</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">((</span><span class="n">dp</span> <span class="o">=</span> <span class="nf">nameiparent</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">name</span><span class="p">))</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">  <span class="n">ilock</span><span class="p">(</span><span class="n">dp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">ilock</span><span class="p">(</span><span class="n">dp</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">((</span><span class="n">ip</span> <span class="o">=</span> <span class="n">dirlookup</span><span class="p">(</span><span class="n">dp</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">){</span>
-</span></span><span class="line"><span class="cl">    <span class="n">iunlockput</span><span class="p">(</span><span class="n">dp</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl">    <span class="n">ilock</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">((</span><span class="n">ip</span> <span class="o">=</span> <span class="nf">dirlookup</span><span class="p">(</span><span class="n">dp</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">iunlockput</span><span class="p">(</span><span class="n">dp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">ilock</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">type</span> <span class="o">==</span> <span class="n">T_FILE</span> <span class="o">&amp;&amp;</span> <span class="p">(</span><span class="n">ip</span><span class="o">-&gt;</span><span class="n">type</span> <span class="o">==</span> <span class="n">T_FILE</span> <span class="o">||</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">type</span> <span class="o">==</span> <span class="n">T_DEVICE</span><span class="p">))</span>
 </span></span><span class="line"><span class="cl">      <span class="k">return</span> <span class="n">ip</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">    <span class="n">iunlockput</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">iunlockput</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">((</span><span class="n">ip</span> <span class="o">=</span> <span class="n">ialloc</span><span class="p">(</span><span class="n">dp</span><span class="o">-&gt;</span><span class="n">dev</span><span class="p">,</span> <span class="n">type</span><span class="p">))</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;create: ialloc&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">((</span><span class="n">ip</span> <span class="o">=</span> <span class="nf">ialloc</span><span class="p">(</span><span class="n">dp</span><span class="o">-&gt;</span><span class="n">dev</span><span class="p">,</span> <span class="n">type</span><span class="p">))</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">panic</span><span class="p">(</span><span class="s">&#34;create: ialloc&#34;</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">  <span class="n">ilock</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">ilock</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="n">ip</span><span class="o">-&gt;</span><span class="n">major</span> <span class="o">=</span> <span class="n">major</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="n">ip</span><span class="o">-&gt;</span><span class="n">minor</span> <span class="o">=</span> <span class="n">minor</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="n">ip</span><span class="o">-&gt;</span><span class="n">nlink</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">  <span class="n">iupdate</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">iupdate</span><span class="p">(</span><span class="n">ip</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">type</span> <span class="o">==</span> <span class="n">T_DIR</span><span class="p">){</span>  <span class="c1">// Create . and .. entries.
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">dp</span><span class="o">-&gt;</span><span class="n">nlink</span><span class="o">++</span><span class="p">;</span>  <span class="c1">// for &#34;..&#34;
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">iupdate</span><span class="p">(</span><span class="n">dp</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nf">iupdate</span><span class="p">(</span><span class="n">dp</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">    <span class="c1">// No ip-&gt;nlink++ for &#34;.&#34;: avoid cyclic ref count.
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span><span class="p">(</span><span class="n">dirlink</span><span class="p">(</span><span class="n">ip</span><span class="p">,</span> <span class="s">&#34;.&#34;</span><span class="p">,</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">inum</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="o">||</span> <span class="n">dirlink</span><span class="p">(</span><span class="n">ip</span><span class="p">,</span> <span class="s">&#34;..&#34;</span><span class="p">,</span> <span class="n">dp</span><span class="o">-&gt;</span><span class="n">inum</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">      <span class="n">panic</span><span class="p">(</span><span class="s">&#34;create dots&#34;</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span><span class="p">(</span><span class="nf">dirlink</span><span class="p">(</span><span class="n">ip</span><span class="p">,</span> <span class="s">&#34;.&#34;</span><span class="p">,</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">inum</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="o">||</span> <span class="nf">dirlink</span><span class="p">(</span><span class="n">ip</span><span class="p">,</span> <span class="s">&#34;..&#34;</span><span class="p">,</span> <span class="n">dp</span><span class="o">-&gt;</span><span class="n">inum</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">      <span class="nf">panic</span><span class="p">(</span><span class="s">&#34;create dots&#34;</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">dirlink</span><span class="p">(</span><span class="n">dp</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">inum</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;create: dirlink&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="nf">dirlink</span><span class="p">(</span><span class="n">dp</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">ip</span><span class="o">-&gt;</span><span class="n">inum</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">panic</span><span class="p">(</span><span class="s">&#34;create: dirlink&#34;</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">  <span class="n">iunlockput</span><span class="p">(</span><span class="n">dp</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">iunlockput</span><span class="p">(</span><span class="n">dp</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="n">ip</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
@@ -1232,7 +1250,7 @@ filewrite to fill holes in the file with zero if lseek sets off beyond f-&gt;ip-
 
 
 
-	<script src="https://hoooao.github.io/js/bundle.min.5a42c67b729ee2fa1059251688235399704707e04edb4e28c42c6f6dfa49d1d9.js" integrity="sha256-WkLGe3Ke4voQWSUWiCNTmXBHB+BO204oxCxvbfpJ0dk=" crossorigin="anonymous"></script>
+	<script src="https://hoooao.github.io/js/bundle.min.580988ed2982bcbb74a1773c7abea97b43e4c43b9324e10cda0813ec6ec4bb67.js" integrity="sha256-WAmI7SmCvLt0oXc8er6pe0PkxDuTJOEM2ggT7G7Eu2c=" crossorigin="anonymous"></script>
 	
 
 </body>

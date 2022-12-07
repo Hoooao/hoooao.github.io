@@ -18,7 +18,7 @@
 			<description>Hugo has figure shortcode built in, so you can easily add figcaptions or hyperlink rel attributes to images. Documentations can be found here:
 https://gohugo.io/content-management/shortcodes/#figure
 This theme has 3 CSS classes made for figure elements:
- big: images will break the width limit of main content area. left: images will float to the left. right: images will float to the right.  If a figure has no class set, the image will behave just like a normal markdown image: !</description>
+big: images will break the width limit of main content area. left: images will float to the left. right: images will float to the right. If a figure has no class set, the image will behave just like a normal markdown image: !</description>
 			<content type="html"><![CDATA[<p>Hugo has <code>figure</code> shortcode built in, so you can easily add figcaptions or hyperlink rel attributes to images. Documentations can be found here:</p>
 <p><a href="https://gohugo.io/content-management/shortcodes/#figure">https://gohugo.io/content-management/shortcodes/#figure</a></p>
 <p>This theme has 3 CSS classes made for figure elements:</p>
@@ -69,7 +69,7 @@ This theme has 3 CSS classes made for figure elements:
 			<guid>https://hoooao.github.io/posts/post-with-featured-image/</guid>
 			<description>Just define the image URL in the content’s front matter, the featured image will be displayed as the background.
 For example:
----images:- https://picsum.photos/1024/768/?random---This is an array, you can set multiple urls, only the first url will be used. These images is also used in Twitter Cards and the Open Graph metadata.</description>
+--- images: - https://picsum.photos/1024/768/?random --- This is an array, you can set multiple urls, only the first url will be used. These images is also used in Twitter Cards and the Open Graph metadata.</description>
 			<content type="html"><![CDATA[<p>Just define the image URL in the content’s front matter, the featured image will be displayed as the background.</p>
 <p>For example:</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-yaml" data-lang="yaml"><span class="line"><span class="cl"><span class="nn">---</span><span class="w">
@@ -87,7 +87,7 @@ For example:
 			
 			<guid>https://hoooao.github.io/posts/typography/</guid>
 			<description>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
- An apple is a sweet, edible fruit produced by an apple tree (Malus pumila).</description>
+An apple is a sweet, edible fruit produced by an apple tree (Malus pumila).</description>
 			<content type="html"><![CDATA[<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
 <blockquote>
 <p>An apple is a sweet, edible fruit produced by an apple tree (Malus pumila). Apple trees are cultivated worldwide, and are the most widely grown species in the genus Malus. The tree originated in Central Asia, where its wild ancestor, Malus sieversii, is still found today. Apples have been grown for thousands of years in Asia and Europe, and were brought to North America by European colonists. Apples have religious and mythological significance in many cultures, including Norse, Greek and European Christian traditions.<sup id="fnref:1"><a href="#fn:1" class="footnote-ref" role="doc-noteref">1</a></sup></p>
@@ -1238,7 +1238,7 @@ Save it somewhere specific as we will be using it in the next step.
 More complete instructions are available at Install Hugo
 Step 2. Build the Docs Hugo has its own example site which happens to also be the documentation site you are reading right now.
 Follow the following steps:
- Clone the Hugo repository Go into the repo Run hugo in server mode and build the docs Open your browser to http://localhost:1313  Corresponding pseudo commands:</description>
+Clone the Hugo repository Go into the repo Run hugo in server mode and build the docs Open your browser to http://localhost:1313 Corresponding pseudo commands:</description>
 			<content type="html"><![CDATA[<h2 id="step-1-install-hugo">Step 1. Install Hugo</h2>
 <p>Go to <a href="https://github.com/spf13/hugo/releases">Hugo releases</a> and download the
 appropriate version for your OS and architecture.</p>
@@ -1303,8 +1303,8 @@ Having nearly instant feedback enables you to have your creativity flow without 
 			
 			<guid>https://hoooao.github.io/posts/migrate-from-jekyll/</guid>
 			<description>Move static content to static Jekyll has a rule that any directory not starting with _ will be copied as-is to the _site output. Hugo keeps all static content under static. You should therefore move it all there. With Jekyll, something that looked like
-▾ &amp;lt;root&amp;gt;/ ▾ images/ logo.png  should become
-▾ &amp;lt;root&amp;gt;/ ▾ static/ ▾ images/ logo.png  Additionally, you&amp;rsquo;ll want any files that should reside at the root (such as CNAME) to be moved to static.</description>
+▾ &amp;lt;root&amp;gt;/ ▾ images/ logo.png should become
+▾ &amp;lt;root&amp;gt;/ ▾ static/ ▾ images/ logo.png Additionally, you&amp;rsquo;ll want any files that should reside at the root (such as CNAME) to be moved to static.</description>
 			<content type="html"><![CDATA[<h2 id="move-static-content-to-static">Move static content to <code>static</code></h2>
 <p>Jekyll has a rule that any directory not starting with <code>_</code> will be copied as-is to the <code>_site</code> output. Hugo keeps all static content under <code>static</code>. You should therefore move it all there.
 With Jekyll, something that looked like</p>

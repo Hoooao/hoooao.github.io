@@ -8,29 +8,39 @@
 	<meta name="theme-color" content="#494f5c">
 	<meta name="msapplication-TileColor" content="#494f5c">
 <meta itemprop="name" content="Chap 4：Traps与系统调用 Traps and System calls">
-<meta itemprop="description" content="目录   导言  4.1 RISC-V Trap机制 RISC-V trap machinery  4.2 用户空间的Traps Traps from user space  4.3 使用系统调用 Code: Calling system calls  4.4 系统调用参数 Code: System call arguments  4.5 内核空间的Traps Traps from kernel space  4.6 缺页异常 Page-fault exceptions  4.7 补充  4.8 练习 Exercise   导言：  存在三种情况会导致OS停下手边的东西转而去执行一些特定的代码，它们分别是：
- 系统调用：进程调用ecall来让内核去执行一些操作
+<meta itemprop="description" content="目录 导言 4.1 RISC-V Trap机制 RISC-V trap machinery 4.2 用户空间的Traps Traps from user space 4.3 使用系统调用 Code: Calling system calls 4.4 系统调用参数 Code: System call arguments 4.5 内核空间的Traps Traps from kernel space 4.6 缺页异常 Page-fault exceptions 4.7 补充 4.8 练习 Exercise 导言： 存在三种情况会导致OS停下手边的东西转而去执行一些特定的代码，它们分别是：
+系统调用：进程调用ecall来让内核去执行一些操作
 Exception：当一条指令做了非法的事情，进程会被杀死
 设备中断（Device interrputs）：一个设备会向CPU发送注意请求，例如磁盘读写完成
- 这三种让“CPU去执行另一项任务”的行为统一叫做Traps。一个Trap处理的流程通常是：
- Trap处理机制让CPU切换控制（Control）
+这三种让“CPU去执行另一项任务”的行为统一叫做Traps。一个Trap处理的流程通常是：
+Trap处理机制让CPU切换控制（Control）
 保存当前进程的一切寄存器，为了让进程继续执行。
 执行对应Trap处理的代码
 恢复之前的进程
- 对于这个被中断的进程来说，Trap是“透明的”，也就是说，当前进程并不会知道自己被一个Trap打断了，因为它会被在未来某一个时刻继续运行（或者被杀死）。"><meta itemprop="datePublished" content="2022-06-20T09:19:55-04:00" />
+对于这个被中断的进程来说，Trap是“透明的”，也就是说，当前进程并不会知道自己被一个Trap打断了，因为它会被在未来某一个时刻继续运行（或者被杀死）。
+4.1 RISC-V Trap机制 RISC-V trap machinery 上述的行为都需要被 控制与状态寄存器（CSRs：Control and Status Registers） 支持（satp也是其中之一），下面是一些常用的CSRs：
+stvec：保存着Trap handler函数（uservec/kernelvec）的程序地址，进程通过它来跳转到处理Trap的代码
+scause：记录着Trap发生的原因
+sstatus：其中的SIE-bit指示是否能处理interrupts，其中的SPP-bit指示Trap是从什么模式出现的，并控制在调用指令sret后，跳转至目标模式（sret会把sepc寄存器的内容写到pc寄存器，实现跳转模式），例如0是UM。
+sscratch：保存一些重要的进程与内核相关的数据并且用来保存进程的寄存器。"><meta itemprop="datePublished" content="2022-06-20T09:19:55-04:00" />
 <meta itemprop="dateModified" content="2022-06-20T09:19:55-04:00" />
 <meta itemprop="wordCount" content="714">
 <meta itemprop="keywords" content="" /><meta property="og:title" content="Chap 4：Traps与系统调用 Traps and System calls" />
-<meta property="og:description" content="目录   导言  4.1 RISC-V Trap机制 RISC-V trap machinery  4.2 用户空间的Traps Traps from user space  4.3 使用系统调用 Code: Calling system calls  4.4 系统调用参数 Code: System call arguments  4.5 内核空间的Traps Traps from kernel space  4.6 缺页异常 Page-fault exceptions  4.7 补充  4.8 练习 Exercise   导言：  存在三种情况会导致OS停下手边的东西转而去执行一些特定的代码，它们分别是：
- 系统调用：进程调用ecall来让内核去执行一些操作
+<meta property="og:description" content="目录 导言 4.1 RISC-V Trap机制 RISC-V trap machinery 4.2 用户空间的Traps Traps from user space 4.3 使用系统调用 Code: Calling system calls 4.4 系统调用参数 Code: System call arguments 4.5 内核空间的Traps Traps from kernel space 4.6 缺页异常 Page-fault exceptions 4.7 补充 4.8 练习 Exercise 导言： 存在三种情况会导致OS停下手边的东西转而去执行一些特定的代码，它们分别是：
+系统调用：进程调用ecall来让内核去执行一些操作
 Exception：当一条指令做了非法的事情，进程会被杀死
 设备中断（Device interrputs）：一个设备会向CPU发送注意请求，例如磁盘读写完成
- 这三种让“CPU去执行另一项任务”的行为统一叫做Traps。一个Trap处理的流程通常是：
- Trap处理机制让CPU切换控制（Control）
+这三种让“CPU去执行另一项任务”的行为统一叫做Traps。一个Trap处理的流程通常是：
+Trap处理机制让CPU切换控制（Control）
 保存当前进程的一切寄存器，为了让进程继续执行。
 执行对应Trap处理的代码
 恢复之前的进程
- 对于这个被中断的进程来说，Trap是“透明的”，也就是说，当前进程并不会知道自己被一个Trap打断了，因为它会被在未来某一个时刻继续运行（或者被杀死）。" />
+对于这个被中断的进程来说，Trap是“透明的”，也就是说，当前进程并不会知道自己被一个Trap打断了，因为它会被在未来某一个时刻继续运行（或者被杀死）。
+4.1 RISC-V Trap机制 RISC-V trap machinery 上述的行为都需要被 控制与状态寄存器（CSRs：Control and Status Registers） 支持（satp也是其中之一），下面是一些常用的CSRs：
+stvec：保存着Trap handler函数（uservec/kernelvec）的程序地址，进程通过它来跳转到处理Trap的代码
+scause：记录着Trap发生的原因
+sstatus：其中的SIE-bit指示是否能处理interrupts，其中的SPP-bit指示Trap是从什么模式出现的，并控制在调用指令sret后，跳转至目标模式（sret会把sepc寄存器的内容写到pc寄存器，实现跳转模式），例如0是UM。
+sscratch：保存一些重要的进程与内核相关的数据并且用来保存进程的寄存器。" />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://hoooao.github.io/os/chap4/" /><meta property="article:section" content="os" />
 <meta property="article:published_time" content="2022-06-20T09:19:55-04:00" />
@@ -38,16 +48,21 @@ Exception：当一条指令做了非法的事情，进程会被杀死
 
 <meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="Chap 4：Traps与系统调用 Traps and System calls"/>
-<meta name="twitter:description" content="目录   导言  4.1 RISC-V Trap机制 RISC-V trap machinery  4.2 用户空间的Traps Traps from user space  4.3 使用系统调用 Code: Calling system calls  4.4 系统调用参数 Code: System call arguments  4.5 内核空间的Traps Traps from kernel space  4.6 缺页异常 Page-fault exceptions  4.7 补充  4.8 练习 Exercise   导言：  存在三种情况会导致OS停下手边的东西转而去执行一些特定的代码，它们分别是：
- 系统调用：进程调用ecall来让内核去执行一些操作
+<meta name="twitter:description" content="目录 导言 4.1 RISC-V Trap机制 RISC-V trap machinery 4.2 用户空间的Traps Traps from user space 4.3 使用系统调用 Code: Calling system calls 4.4 系统调用参数 Code: System call arguments 4.5 内核空间的Traps Traps from kernel space 4.6 缺页异常 Page-fault exceptions 4.7 补充 4.8 练习 Exercise 导言： 存在三种情况会导致OS停下手边的东西转而去执行一些特定的代码，它们分别是：
+系统调用：进程调用ecall来让内核去执行一些操作
 Exception：当一条指令做了非法的事情，进程会被杀死
 设备中断（Device interrputs）：一个设备会向CPU发送注意请求，例如磁盘读写完成
- 这三种让“CPU去执行另一项任务”的行为统一叫做Traps。一个Trap处理的流程通常是：
- Trap处理机制让CPU切换控制（Control）
+这三种让“CPU去执行另一项任务”的行为统一叫做Traps。一个Trap处理的流程通常是：
+Trap处理机制让CPU切换控制（Control）
 保存当前进程的一切寄存器，为了让进程继续执行。
 执行对应Trap处理的代码
 恢复之前的进程
- 对于这个被中断的进程来说，Trap是“透明的”，也就是说，当前进程并不会知道自己被一个Trap打断了，因为它会被在未来某一个时刻继续运行（或者被杀死）。"/>
+对于这个被中断的进程来说，Trap是“透明的”，也就是说，当前进程并不会知道自己被一个Trap打断了，因为它会被在未来某一个时刻继续运行（或者被杀死）。
+4.1 RISC-V Trap机制 RISC-V trap machinery 上述的行为都需要被 控制与状态寄存器（CSRs：Control and Status Registers） 支持（satp也是其中之一），下面是一些常用的CSRs：
+stvec：保存着Trap handler函数（uservec/kernelvec）的程序地址，进程通过它来跳转到处理Trap的代码
+scause：记录着Trap发生的原因
+sstatus：其中的SIE-bit指示是否能处理interrupts，其中的SPP-bit指示Trap是从什么模式出现的，并控制在调用指令sret后，跳转至目标模式（sret会把sepc寄存器的内容写到pc寄存器，实现跳转模式），例如0是UM。
+sscratch：保存一些重要的进程与内核相关的数据并且用来保存进程的寄存器。"/>
 
 	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -230,79 +245,79 @@ Exception：当一条指令做了非法的事情，进程会被杀死
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">which_dev</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">    <span class="c1">//只有来自用户空间的才能调用usertrap
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">((</span><span class="n">r_sstatus</span><span class="p">()</span> <span class="o">&amp;</span> <span class="n">SSTATUS_SPP</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">    <span class="n">panic</span><span class="p">(</span><span class="s">&#34;usertrap: not from user mode&#34;</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">((</span><span class="nf">r_sstatus</span><span class="p">()</span> <span class="o">&amp;</span> <span class="n">SSTATUS_SPP</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">panic</span><span class="p">(</span><span class="s">&#34;usertrap: not from user mode&#34;</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="c1">//修改stvec
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">w_stvec</span><span class="p">((</span><span class="n">uint64</span><span class="p">)</span><span class="n">kernelvec</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nf">w_stvec</span><span class="p">((</span><span class="n">uint64</span><span class="p">)</span><span class="n">kernelvec</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">proc</span> <span class="o">*</span><span class="n">p</span> <span class="o">=</span> <span class="n">myproc</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">proc</span> <span class="o">*</span><span class="n">p</span> <span class="o">=</span> <span class="nf">myproc</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">  
 </span></span><span class="line"><span class="cl">  <span class="c1">// 保存原pc
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">p</span><span class="o">-&gt;</span><span class="n">trapframe</span><span class="o">-&gt;</span><span class="n">epc</span> <span class="o">=</span> <span class="n">r_sepc</span><span class="p">();</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">p</span><span class="o">-&gt;</span><span class="n">trapframe</span><span class="o">-&gt;</span><span class="n">epc</span> <span class="o">=</span> <span class="nf">r_sepc</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">  
 </span></span><span class="line"><span class="cl">  <span class="c1">//检查Trap类型
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">(</span><span class="n">r_scause</span><span class="p">()</span> <span class="o">==</span> <span class="mi">8</span><span class="p">){</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">(</span><span class="nf">r_scause</span><span class="p">()</span> <span class="o">==</span> <span class="mi">8</span><span class="p">){</span>
 </span></span><span class="line"><span class="cl">    <span class="c1">// system call
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>
 </span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">killed</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">      <span class="n">exit</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="nf">exit</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">    <span class="c1">//修正偏移量
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">p</span><span class="o">-&gt;</span><span class="n">trapframe</span><span class="o">-&gt;</span><span class="n">epc</span> <span class="o">+=</span> <span class="mi">4</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">    <span class="c1">//RISV-C的Trap处理硬件自动关闭中断使用
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">// 因为使用完了寄存器，可以允许Interrupts，手动开启
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">intr_on</span><span class="p">();</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nf">intr_on</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">    <span class="c1">//系统调用
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">syscall</span><span class="p">();</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nf">syscall</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">    <span class="c1">//处理Interrupts
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="p">}</span> <span class="k">else</span> <span class="k">if</span><span class="p">((</span><span class="n">which_dev</span> <span class="o">=</span> <span class="n">devintr</span><span class="p">())</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">){</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="p">}</span> <span class="k">else</span> <span class="k">if</span><span class="p">((</span><span class="n">which_dev</span> <span class="o">=</span> <span class="nf">devintr</span><span class="p">())</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">){</span>
 </span></span><span class="line"><span class="cl">    <span class="c1">// ok
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">    <span class="c1">//处理Exception
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">printf</span><span class="p">(</span><span class="s">&#34;usertrap(): unexpected scause %p pid=%d</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">r_scause</span><span class="p">(),</span> <span class="n">p</span><span class="o">-&gt;</span><span class="n">pid</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl">    <span class="n">printf</span><span class="p">(</span><span class="s">&#34;            sepc=%p stval=%p</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="n">r_sepc</span><span class="p">(),</span> <span class="n">r_stval</span><span class="p">());</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nf">printf</span><span class="p">(</span><span class="s">&#34;usertrap(): unexpected scause %p pid=%d</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="nf">r_scause</span><span class="p">(),</span> <span class="n">p</span><span class="o">-&gt;</span><span class="n">pid</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">printf</span><span class="p">(</span><span class="s">&#34;            sepc=%p stval=%p</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">,</span> <span class="nf">r_sepc</span><span class="p">(),</span> <span class="nf">r_stval</span><span class="p">());</span>
 </span></span><span class="line"><span class="cl">    <span class="n">p</span><span class="o">-&gt;</span><span class="n">killed</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">killed</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">    <span class="n">exit</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">exit</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="c1">// give up the CPU if this is a timer interrupt.
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">(</span><span class="n">which_dev</span> <span class="o">==</span> <span class="mi">2</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">    <span class="n">yield</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">yield</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">    <span class="c1">//调用
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">usertrapret</span><span class="p">();</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nf">usertrapret</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p>    最后在<code>usertrap</code>中调用<code>usertrapret</code>。后者把<code>stvec</code>又改回<code>trampoline</code>中的<code>uservec</code>为未来可能在进程中出现的Trap服务。同时进程中<code>trapframe</code>的内核与进程相关的数据也被更新（如<code>kstack</code>，kernel的PT等）。在重新设置<code>sepc</code>为<code>pc</code>后，调用<code>userret</code>。</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span>
 </span></span><span class="line"><span class="cl"><span class="nf">usertrapret</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
-</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">proc</span> <span class="o">*</span><span class="n">p</span> <span class="o">=</span> <span class="n">myproc</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">proc</span> <span class="o">*</span><span class="n">p</span> <span class="o">=</span> <span class="nf">myproc</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="c1">//在切换回用户空间前，禁止interrupts。
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="c1">//因为这段时间中，stvec指向usertrap：不能处理interrupts
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">intr_off</span><span class="p">();</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nf">intr_off</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="c1">//sevec切换回uservec
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">w_stvec</span><span class="p">(</span><span class="n">TRAMPOLINE</span> <span class="o">+</span> <span class="p">(</span><span class="n">uservec</span> <span class="o">-</span> <span class="n">trampoline</span><span class="p">));</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nf">w_stvec</span><span class="p">(</span><span class="n">TRAMPOLINE</span> <span class="o">+</span> <span class="p">(</span><span class="n">uservec</span> <span class="o">-</span> <span class="n">trampoline</span><span class="p">));</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="c1">//更新trapframe
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">p</span><span class="o">-&gt;</span><span class="n">trapframe</span><span class="o">-&gt;</span><span class="n">kernel_satp</span> <span class="o">=</span> <span class="n">r_satp</span><span class="p">();</span>         <span class="c1">// kernel page table
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">p</span><span class="o">-&gt;</span><span class="n">trapframe</span><span class="o">-&gt;</span><span class="n">kernel_satp</span> <span class="o">=</span> <span class="nf">r_satp</span><span class="p">();</span>         <span class="c1">// kernel page table
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">p</span><span class="o">-&gt;</span><span class="n">trapframe</span><span class="o">-&gt;</span><span class="n">kernel_sp</span> <span class="o">=</span> <span class="n">p</span><span class="o">-&gt;</span><span class="n">kstack</span> <span class="o">+</span> <span class="n">PGSIZE</span><span class="p">;</span> <span class="c1">// process&#39;s kernel stack
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">p</span><span class="o">-&gt;</span><span class="n">trapframe</span><span class="o">-&gt;</span><span class="n">kernel_trap</span> <span class="o">=</span> <span class="p">(</span><span class="n">uint64</span><span class="p">)</span><span class="n">usertrap</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">  <span class="n">p</span><span class="o">-&gt;</span><span class="n">trapframe</span><span class="o">-&gt;</span><span class="n">kernel_hartid</span> <span class="o">=</span> <span class="n">r_tp</span><span class="p">();</span>         <span class="c1">// hartid for cpuid()
+</span></span><span class="line"><span class="cl">  <span class="n">p</span><span class="o">-&gt;</span><span class="n">trapframe</span><span class="o">-&gt;</span><span class="n">kernel_hartid</span> <span class="o">=</span> <span class="nf">r_tp</span><span class="p">();</span>         <span class="c1">// hartid for cpuid()
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>
 </span></span><span class="line"><span class="cl">  <span class="c1">//···略（sstatus相关设置）···
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>
 </span></span><span class="line"><span class="cl">  <span class="c1">//切换sepc回原pc，供sret使用
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">w_sepc</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">trapframe</span><span class="o">-&gt;</span><span class="n">epc</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nf">w_sepc</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">trapframe</span><span class="o">-&gt;</span><span class="n">epc</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="c1">//这里的satp只是个变量，而非寄存器
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">uint64</span> <span class="n">satp</span> <span class="o">=</span> <span class="n">MAKE_SATP</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">pagetable</span><span class="p">);</span>
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">uint64</span> <span class="n">satp</span> <span class="o">=</span> <span class="nf">MAKE_SATP</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">pagetable</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">
 </span></span><span class="line"><span class="cl">  <span class="c1">//调用userret，传入参数a0=trapframe, a1=satp
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="c1">//fn计算到目标的Trampoline中的某行，即userret
@@ -362,14 +377,14 @@ Exception：当一条指令做了非法的事情，进程会被杀死
 </span></span></code></pre></div><p>这是<code>fork()</code>的定义，只是把特定的常数放到寄存器<code>a7</code>中并调用<code>ecall</code>进入trap。从trap处理中回来之后调用<code>ret</code>返回用户代码。当这些封装函数被传参时，如给其他函数传参一样：参数会按顺序放入寄存器（<code>a0,a1...</code>）中（并且在调用<code>uservec</code>时放入<code>p-&gt;trapframe</code>）。xv6使用<code>argint，argstr，argaddr</code>来分别从寄存器中拿到整型，字符串，和指针。比如：</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="c1">// Fetch the nth 32-bit system call argument.
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kt">int</span> <span class="nf">argint</span><span class="p">(</span><span class="kt">int</span> <span class="n">n</span><span class="p">,</span> <span class="kt">int</span> <span class="o">*</span><span class="n">ip</span><span class="p">)</span> <span class="p">{</span>
-</span></span><span class="line"><span class="cl">  <span class="o">*</span><span class="n">ip</span> <span class="o">=</span> <span class="n">argraw</span><span class="p">(</span><span class="n">n</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="o">*</span><span class="n">ip</span> <span class="o">=</span> <span class="nf">argraw</span><span class="p">(</span><span class="n">n</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p>但它实际上也只是对于<code>argraw</code>进行的封装：</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="k">static</span> <span class="n">uint64</span>
 </span></span><span class="line"><span class="cl"><span class="nf">argraw</span><span class="p">(</span><span class="kt">int</span> <span class="n">n</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
-</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">proc</span> <span class="o">*</span><span class="n">p</span> <span class="o">=</span> <span class="n">myproc</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">proc</span> <span class="o">*</span><span class="n">p</span> <span class="o">=</span> <span class="nf">myproc</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl">  <span class="k">switch</span> <span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">  <span class="k">case</span> <span class="mi">0</span><span class="o">:</span>
 </span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">p</span><span class="o">-&gt;</span><span class="n">trapframe</span><span class="o">-&gt;</span><span class="n">a0</span><span class="p">;</span>
@@ -379,7 +394,7 @@ Exception：当一条指令做了非法的事情，进程会被杀死
 </span></span><span class="line"><span class="cl">  <span class="k">case</span> <span class="mi">5</span><span class="o">:</span>
 </span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">p</span><span class="o">-&gt;</span><span class="n">trapframe</span><span class="o">-&gt;</span><span class="n">a5</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
-</span></span><span class="line"><span class="cl">  <span class="n">panic</span><span class="p">(</span><span class="s">&#34;argraw&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">panic</span><span class="p">(</span><span class="s">&#34;argraw&#34;</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p>后者通过<code>p-&gt;trapframe</code>取出原进程保存的寄存器的值。</p>
@@ -393,11 +408,11 @@ Exception：当一条指令做了非法的事情，进程会被杀死
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">int</span> 
 </span></span><span class="line"><span class="cl"><span class="nf">fetchstr</span><span class="p">(</span><span class="n">uint64</span> <span class="n">addr</span><span class="p">,</span> <span class="kt">char</span> <span class="o">*</span><span class="n">buf</span><span class="p">,</span> <span class="kt">int</span> <span class="n">max</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
-</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">proc</span> <span class="o">*</span><span class="n">p</span> <span class="o">=</span> <span class="n">myproc</span><span class="p">();</span>
-</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">err</span> <span class="o">=</span> <span class="n">copyinstr</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">pagetable</span><span class="p">,</span> <span class="n">buf</span><span class="p">,</span> <span class="n">addr</span><span class="p">,</span> <span class="n">max</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="k">struct</span> <span class="n">proc</span> <span class="o">*</span><span class="n">p</span> <span class="o">=</span> <span class="nf">myproc</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">err</span> <span class="o">=</span> <span class="nf">copyinstr</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">pagetable</span><span class="p">,</span> <span class="n">buf</span><span class="p">,</span> <span class="n">addr</span><span class="p">,</span> <span class="n">max</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="n">err</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">err</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="n">strlen</span><span class="p">(</span><span class="n">buf</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="nf">strlen</span><span class="p">(</span><span class="n">buf</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p>它调用了<code>copyinstr</code>，后者需要4个参数：原进程的PT，一个用来接收数据的buffer，目标VA，与读取Bytes的上限。<code>copyinstr</code>通过使用<code>walkaddr</code>来得到目标page的PA，而<code>walkaddr</code>实际上调用了<code>walk</code>来获取目标所在的PTE，然后翻译成PA（通过PPN）。最后<code>copyinstr</code>通过传入的目标VA中的偏移量来获取目标数据，并把数据传入buffer。</p>
 <br>
@@ -433,7 +448,7 @@ Exception：当一条指令做了非法的事情，进程会被杀死
 </blockquote>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="nl">uvmunmap</span><span class="p">:</span> <span class="c1">//这部分需要被修改，它本质是在禁止空间内可以存在PTE_V无效的page
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span> <span class="k">if</span><span class="p">((</span><span class="o">*</span><span class="n">pte</span> <span class="o">&amp;</span> <span class="n">PTE_V</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">      <span class="n">panic</span><span class="p">(</span><span class="s">&#34;uvmunmap: not mapped&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">      <span class="nf">panic</span><span class="p">(</span><span class="s">&#34;uvmunmap: not mapped&#34;</span><span class="p">);</span>
 </span></span></code></pre></div><p>    <strong>硬盘分页（Paging from disk）</strong>。当内存使用过多内存时，OS会把一些page写入磁盘，并把这些page对应的PTE标记成无效。所以当进程使用这些page时会出现<code>page fault exception</code>。OS会把制定的page重新从磁盘中写入内存，并更新PTE（当一个page被召回时，如果内存不够用，会把另一个page写入硬盘）。选择哪个page被驱逐通常基于 <strong>LRU： Least Recently Used</strong>算法（通过看PTE中的Access bit得知是否是LRU）。同时会优先选择驱逐 <strong>非</strong> Dirty Page（通过看PTE的dirty bit），也就是没有修改过的Page。</p>
 <p>     <strong>Zero-fill on demand</strong>。虽然Xv6中只有一个segment，但是对于其他操作系统可能会有一个<code>.bss</code>段在ELF中，代表未赋值的静态变量。它们的值在赋值前实际上都是0。因为这些变量的值都一样，那么可以让这些静态变量全部指向1个值为0的page：也就是把它们对应的PTE指向一个内容为0的page。这样不需要为每个变量都分配自己的物理内存了。由于这个page的权限将会是只读，所以当程序试图去修改它的值的时候，会触发Page fault。之后分配新的page给这个变量，映射到它的PTE，重新运行指令。优点：省空间；可以让<code>exec</code>少做一些初始化工作。</p>
 <p>     <strong>Demand Paging</strong>。当一个进程被加载到程序之后，实际上它的很多内容（比如在data和text段）不会用到，可以使用类似懒分配的逻辑来优化。当<code>exec</code>执行时，可以只分配虚拟内存，并且设置PTE_V无效。一旦这个程序开始运行，它必然从自己虚拟地址的<code>0x0</code>开始，由于PTE无效，产生Pagde Fault：从文件中真正读取这个pagde到内存中，并且映射到PTE，重新开始运行指令。</p>
@@ -524,7 +539,7 @@ the hardware to do the page table walk.</li>
 
 
 
-	<script src="https://hoooao.github.io/js/bundle.min.5a42c67b729ee2fa1059251688235399704707e04edb4e28c42c6f6dfa49d1d9.js" integrity="sha256-WkLGe3Ke4voQWSUWiCNTmXBHB+BO204oxCxvbfpJ0dk=" crossorigin="anonymous"></script>
+	<script src="https://hoooao.github.io/js/bundle.min.580988ed2982bcbb74a1773c7abea97b43e4c43b9324e10cda0813ec6ec4bb67.js" integrity="sha256-WAmI7SmCvLt0oXc8er6pe0PkxDuTJOEM2ggT7G7Eu2c=" crossorigin="anonymous"></script>
 	
 
 </body>
