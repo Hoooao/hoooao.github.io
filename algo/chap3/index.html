@@ -17,7 +17,7 @@
 数据范围：$1\leq n \leq 7$.
 int path[N]; int n; void DFS(int u, int state){ //如果遍历到最后一个元素了，说明可以位数足够输出了 if(u==n){ for (int i = 0; i &lt; n; i &#43;&#43; )printf(&#34;%d &#34;,path[i]); puts(&#34;&#34;); } //遍历每一个数字 for (int i = 0; i &lt; n; i &#43;&#43; ){ //检查state第i个bit的值，如果是0证明对应的数字（i&#43;1）还没有被使用 if(!"><meta itemprop="datePublished" content="2022-08-11T13:20:14-04:00" />
 <meta itemprop="dateModified" content="2022-08-11T13:20:14-04:00" />
-<meta itemprop="wordCount" content="1986">
+<meta itemprop="wordCount" content="1987">
 <meta itemprop="keywords" content="" /><meta property="og:title" content="Chap3: 图论 Graph Theory" />
 <meta property="og:description" content="目录 导言 3.1 深度优先 3.2 广度优先 3.3 图 3.3 拓扑排序 3.4 最短路 3.4.1 朴素Dijkstra 3.4.2 堆优化Dijkstra 3.4.3 Bellman-Ford 算法 3.4.4 SPFA算法 3.4.5 Floyd算法 3.5 最小生成树 3.5.1 朴素版普里姆 3.5.2 Kruskal 3.6 二分图 3.6.1 染色法 3.6.2 匈牙利算法 导言： 本章着重于图论的介绍，包括DFS，BFS，树与图的深度优先遍历，树与图的广度优先遍历，拓扑排序，Dijkstra，bellman-ford，spfa，Floyd，Prim，Kruskal，染色法判定二分图，匈牙利算法等内容。
 3.1 深度优先 DFS每次会搜索到叶节点再回溯。DFS使用stack，空间复杂度为$\mathcal{O}(h)$，也就是说大小和高度成正比。不具有最短性。DFS中最重要的两个概念：回溯，剪枝。
@@ -741,7 +741,7 @@ int path[N]; int n; void DFS(int u, int state){ //如果遍历到最后一个元
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span><span class="p">(</span><span class="n">dist</span><span class="p">[</span><span class="n">n</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mh">0x3f3f3f3f</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="n">cout</span><span class="o">&lt;&lt;</span><span class="s">&#34;impossible&#34;</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">    <span class="k">else</span> <span class="n">cout</span><span class="o">&lt;&lt;</span><span class="n">dist</span><span class="p">[</span><span class="n">n</span><span class="p">];</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span></code></pre></div><p>**串联：**由于这个算法的特性决定，每次更新得到的必然是在多考虑 <strong>1</strong> 条边之后能得到的全局的最短路。而串联指的是一次更新之后考虑了不止一条边：由于使用了松弛，某节点的当前最短路依赖于其所有入度的节点的最短路；假如在代码中使用<code>dist[e.b]=min(dist[e.b],dist[e.a] + e.c);</code>，我们无法保证<code>dist[e.a]</code>是否也在本次循环中被更新，如果被更新了，并且<code>dist[e.b] &gt; dist[e.a] + e.c</code>，那么会造成当前节点在事实上“即考虑了一条从某个节点指向a的边，也考虑了<code>a-&gt;b</code>”，共两条边。而使用<code>dist[e.b]=min(dist[e.b],last[e.a] + e.c);</code>，可以保证a在dist更新后不影响对b的判定，因为后者使用last数组，保存着上一次循环中的dist的值。</p>
+</span></span></code></pre></div><p><strong>串联：</strong> 由于这个算法的特性决定，每次更新得到的必然是在多考虑 <strong>1</strong> 条边之后能得到的全局的最短路。而串联指的是一次更新之后考虑了不止一条边：由于使用了松弛，某节点的当前最短路依赖于其所有入度的节点的最短路；假如在代码中使用<code>dist[e.b]=min(dist[e.b],dist[e.a] + e.c);</code>，我们无法保证<code>dist[e.a]</code>是否也在本次循环中被更新，如果被更新了，并且<code>dist[e.b] &gt; dist[e.a] + e.c</code>，那么会造成当前节点在事实上“即考虑了一条从某个节点指向a的边，也考虑了<code>a-&gt;b</code>”，共两条边。而使用<code>dist[e.b]=min(dist[e.b],last[e.a] + e.c);</code>，可以保证a在dist更新后不影响对b的判定，因为后者使用last数组，保存着上一次循环中的dist的值。</p>
 <p><strong>负环</strong>：出现负环后，dist[n]的值可能无意义：通常外部循环$|V|$ 次，会导致负环上的节点的dist减小$|V|$ 次，如果这个负环在源汇路径上，会导致dist[n]减小$x$次，$x&lt;|V|$。</p>
 <br>
 <br>
@@ -932,19 +932,19 @@ int path[N]; int n; void DFS(int u, int state){ //如果遍历到最后一个元
 </span></span><span class="line"><span class="cl">            <span class="c1">//这里不能重复考虑已被统计的节点
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>            <span class="k">if</span><span class="p">(</span><span class="o">!</span><span class="n">st</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">&amp;&amp;</span><span class="p">(</span><span class="n">t</span><span class="o">==-</span><span class="mi">1</span> <span class="o">||</span> <span class="n">dist</span><span class="p">[</span><span class="n">t</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">dist</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="p">))</span>
 </span></span><span class="line"><span class="cl">                <span class="n">t</span><span class="o">=</span><span class="n">j</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">    <span class="c1">//这里必须要检查i!=0，因为i==0时dist[t]==INF
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">//因为还没有更新过dist数组
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span><span class="p">(</span><span class="n">i</span><span class="o">&amp;&amp;</span><span class="n">dist</span><span class="p">[</span><span class="n">t</span><span class="p">]</span><span class="o">==</span><span class="mh">0x3f3f3f3f</span><span class="p">)</span> <span class="k">return</span> <span class="mh">0x3f3f3f3f</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">    <span class="c1">//这里必须先res+=dist[t]然后再更新dist数组
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">//因为可能出现自环，当t==j，并且自环是最小的
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="c1">//会导致这里添加自环的值；而自环不可能出现在最小生成树中
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">if</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="n">res</span><span class="o">+=</span><span class="n">dist</span><span class="p">[</span><span class="n">t</span><span class="p">];</span>
-</span></span><span class="line"><span class="cl">    <span class="n">st</span><span class="p">[</span><span class="n">t</span><span class="p">]</span><span class="o">=</span><span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">//这里必须要检查i!=0，因为i==0时dist[t]==INF
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="c1">//因为还没有更新过dist数组
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="k">if</span><span class="p">(</span><span class="n">i</span><span class="o">&amp;&amp;</span><span class="n">dist</span><span class="p">[</span><span class="n">t</span><span class="p">]</span><span class="o">==</span><span class="mh">0x3f3f3f3f</span><span class="p">)</span> <span class="k">return</span> <span class="mh">0x3f3f3f3f</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">//这里必须先res+=dist[t]然后再更新dist数组
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="c1">//因为可能出现自环，当t==j，并且自环是最小的
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="c1">//会导致这里添加自环的值；而自环不可能出现在最小生成树中
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="k">if</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="n">res</span><span class="o">+=</span><span class="n">dist</span><span class="p">[</span><span class="n">t</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">        <span class="n">st</span><span class="p">[</span><span class="n">t</span><span class="p">]</span><span class="o">=</span><span class="mi">1</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl">    <span class="c1">//从最新统计的节点出发，更新其他所有节点
-</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">j</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span> <span class="n">j</span> <span class="o">&lt;=</span> <span class="n">n</span><span class="p">;</span> <span class="n">j</span> <span class="o">++</span> <span class="p">){</span>
-</span></span><span class="line"><span class="cl">        <span class="n">dist</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">=</span><span class="n">min</span><span class="p">(</span><span class="n">dist</span><span class="p">[</span><span class="n">j</span><span class="p">],</span><span class="n">g</span><span class="p">[</span><span class="n">t</span><span class="p">][</span><span class="n">j</span><span class="p">]);</span>
-</span></span><span class="line"><span class="cl">    <span class="p">}</span> 
+</span></span><span class="line"><span class="cl">        <span class="c1">//从最新统计的节点出发，更新其他所有节点
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>        <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">j</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span> <span class="n">j</span> <span class="o">&lt;=</span> <span class="n">n</span><span class="p">;</span> <span class="n">j</span> <span class="o">++</span> <span class="p">){</span>
+</span></span><span class="line"><span class="cl">            <span class="n">dist</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">=</span><span class="n">min</span><span class="p">(</span><span class="n">dist</span><span class="p">[</span><span class="n">j</span><span class="p">],</span><span class="n">g</span><span class="p">[</span><span class="n">t</span><span class="p">][</span><span class="n">j</span><span class="p">]);</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span> 
 </span></span><span class="line"><span class="cl">    <span class="p">}</span>
 </span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">res</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
