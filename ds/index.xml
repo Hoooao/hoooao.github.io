@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Ds on Hao的个人博客</title>
+    <link>https://hoooao.github.io/ds/</link>
+    <description>Recent content in Ds on Hao的个人博客</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh-hans</language>
+    <copyright>This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.</copyright>
+    <lastBuildDate>Thu, 15 Dec 2022 16:39:42 -0500</lastBuildDate><atom:link href="https://hoooao.github.io/ds/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Chap 0: GoLang入门 Intro to GoLang</title>
+      <link>https://hoooao.github.io/ds/chap0/</link>
+      <pubDate>Thu, 15 Dec 2022 16:39:42 -0500</pubDate>
+      
+      <guid>https://hoooao.github.io/ds/chap0/</guid>
+      <description>目录 导言： </description>
+    </item>
+    
+    <item>
+      <title>Chap 0: GoLang入门 Intro to GoLang</title>
+      <link>https://hoooao.github.io/ds/chap1/</link>
+      <pubDate>Wed, 17 Aug 2022 10:59:26 -0400</pubDate>
+      
+      <guid>https://hoooao.github.io/ds/chap1/</guid>
+      <description>目录 导言： 第一章是对于计算机网络的概述，主要介绍术语和概念，以及组成网络的软硬件。本博客完全基于 《计算机网络：自顶向下方法 (Computer Networking: A Top-Down Approach)》 以及中科大郑烇、杨坚全套视频讲解。
+1.1 什么是网络 本书将围绕公网讨论计算机网络以及协议。互联网不是一个网络，而是由很多网络连接在一起的存在，即网络的网络。有两个理解计算机网络途径：
+考虑网络的软硬件组成; 把网络看作响分布式应用提供服务的基建。 1.1.1 软硬件组成角度 虽然叫做计算机网络，看起来只包含传统的桌面端计算机，Linux工作站以及服务器等，但是实际上现在的设备已经不止计算机了，比如很多移动设备，电视等等也被包含在了“计算机网络”。所有的设备都叫做主机(Host)或者端系统(End system)，同时在网络中表示为主机节点。
+每个系统都被通信链路（Communication links）以及 信息包交换机/分组交换（Packet switches）连接着。前者通常是物理介质，比如铜线，光线，电磁波等。不同的链路有不同的传输速率（Transmission rate），单位为bit/second。发送信息的中断系统会为信息打包为 封包（packet），并传输给接收端，这些封包会被接收端重新组装。信息包交换机是信息传输的中转站，也可以叫做数据交换节点，它会把它从输入链路的数据从它的输出链路转发出去。交换机主要分为两种：路由器（Router），链路层交换机（Link-layer switches。前者通常用在网络内核（Internet core） 中使用,后者通常用在访问网络中。一段信息从发出被接受，经过链路和交换器这段路叫做路由（route/path）。主机到互联网之间的连接叫做接入网链路，服务器之间的连接叫做主干链路。
+数据传输的过程可以类比高速路，交叉口，和卡车：信息会被在起始点的“仓库”被打包放入卡车中，卡车会驶过高速路，在交叉口转弯，最终抵达目标仓库重新组装信息。packet类比卡车，link类比高速路，而switches类比交叉口。
+端系统通过互联网服务供应商 (ISPs：Internet service providers)访问互联网。存在不同的服务商：住宅ISPs比如本地线缆，座机公司等，还有企业/大学ISPs等等。每一个ISP都是一个分组交换和链路的网络（networl）。ISP同时也提供可访问内容提供者的互联网：互联网完全只关于端系统之间的连接，所以ISP之间也互相连接。每一个ISP是独立运行的，但都遵循着IP协议。协议控制着互联网信息的收发。最重要的两个协议就是TCP，IP。IP规范了封包的格式。互联网主要的协议被叫做TPC/IP，这些协议也是本书的主要内容。协议需要标准，互联网工程任务组（IETF：Internet Engineering Task Force设计了互联网标准，被叫做请求意见稿（RFCs：Request for Comments） ；人们也可以想IETF提交标准。这一文档规范了很多协议，比如TCP，IP，HTTP，SMTP等。其他的机构，如IEEE推出了对于以太网和WiFi的标准。
+1.1.2 分布式程序服务角度 另一种理解计算机网络的方式是把它看作 分布式程序（Distributed applications） 和为这些程序提供服务的 基础设施。分布式程序的意思是这个程序让多个终端设备互相交流交换数据，并且运行于端系统之上。在端上的程序如何驱动互联网让它为程序发送/接受信息？每一个连接到互联网的设备都会提供 网络接口（Socket interface），告诉一个程序如何在这个设备上让互联网基建去发送信息给另一端的程序。这一接口本质上也是一个规范。除了这最基本的发送信息的服务，互联网还有很多其他服务，将在第二章展开。
+1.1.3 协议 就像人与人之间的交流遵守的基本准则一般，协议（Protocol） 是终端的交流的范式。
+Fig.1 协议 当一个人打招呼的时候开启了一个会话，对方的回应侧面确认了对方听到了，标志着两者的链接。前者便可继续发问。当然后者也可以用不同的回应来回复前者的打招呼，来象征不同的状态。
+网路协议是类似的，除了它们使用软硬件作为基础。所有互联网中的活动都涉及两个及以上的，被协议规范的远程交流。假设你希望访问一个网页，首先计算机会发送一个连接请求报文（Request message） 给网络服务器然后等待回复。之后网络服务器会接收到这一请求然后返回一个连接回复。如果计算机发现交流建立了，它会向服务器发送网页名。最终服务器会返回计算机所请求的网页/文件。
+协议的正式定义：协议定义了在两个或多个通信实体之间交换的报文格式（语法/语义）和次序，以及在报文传输/接收或其他事件方面所采取的动作。
+1.1.4 协议层次及服务模型 协议是对等层之间的约定/规范：协议描述的是一种横向的关系。下层向上层提供上层可使用的服务，上层通过原语（对下层行为的抽象的描述）来使用这些服务：服务是垂直的关系。在实现/使用本层协议的时候，会使用相邻的下层的服务，而下层的协议也使用了下下层的服务：虽然协议不可能跨层交流，但是服务的使用是累加的。上下层之间交流的“窗口”被叫做服务访问点(SAP:Service Access Point)，比如传输层的SAP就是端口。
+数据单元（DU）：
+层与层之间通过SAP交流。上层会把自己的SDU（包含上层的header等）和ICI一起打包为IDU递交给下层，ICI可以让SDU更好的通过SAP，之后抛弃ICI（使用之后ICI就没意义了）。在添加本层的header后，它会组成PDU（header+SDU）传给下一层，在下一层看来，上层的PDU就是本层的SDU（相对关系）：换句话说，图中第一个SDU是对n层来说的，而它实际上页是n+1层的PDU。每一层的PDU有不同的名称：
+应用层：报文 Message 传输层：报文段 Segment 网络层 分组 Packet。 数据报 Datagram 数据链路层 帧 Frame 物理层 位 Bit 分层的好处：</description>
+    </item>
+    
+  </channel>
+</rss>
