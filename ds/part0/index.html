@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-hans">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta http-equiv="X-UA-Compatible" content="ie=edge">
+	<meta name="theme-color" content="#494f5c">
+	<meta name="msapplication-TileColor" content="#494f5c">
+<meta itemprop="name" content="Part 0: GoLang入门 Intro to GoLang">
+<meta itemprop="description" content="目录 导言： 这篇博客作为Go的学习记录，为完成分布式系统6.824的Lab仅涉及最基础的GoLang知识。6.824曾经使用C&#43;&#43;完成Lab，后来切换到了Go。这一举措的原因是Go对“Goroutine”的优秀支持，其RPC包，以及垃圾回收。实际上像是Java之类的语言也可以完成这门课的Labs。
+0.1 模组&amp;包&amp;词法分析器 Mod&amp;Package&amp;Lexer MOD: 在Go1.11之后，module逐渐代替了workshop的概念，是go的新的dependency/包管理系统。它类似于Node.js中的package.json &#43; package-lock.json。
+在使用IDE创建Go项目之后，使用go mod init &lt;name&gt; 来生成一个go.mod。这个文件定义着当前模组的根目录和当前模组的名字。最开始的go.mod是这样的：
+module &lt;name&gt; go &lt;version&gt; 一个go.mod规定了从这层目录开始的所有目录的module的名字。可以创建子目录，但是要注意 每一个目录都只能从属于一个Package。这里可以看到，N个Package是一个Module的组成部分。如同其他语言，main.go的main()也是入口文件，不需要被显式调用（但是需要从属于package main）。这是一个简单的Go程序：
+package main import &#34;fmt&#34; func main(){ fmt.Println(&#34;Hello&#34;) } 这个文件没必要在一个子文件夹中，也可以在go.mod同级目录中，但是这样的话其他的xx.go也必须是package main了。
+第一行的package关键字指出这个go文件所属的package。第二行引入了所需的一个标准库fmt。
+下载某个Package类似NPM，比如下载mux：go get -u github.com/gorilla/mux。之后会看到go.mod之下出现了go.sum，实际上就是checksum，用来校验所下载的pkg是否正确。而在go.mod中可以看到一行
+require github.com/gorilla/mux v1.8.0 // indirect 保存着pkg的名字和版本，后面的“indirect”的意思是这个pkg并没有被使用。
+Lexer：Go的Lexer很强大，它不光会检测语法，还会处理分号：Go实际上是需要分号于语句的末尾的，但是由于lexer会自动添加，这个分号是不可以手动添加的。
+0.2 类型&amp;变量 Types&amp;Variables Go中很重要的一个概念就是Type，它可以一定程度上理解为OOP中的Class。Go中有几乎其他语言中都有的那些基本数据类型：
+func main() { // 创建变量: // 显式声明： // var &#43; &lt;varName&gt; &#43; &lt;type&gt; //String: var username string = &#34;test&#34; // 模板输出：使用%T作为 type 的占位符 // Go中函数内部声明的变量必须被使用，不然算作Error！ fmt."><meta itemprop="datePublished" content="2022-12-15T16:39:42-05:00" />
+<meta itemprop="dateModified" content="2022-12-15T16:39:42-05:00" />
+<meta itemprop="wordCount" content="274">
+<meta itemprop="keywords" content="" /><meta property="og:title" content="Part 0: GoLang入门 Intro to GoLang" />
+<meta property="og:description" content="目录 导言： 这篇博客作为Go的学习记录，为完成分布式系统6.824的Lab仅涉及最基础的GoLang知识。6.824曾经使用C&#43;&#43;完成Lab，后来切换到了Go。这一举措的原因是Go对“Goroutine”的优秀支持，其RPC包，以及垃圾回收。实际上像是Java之类的语言也可以完成这门课的Labs。
+0.1 模组&amp;包&amp;词法分析器 Mod&amp;Package&amp;Lexer MOD: 在Go1.11之后，module逐渐代替了workshop的概念，是go的新的dependency/包管理系统。它类似于Node.js中的package.json &#43; package-lock.json。
+在使用IDE创建Go项目之后，使用go mod init &lt;name&gt; 来生成一个go.mod。这个文件定义着当前模组的根目录和当前模组的名字。最开始的go.mod是这样的：
+module &lt;name&gt; go &lt;version&gt; 一个go.mod规定了从这层目录开始的所有目录的module的名字。可以创建子目录，但是要注意 每一个目录都只能从属于一个Package。这里可以看到，N个Package是一个Module的组成部分。如同其他语言，main.go的main()也是入口文件，不需要被显式调用（但是需要从属于package main）。这是一个简单的Go程序：
+package main import &#34;fmt&#34; func main(){ fmt.Println(&#34;Hello&#34;) } 这个文件没必要在一个子文件夹中，也可以在go.mod同级目录中，但是这样的话其他的xx.go也必须是package main了。
+第一行的package关键字指出这个go文件所属的package。第二行引入了所需的一个标准库fmt。
+下载某个Package类似NPM，比如下载mux：go get -u github.com/gorilla/mux。之后会看到go.mod之下出现了go.sum，实际上就是checksum，用来校验所下载的pkg是否正确。而在go.mod中可以看到一行
+require github.com/gorilla/mux v1.8.0 // indirect 保存着pkg的名字和版本，后面的“indirect”的意思是这个pkg并没有被使用。
+Lexer：Go的Lexer很强大，它不光会检测语法，还会处理分号：Go实际上是需要分号于语句的末尾的，但是由于lexer会自动添加，这个分号是不可以手动添加的。
+0.2 类型&amp;变量 Types&amp;Variables Go中很重要的一个概念就是Type，它可以一定程度上理解为OOP中的Class。Go中有几乎其他语言中都有的那些基本数据类型：
+func main() { // 创建变量: // 显式声明： // var &#43; &lt;varName&gt; &#43; &lt;type&gt; //String: var username string = &#34;test&#34; // 模板输出：使用%T作为 type 的占位符 // Go中函数内部声明的变量必须被使用，不然算作Error！ fmt." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://hoooao.github.io/ds/part0/" /><meta property="article:section" content="ds" />
+<meta property="article:published_time" content="2022-12-15T16:39:42-05:00" />
+<meta property="article:modified_time" content="2022-12-15T16:39:42-05:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Part 0: GoLang入门 Intro to GoLang"/>
+<meta name="twitter:description" content="目录 导言： 这篇博客作为Go的学习记录，为完成分布式系统6.824的Lab仅涉及最基础的GoLang知识。6.824曾经使用C&#43;&#43;完成Lab，后来切换到了Go。这一举措的原因是Go对“Goroutine”的优秀支持，其RPC包，以及垃圾回收。实际上像是Java之类的语言也可以完成这门课的Labs。
+0.1 模组&amp;包&amp;词法分析器 Mod&amp;Package&amp;Lexer MOD: 在Go1.11之后，module逐渐代替了workshop的概念，是go的新的dependency/包管理系统。它类似于Node.js中的package.json &#43; package-lock.json。
+在使用IDE创建Go项目之后，使用go mod init &lt;name&gt; 来生成一个go.mod。这个文件定义着当前模组的根目录和当前模组的名字。最开始的go.mod是这样的：
+module &lt;name&gt; go &lt;version&gt; 一个go.mod规定了从这层目录开始的所有目录的module的名字。可以创建子目录，但是要注意 每一个目录都只能从属于一个Package。这里可以看到，N个Package是一个Module的组成部分。如同其他语言，main.go的main()也是入口文件，不需要被显式调用（但是需要从属于package main）。这是一个简单的Go程序：
+package main import &#34;fmt&#34; func main(){ fmt.Println(&#34;Hello&#34;) } 这个文件没必要在一个子文件夹中，也可以在go.mod同级目录中，但是这样的话其他的xx.go也必须是package main了。
+第一行的package关键字指出这个go文件所属的package。第二行引入了所需的一个标准库fmt。
+下载某个Package类似NPM，比如下载mux：go get -u github.com/gorilla/mux。之后会看到go.mod之下出现了go.sum，实际上就是checksum，用来校验所下载的pkg是否正确。而在go.mod中可以看到一行
+require github.com/gorilla/mux v1.8.0 // indirect 保存着pkg的名字和版本，后面的“indirect”的意思是这个pkg并没有被使用。
+Lexer：Go的Lexer很强大，它不光会检测语法，还会处理分号：Go实际上是需要分号于语句的末尾的，但是由于lexer会自动添加，这个分号是不可以手动添加的。
+0.2 类型&amp;变量 Types&amp;Variables Go中很重要的一个概念就是Type，它可以一定程度上理解为OOP中的Class。Go中有几乎其他语言中都有的那些基本数据类型：
+func main() { // 创建变量: // 显式声明： // var &#43; &lt;varName&gt; &#43; &lt;type&gt; //String: var username string = &#34;test&#34; // 模板输出：使用%T作为 type 的占位符 // Go中函数内部声明的变量必须被使用，不然算作Error！ fmt."/>
+
+	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+	<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+	<link rel="manifest" href="/site.webmanifest">
+	<link rel="mask-icon" href="/safari-pinned-tab.svg" color="">
+	<link rel="shortcut icon" href="/favicon.ico">
+
+	<title>Part 0: GoLang入门 Intro to GoLang</title>
+	<link rel="stylesheet" href="https://hoooao.github.io/css/style.min.6b1219507aa24bcc2a46f4f7071edbc5dc448ba85934d68c4af0ca0a7ad89dcd.css" integrity="sha256-axIZUHqiS8wqRvT3Bx7bxdxEi6hZNNaMSvDKCnrYnc0=" crossorigin="anonymous">
+	<style>.bg-img {background-image: url('https://images.unsplash.com/photo-1531265726475-52ad60219627?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=2691&q=80');}</style>
+</head>
+
+<body id="page">
+	
+	<header id="site-header" class="animated slideInUp">
+		<script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML" type="text/javascript"></script>
+		<script type="text/x-mathjax-config">
+			MathJax.Hub.Config({
+				tex2jax: {
+				skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+				inlineMath: [['$','$']]
+				}
+			});
+		</script>
+		<div class="hdr-wrapper section-inner">
+			<div class="hdr-left">
+				<div class="site-branding">
+					<a href="https://hoooao.github.io/">Hao的个人博客</a>
+				</div>
+				<nav class="site-nav hide-in-mobile">
+					
+				<a href="https://hoooao.github.io/db/">Database</a>
+				<a href="https://hoooao.github.io/ds/">Distributed Systems</a>
+				<a href="https://hoooao.github.io/os/">Operating System</a>
+				<a href="https://hoooao.github.io/algo/">Algoes</a>
+				<a href="https://hoooao.github.io/about-hugo/">About</a>
+
+				</nav>
+			</div>
+			<div class="hdr-right hdr-icons">
+				<span class="hdr-social hide-in-mobile"><a href="https://i.imgur.com/gzAPv6g.jpeg" target="_blank" rel="noopener me" title="Wechat"><svg xmlns="http://www.w3.org/2000/svg" class="feather" width="24" height="24" viewBox="0 0 1000 1000" fill="#c8cdd3" stroke="currentColor" stroke-width="30" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M487.4,340.2c25.2,0,42-16.9,42-42c0-25.4-16.8-41.9-42-41.9c-25.2,0-50.6,16.4-50.6,41.9C436.9,323.4,462.2,340.2,487.4,340.2z M252.2,256.4c-25.2,0-50.7,16.4-50.7,41.9c0,25.1,25.5,42,50.7,42c25.1,0,41.9-16.9,41.9-42C294.1,272.8,277.3,256.4,252.2,256.4z M990,609.2c0-132.9-123.3-246.1-274.6-257.9c0.2-1.7,0.3-3.4-0.1-5.1C684.9,204.7,532.8,98,361.4,98C167.6,98,10,233.1,10,399.1c0,89.1,45.5,169.3,131.7,232.6l-30,90.3c-1.9,5.9-0.2,12.3,4.5,16.4c2.8,2.4,6.4,3.7,10,3.7c2.3,0,4.7-0.6,6.9-1.6l112.8-56.4l13.9,2.8c34.7,7.1,64.7,13.3,101.6,13.3c10.9,0,21.9-0.5,32.7-1.4c4.4-0.4,8.1-2.6,10.6-5.8c40.7,101.8,152.8,175.2,284.7,175.2c33.8,0,68-8.1,98.7-15.8l86.9,47.5c2.3,1.3,4.8,1.9,7.3,1.9c3.4,0,6.9-1.2,9.6-3.4c4.8-3.9,6.8-10.4,5-16.3l-22.2-73.8C949.2,749.6,990,679.2,990,609.2z M391.5,668.4c-10,0.9-20.1,1.3-30.1,1.3c-33.8,0-62.4-5.8-95.5-12.7l-19.2-3.9c-3.3-0.7-6.8-0.2-9.8,1.3l-84.5,42.3l22-66c2.1-6.5-0.2-13.5-5.8-17.4C83.7,554.2,40.6,482.1,40.6,399.1c0-149.1,143.9-270.5,320.7-270.5c156.3,0,294.8,95.1,323.3,221.6c-163.9,2.1-296.6,117.4-296.6,258.9c0,20.6,3.1,40.5,8.4,59.7C394.9,668.5,393.2,668.2,391.5,668.4z M847.8,790.5c-5.1,3.9-7.3,10.5-5.5,16.6l14.5,48.2l-59.4-32.5c-2.3-1.3-4.8-1.9-7.4-1.9c-1.3,0-2.5,0.2-3.7,0.5c-31.9,8.1-64.9,16.4-97,16.4c-149.2,0-270.6-102.5-270.6-228.5c0-126,121.4-228.5,270.6-228.5c146.4,0,270,104.6,270,228.5C959.4,672,919.8,736.4,847.8,790.5z M596.7,500c-16.8,0-33.6,16.9-33.6,33.7c0,16.9,16.8,33.6,33.6,33.6c25.3,0,42-16.7,42-33.6C638.6,516.9,621.9,500,596.7,500z M781.4,500c-16.6,0-33.4,16.9-33.4,33.7c0,16.9,16.8,33.6,33.4,33.6c25.2,0,42.2-16.7,42.2-33.6C823.6,516.9,806.6,500,781.4,500z"></path>
+    </svg></a><a href="https://github.com/Hoooao" target="_blank" rel="noopener me" title="Github"><svg xmlns="http://www.w3.org/2000/svg" class="feather" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg></a></span><button id="menu-btn" class="hdr-btn" title="菜单"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-menu"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button>
+			</div>
+		</div>
+	</header>
+	<div id="mobile-menu" class="animated fast">
+		<ul>
+			<li><a href="https://hoooao.github.io/db/">Database</a></li>
+			<li><a href="https://hoooao.github.io/ds/">Distributed Systems</a></li>
+			<li><a href="https://hoooao.github.io/os/">Operating System</a></li>
+			<li><a href="https://hoooao.github.io/algo/">Algoes</a></li>
+			<li><a href="https://hoooao.github.io/about-hugo/">About</a></li>
+		</ul>
+	</div>
+
+
+	<div class="bg-img"></div>
+	<main class="site-main section-inner animated fadeIn faster">
+		<article class="thin">
+			<header class="post-header">
+				<div class="post-meta"><span>Dec 15, 2022</span></div>
+				<h1>Part 0: GoLang入门 Intro to GoLang</h1>
+			</header>
+			<div class="content">
+				<h2 id="目录">目录<a href="#目录" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<br>
+<hr>
+<br>
+<h2 id="导言">导言：<a href="#导言" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>     这篇博客作为Go的学习记录，为完成分布式系统6.824的Lab仅涉及最基础的GoLang知识。6.824曾经使用C++完成Lab，后来切换到了Go。这一举措的原因是Go对“Goroutine”的优秀支持，其RPC包，以及垃圾回收。实际上像是Java之类的语言也可以完成这门课的Labs。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="01-模组包词法分析器-modpackagelexer">0.1 模组&amp;包&amp;词法分析器 Mod&amp;Package&amp;Lexer<a href="#01-模组包词法分析器-modpackagelexer" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>     <strong>MOD</strong>: 在Go1.11之后，module逐渐代替了workshop的概念，是go的新的dependency/包管理系统。它类似于Node.js中的<code>package.json + package-lock.json</code>。</p>
+<p>     在使用IDE创建Go项目之后，使用<code>go mod init &lt;name&gt;</code> 来生成一个<code>go.mod</code>。这个文件定义着当前<strong>模组的根目录</strong>和<strong>当前模组的名字</strong>。最开始的<code>go.mod</code>是这样的：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Go" data-lang="Go"><span class="line"><span class="cl"><span class="nx">module</span> <span class="p">&lt;</span><span class="nx">name</span><span class="p">&gt;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">go</span> <span class="p">&lt;</span><span class="nx">version</span><span class="p">&gt;</span>
+</span></span></code></pre></div><p>一个<code>go.mod</code>规定了从这层目录开始的所有目录的module的名字。可以创建子目录，但是要注意 <strong>每一个目录都只能从属于一个Package</strong>。这里可以看到，N个Package是一个Module的组成部分。如同其他语言，<code>main.go</code>的<code>main()</code>也是入口文件，不需要被显式调用（但是需要从属于<code>package main</code>）。这是一个简单的Go程序：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Go" data-lang="Go"><span class="line"><span class="cl"><span class="kn">package</span> <span class="nx">main</span>
+</span></span><span class="line"><span class="cl"><span class="kn">import</span> <span class="s">&#34;fmt&#34;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">main</span><span class="p">(){</span>
+</span></span><span class="line"><span class="cl">  <span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;Hello&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>这个文件没必要在一个子文件夹中，也可以在<code>go.mod</code>同级目录中，但是这样的话其他的<code>xx.go</code>也必须是<code>package main</code>了。</p>
+<p>    第一行的<code>package</code>关键字指出这个go文件所属的package。第二行引入了所需的一个标准库<code>fmt</code>。</p>
+<p>    下载某个Package类似NPM，比如下载mux：<code>go get -u github.com/gorilla/mux</code>。之后会看到go.mod之下出现了go.sum，实际上就是checksum，用来校验所下载的pkg是否正确。而在go.mod中可以看到一行</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Go" data-lang="Go"><span class="line"><span class="cl"><span class="nx">require</span> <span class="nx">github</span><span class="p">.</span><span class="nx">com</span><span class="o">/</span><span class="nx">gorilla</span><span class="o">/</span><span class="nx">mux</span> <span class="nx">v1</span><span class="mf">.8.0</span> <span class="c1">// indirect
+</span></span></span></code></pre></div><p>保存着pkg的名字和版本，后面的“indirect”的意思是这个pkg并没有被使用。</p>
+<p>     <strong>Lexer</strong>：Go的Lexer很强大，它不光会检测语法，还会处理分号：Go实际上是需要分号于语句的末尾的，但是由于lexer会自动添加，这个分号是不可以手动添加的。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="02-类型变量-typesvariables">0.2 类型&amp;变量 Types&amp;Variables<a href="#02-类型变量-typesvariables" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    Go中很重要的一个概念就是<strong>Type</strong>，它可以一定程度上理解为OOP中的Class。Go中有几乎其他语言中都有的那些基本数据类型：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Go" data-lang="Go"><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="c1">// 创建变量:
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="c1">// 显式声明：
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="c1">// var + &lt;varName&gt; + &lt;type&gt;
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl">	<span class="c1">//String:
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="kd">var</span> <span class="nx">username</span> <span class="kt">string</span> <span class="p">=</span> <span class="s">&#34;test&#34;</span>
+</span></span><span class="line"><span class="cl">	<span class="c1">// 模板输出：使用%T作为 type 的占位符
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="c1">// Go中函数内部声明的变量必须被使用，不然算作Error！
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="nx">fmt</span><span class="p">.</span><span class="nf">Printf</span><span class="p">(</span><span class="s">&#34;Var is type: %T\n&#34;</span><span class="p">,</span> <span class="nx">username</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="c1">// Bool：
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="kd">var</span> <span class="nx">logged</span> <span class="kt">bool</span> <span class="p">=</span> <span class="kc">false</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="c1">// Int:
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="c1">// 数字相关的类型都可以选择长度
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="kd">var</span> <span class="nx">smallInt</span> <span class="kt">uint8</span> <span class="p">=</span> <span class="mi">255</span>
+</span></span><span class="line"><span class="cl">	<span class="kd">var</span> <span class="nx">num</span> <span class="kt">int</span> <span class="p">=</span> <span class="mi">1024</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="nx">username</span><span class="p">,</span> <span class="nx">logged</span><span class="p">,</span> <span class="nx">smallInt</span><span class="p">,</span> <span class="nx">num</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="c1">// Float:
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="kd">var</span> <span class="nx">smallF</span> <span class="kt">float32</span> <span class="p">=</span> <span class="mf">255.66</span>
+</span></span><span class="line"><span class="cl">	<span class="kd">var</span> <span class="nx">bigF</span> <span class="kt">float64</span> <span class="p">=</span> <span class="mf">2055.66</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="nx">smallF</span><span class="p">,</span> <span class="nx">bigF</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="c1">// Default values and aliases
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="c1">// Go中不用担心变量未初始而得到乱码
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="kd">var</span> <span class="nx">var1</span> <span class="kt">int</span>     <span class="c1">// 0
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="kd">var</span> <span class="nx">var2</span> <span class="kt">string</span>  <span class="c1">// &#34;&#34;
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="kd">var</span> <span class="nx">var3</span> <span class="kt">bool</span>    <span class="c1">// false
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="kd">var</span> <span class="nx">var4</span> <span class="kt">float32</span> <span class="c1">// 0
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="nx">fmt</span><span class="p">.</span><span class="nf">Print</span><span class="p">(</span><span class="nx">var1</span><span class="p">,</span> <span class="nx">var2</span><span class="p">,</span> <span class="nx">var3</span><span class="p">,</span> <span class="nx">var4</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="c1">// 隐式声明：
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="c1">// 不用声明是什么类型，理解为“auto”
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="kd">var</span> <span class="nx">implicit</span> <span class="p">=</span> <span class="s">&#34;test&#34;</span>
+</span></span><span class="line"><span class="cl">	<span class="c1">// implicit = 3 不行：这是赋值，但是没有声明！
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="nx">fmt</span><span class="p">.</span><span class="nf">Print</span><span class="p">(</span><span class="nx">implicit</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="c1">// 省略 var：达成声明+赋值
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="c1">// 使用:=来直接赋值
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="nx">number</span> <span class="o">:=</span> <span class="mf">3000.9</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">fmt</span><span class="p">.</span><span class="nf">Print</span><span class="p">(</span><span class="nx">number</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="c1">// 声明const变量，const变量可不被使用且不报错
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="kd">const</span> <span class="nx">Log</span> <span class="p">=</span> <span class="s">&#34;sss&#34;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="nx">fmt</span><span class="p">.</span><span class="nf">Print</span><span class="p">(</span><span class="nx">a</span><span class="p">,</span> <span class="nx">b</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>    三种变量创建方式：</p>
+<ul>
+<li><code>var + &lt;varName&gt; + &lt;type&gt; (= &lt;value&gt;)</code></li>
+<li><code>var + &lt;varName&gt; (= &lt;value&gt;)</code></li>
+<li><code>&lt;varName&gt; := &lt;value&gt;</code>：这一种显然必须赋值。</li>
+</ul>
+<p>    <strong>同时给多个变量赋</strong>：有点类似JS的解构赋值，支持同时使用上述三种变量创建方式。</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Go" data-lang="Go"><span class="line"><span class="cl"><span class="kd">var</span> <span class="nx">a</span><span class="p">,</span> <span class="nx">b</span> <span class="kt">int</span> <span class="p">=</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">22</span>
+</span></span><span class="line"><span class="cl"><span class="nx">c</span><span class="p">,</span> <span class="nx">d</span> <span class="o">:=</span> <span class="mi">1</span><span class="p">,</span> <span class="s">&#34;22&#34;</span>
+</span></span></code></pre></div><p>    <strong>注：</strong> Go中创建的任何变量必须被使用，不然会被Lexer报错：除了<code>const</code>变量。和全局变量。全局变量无法使用<code>:=</code>的方式定义！</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="03-comma-ok--err">0.3 Comma OK || Err<a href="#03-comma-ok--err" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    Go中 <strong>不存在Try/Catch</strong>，使用Comma OK||Err的模式来“捕捉错误”。这一模式类似于JS中回调函数常常为形如<code>(data,err)=&gt;{}</code>的写法，但不同的是，这里的 OK||Err是返回值。这是一个从console中获取用户输入的简单程序：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Go" data-lang="Go"><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">	<span class="nx">fmt</span><span class="p">.</span><span class="nf">Print</span><span class="p">(</span><span class="s">&#34;Welcome, type your name:&#34;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="c1">// 这里使用 bufio库来创建一个 Reader，参数是文件描述符，这里是标准输入
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="c1">// 这里使用:=赋值，因为不知道返回的类型是什么
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="nx">reader</span> <span class="o">:=</span> <span class="nx">bufio</span><span class="p">.</span><span class="nf">NewReader</span><span class="p">(</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stdin</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="c1">// 这个函数返回两个东西，第一个是输入（String类型 ），第二个是error
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="c1">// 当不关心某个返回是什么的时候，使用下划线占位即可
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="c1">// ReadString中的参数是deliminator
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="nx">input</span><span class="p">,</span> <span class="nx">err</span> <span class="o">:=</span> <span class="nx">reader</span><span class="p">.</span><span class="nf">ReadString</span><span class="p">(</span><span class="sc">&#39;\n&#39;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">	<span class="c1">// 这里是一个很常见的写法，用来检测是否出错
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="c1">// nil是Null
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>	<span class="k">if</span> <span class="nx">err</span><span class="o">!=</span><span class="kc">nil</span><span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">fmt</span><span class="p">.</span><span class="nf">Print</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl">	<span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">		<span class="nx">fmt</span><span class="p">.</span><span class="nf">Print</span><span class="p">(</span><span class="nx">input</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">	<span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>上面的程序中 <code>reader.ReadString('\n')</code> 返回了两个量，使用Go的同时赋值的特性给两个变量赋值。之所以被称之为 Comma OK||Err，是因为通常这种函数的返回值为<code>data, (ok||err)</code>，上面的程序是Comma err的例子。</p>
+<p>     **注：**当一个函数返回多个数据的时候，如果有不会使用的变量，必须使用<code>_</code>当作占位符放在目标位置上，不然会因为“为使用该变量”报错。比如上述的例子中我们不关心err，那么就可以写成<code>input, _ := reader.ReadString('\n')</code>，这里的_是一个特殊的保留字，并不会导致报错。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="04-型转时间打包-conversion">0.4 型转&amp;时间&amp;打包 Conversion<a href="#04-型转时间打包-conversion" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    </p>
+
+			</div>
+			<hr class="post-end">
+			<footer class="post-info">
+				<p><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-file-text"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>&lt;no value&gt; 字</p>
+				<p><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-calendar"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>2022-12-15 16:39 -0500</p>
+			</footer>
+		</article>
+		<div class="post-nav thin">
+		</div>
+		<div id="comments" class="thin">
+</div>
+	</main>
+
+	<footer id="site-footer" class="section-inner thin animated fadeIn faster">
+		<p>&copy; 2022 <a href="https://hoooao.github.io/">Xiyu Hao</a> &#183; <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" rel="noopener">CC BY-NC 4.0</a></p>
+		<p>
+			Made with <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> &#183; Theme <a href="https://github.com/Track3/hermit" target="_blank" rel="noopener">Hermit</a> &#183; <a href="https://hoooao.github.io/posts/index.xml" target="_blank" title="rss"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-rss"><path d="M4 11a9 9 0 0 1 9 9"></path><path d="M4 4a16 16 0 0 1 16 16"></path><circle cx="5" cy="19" r="1"></circle></svg></a>
+		</p>
+	</footer>
+
+
+
+	<script src="https://hoooao.github.io/js/bundle.min.580988ed2982bcbb74a1773c7abea97b43e4c43b9324e10cda0813ec6ec4bb67.js" integrity="sha256-WAmI7SmCvLt0oXc8er6pe0PkxDuTJOEM2ggT7G7Eu2c=" crossorigin="anonymous"></script>
+	
+
+</body>
+
+</html>
