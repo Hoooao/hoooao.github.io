@@ -14,17 +14,14 @@
       <pubDate>Thu, 15 Dec 2022 16:39:42 -0500</pubDate>
       
       <guid>https://hoooao.github.io/ds/part0/</guid>
-      <description>目录 导言： 这篇博客作为Go的学习记录，为完成分布式系统6.824的Lab仅涉及最基础的GoLang知识。6.824曾经使用C++完成Lab，后来切换到了Go。这一举措的原因是Go对“Goroutine”的优秀支持，其RPC包，以及垃圾回收。实际上像是Java之类的语言也可以完成这门课的Labs。
+      <description>目录 导言 0.1 模组&amp;amp;包&amp;amp;词法分析器 Mod&amp;amp;Package&amp;amp;Lexer 0.2 类型&amp;amp;变量 Types&amp;amp;Variables 0.3 Comma OK || Err 0.4 型转&amp;amp;时间&amp;amp;打包&amp;amp;内存管理&amp;amp;指针 Conversion&amp;amp;Time&amp;amp;Memo Management&amp;amp;Pointer 0.5 数据结构 Data Structures 0.6 流程控制 Flow Control 0.7 函数&amp;amp;Defer&amp;amp;文件 Functions&amp;amp;Defer&amp;amp;Files 0.8 并发&amp;amp;互斥锁&amp;amp;管道 Concurrency&amp;amp;Mutex&amp;amp;Channel 导言： 这篇博文作为Go的学习记录，为完成分布式系统6.824的Lab仅涉及最基础的GoLang知识。6.824曾经使用C++完成Lab，后来切换到了Go。这一举措的原因是Go对“Goroutine”的优秀支持，其RPC包，以及垃圾回收。实际上像是Java之类的语言也可以完成这门课的Labs。
 0.1 模组&amp;amp;包&amp;amp;词法分析器 Mod&amp;amp;Package&amp;amp;Lexer MOD: 在Go1.11之后，module逐渐代替了workshop的概念，是go的新的dependency/包管理系统。它类似于Node.js中的package.json + package-lock.json。
 在使用IDE创建Go项目之后，使用go mod init &amp;lt;name&amp;gt; 来生成一个go.mod。这个文件定义着当前模组的根目录和当前模组的名字。最开始的go.mod是这样的：
 module &amp;lt;name&amp;gt; go &amp;lt;version&amp;gt; 一个go.mod规定了从这层目录开始的所有目录的module的名字。可以创建子目录，但是要注意 每一个目录都只能从属于一个Package。这里可以看到，N个Package是一个Module的组成部分。如同其他语言，main.go的main()也是入口文件，不需要被显式调用（但是需要从属于package main）。这是一个简单的Go程序：
 package main import &amp;#34;fmt&amp;#34; func main(){ fmt.Println(&amp;#34;Hello&amp;#34;) } 这个文件没必要在一个子文件夹中，也可以在go.mod同级目录中，但是这样的话其他的xx.go也必须是package main了。
 第一行的package关键字指出这个go文件所属的package。第二行引入了所需的一个标准库fmt。
 下载某个Package类似NPM，比如下载mux：go get -u github.com/gorilla/mux。之后会看到go.mod之下出现了go.sum，实际上就是checksum，用来校验所下载的pkg是否正确。而在go.mod中可以看到一行
-require github.com/gorilla/mux v1.8.0 // indirect 保存着pkg的名字和版本，后面的“indirect”的意思是这个pkg并没有被使用。
-Lexer：Go的Lexer很强大，它不光会检测语法，还会处理分号：Go实际上是需要分号于语句的末尾的，但是由于lexer会自动添加，这个分号是不可以手动添加的。
-0.2 类型&amp;amp;变量 Types&amp;amp;Variables Go中很重要的一个概念就是Type，它可以一定程度上理解为OOP中的Class。Go中有几乎其他语言中都有的那些基本数据类型：
-func main() { // 创建变量: // 显式声明： // var + &amp;lt;varName&amp;gt; + &amp;lt;type&amp;gt; //String: var username string = &amp;#34;test&amp;#34; // 模板输出：使用%T作为 type 的占位符 // Go中函数内部声明的变量必须被使用，不然算作Error！ fmt.</description>
+require github.com/gorilla/mux v1.8.0 // indirect 保存着pkg的名字和版本，后面的“indirect”的意思是这个pkg并没有被使用。</description>
     </item>
     
     <item>
