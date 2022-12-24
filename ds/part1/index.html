@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-hans">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta http-equiv="X-UA-Compatible" content="ie=edge">
+	<meta name="theme-color" content="#494f5c">
+	<meta name="msapplication-TileColor" content="#494f5c">
+<meta itemprop="name" content="Part 1: MapReduce&amp;谷歌文件系统 MapReduce&amp;GFS">
+<meta itemprop="description" content="目录 导言： 这一部分介绍两篇论文：MapReduce，Google File System。
+1.1 MapReduce 这篇论文的作者是Jeffery Dean和Sanjay Ghemawat。与其说他们提出了一种分布式系统的“理论”，实际上MapReduce更多的是一种可实践的思想。在6.824的第一个Lab中，就要求学生通过这种思想完成一个分布式应用。
+在理解MapReduce之前，可以试着回忆一下“分治法”的思想。在归并排序中，程序会把一串数字一次又一次地拆分成原来的一半，最终拆分为单独的数字，并以这样的最小已排序单位来比较。最小的单位在排序后又组成更大的单位，以此往复。设想如果每次归并排序的递归/任务的拆解都是一个独立的线程，那么效率似乎会高很多（假设不存在并发问题）。MapReduce的最关键的思想就是类似于在拆分任务的时候实现分布式运行，达到效率提升的目的。
+Map与Reduce：在很多语言里有同名接口，比如JS中的Array.prototype.map(); Array.prototype.reduce()。它们继承着一样的概念：Map为拆分：
+Fig.1 Map Reduce为 重组：
+Fig.2 Reduce 一般来说MapReduce任务共有6个步骤：Input, Split, Map, Shuffle, Reduce, Finalize。
+MapReduce 使用了一个很好的例子来解释这一拆分和重组的方式是如何在分布式应用中工作的：单词计数。假设一个图书管理员希望统计一个巨大的文本库中每个单词出现了多少次。显而易见他可以直接从开始到结尾进行扫描，一路上记录着截止到当前扫描的位置，每个单词出现的次数。这一过程只有 $\Theta(n)$，并不高。但是面对巨大的文本量，线性复杂度也十分耗时。
+那么思考假如这个文本库中有20本书，现在总共有10名员工，其中五人每个人独立地统计4本书：这一过程就是 Split。在任务分配之后，每个员工独立地顺序扫描每一个单词，但是 并不直接统计单词出现个数：这是 Map 的过程，每一个文本被切分成了单独的单词，每一个单词出现的次数暂记为1，即使出现了两个一样的单词，也临时把它们看作不同的，这是为了Map与Reduce的 关注点分离 (Separation of concerns)。其他的五个员工每个人分别负责几个不同的首字母单词的频次统计。他们开始读取每个Map员工的结果来看这个员工有没有产出自己的目标首字母单词，这一步就是 Shuffle （这一过程实际上可以通过很多方式实现，而不是单纯的对Map员工成果的遍历）。之后他们开始递增相同单词出现的个数得到结果，也就是 Reduce。在得到最终的结果之后，写入文件做记录：Finalize。
+Fig.3 Word Count 除了这几个**工人(Worker)**之外，还有一个角色：协调者(Master/Coordinator)。他会告诉每一个工人他们应该去干什么，给Map工人分配Split，告知Reduce工人哪个Map工人那里有他需要的数据等等：
+Fig.4 MapReduce Model 在真实的情景中，上述的文本将会是文件（文本，网页等等），上述的工人和协调者都是计算机，Map的产物将会是一个链表，每个元素是一个 键值对（KV），比如 (Apple, 1)表达Apple出现了1次。整个MR应用叫做Job，每个工人分到的那部分称为Task。Map与Reduce都是计算机上的程序/函数：
+func Map(key string, value string){ //Pseudocode for each_word in value{ Emit_map(word,1) } } func Reduce (key string, value int[]){ // 1的个数就是这个单词出现的个数 Emit_reduce(len(value)) } 在Word Count中，Map()的参数key可以是文件名，value可以是文件的内容；Reduce()的参数key是某个特定的单词，value则是全1的slice。Emit_map()可以把Map完成的数据存入自己本地磁盘，Emit_reduce()可以把最终结果上传服务器。"><meta itemprop="datePublished" content="2022-12-24T14:47:11-05:00" />
+<meta itemprop="dateModified" content="2022-12-24T14:47:11-05:00" />
+<meta itemprop="wordCount" content="80">
+<meta itemprop="keywords" content="" /><meta property="og:title" content="Part 1: MapReduce&amp;谷歌文件系统 MapReduce&amp;GFS" />
+<meta property="og:description" content="目录 导言： 这一部分介绍两篇论文：MapReduce，Google File System。
+1.1 MapReduce 这篇论文的作者是Jeffery Dean和Sanjay Ghemawat。与其说他们提出了一种分布式系统的“理论”，实际上MapReduce更多的是一种可实践的思想。在6.824的第一个Lab中，就要求学生通过这种思想完成一个分布式应用。
+在理解MapReduce之前，可以试着回忆一下“分治法”的思想。在归并排序中，程序会把一串数字一次又一次地拆分成原来的一半，最终拆分为单独的数字，并以这样的最小已排序单位来比较。最小的单位在排序后又组成更大的单位，以此往复。设想如果每次归并排序的递归/任务的拆解都是一个独立的线程，那么效率似乎会高很多（假设不存在并发问题）。MapReduce的最关键的思想就是类似于在拆分任务的时候实现分布式运行，达到效率提升的目的。
+Map与Reduce：在很多语言里有同名接口，比如JS中的Array.prototype.map(); Array.prototype.reduce()。它们继承着一样的概念：Map为拆分：
+Fig.1 Map Reduce为 重组：
+Fig.2 Reduce 一般来说MapReduce任务共有6个步骤：Input, Split, Map, Shuffle, Reduce, Finalize。
+MapReduce 使用了一个很好的例子来解释这一拆分和重组的方式是如何在分布式应用中工作的：单词计数。假设一个图书管理员希望统计一个巨大的文本库中每个单词出现了多少次。显而易见他可以直接从开始到结尾进行扫描，一路上记录着截止到当前扫描的位置，每个单词出现的次数。这一过程只有 $\Theta(n)$，并不高。但是面对巨大的文本量，线性复杂度也十分耗时。
+那么思考假如这个文本库中有20本书，现在总共有10名员工，其中五人每个人独立地统计4本书：这一过程就是 Split。在任务分配之后，每个员工独立地顺序扫描每一个单词，但是 并不直接统计单词出现个数：这是 Map 的过程，每一个文本被切分成了单独的单词，每一个单词出现的次数暂记为1，即使出现了两个一样的单词，也临时把它们看作不同的，这是为了Map与Reduce的 关注点分离 (Separation of concerns)。其他的五个员工每个人分别负责几个不同的首字母单词的频次统计。他们开始读取每个Map员工的结果来看这个员工有没有产出自己的目标首字母单词，这一步就是 Shuffle （这一过程实际上可以通过很多方式实现，而不是单纯的对Map员工成果的遍历）。之后他们开始递增相同单词出现的个数得到结果，也就是 Reduce。在得到最终的结果之后，写入文件做记录：Finalize。
+Fig.3 Word Count 除了这几个**工人(Worker)**之外，还有一个角色：协调者(Master/Coordinator)。他会告诉每一个工人他们应该去干什么，给Map工人分配Split，告知Reduce工人哪个Map工人那里有他需要的数据等等：
+Fig.4 MapReduce Model 在真实的情景中，上述的文本将会是文件（文本，网页等等），上述的工人和协调者都是计算机，Map的产物将会是一个链表，每个元素是一个 键值对（KV），比如 (Apple, 1)表达Apple出现了1次。整个MR应用叫做Job，每个工人分到的那部分称为Task。Map与Reduce都是计算机上的程序/函数：
+func Map(key string, value string){ //Pseudocode for each_word in value{ Emit_map(word,1) } } func Reduce (key string, value int[]){ // 1的个数就是这个单词出现的个数 Emit_reduce(len(value)) } 在Word Count中，Map()的参数key可以是文件名，value可以是文件的内容；Reduce()的参数key是某个特定的单词，value则是全1的slice。Emit_map()可以把Map完成的数据存入自己本地磁盘，Emit_reduce()可以把最终结果上传服务器。" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://hoooao.github.io/ds/part1/" /><meta property="article:section" content="ds" />
+<meta property="article:published_time" content="2022-12-24T14:47:11-05:00" />
+<meta property="article:modified_time" content="2022-12-24T14:47:11-05:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Part 1: MapReduce&amp;谷歌文件系统 MapReduce&amp;GFS"/>
+<meta name="twitter:description" content="目录 导言： 这一部分介绍两篇论文：MapReduce，Google File System。
+1.1 MapReduce 这篇论文的作者是Jeffery Dean和Sanjay Ghemawat。与其说他们提出了一种分布式系统的“理论”，实际上MapReduce更多的是一种可实践的思想。在6.824的第一个Lab中，就要求学生通过这种思想完成一个分布式应用。
+在理解MapReduce之前，可以试着回忆一下“分治法”的思想。在归并排序中，程序会把一串数字一次又一次地拆分成原来的一半，最终拆分为单独的数字，并以这样的最小已排序单位来比较。最小的单位在排序后又组成更大的单位，以此往复。设想如果每次归并排序的递归/任务的拆解都是一个独立的线程，那么效率似乎会高很多（假设不存在并发问题）。MapReduce的最关键的思想就是类似于在拆分任务的时候实现分布式运行，达到效率提升的目的。
+Map与Reduce：在很多语言里有同名接口，比如JS中的Array.prototype.map(); Array.prototype.reduce()。它们继承着一样的概念：Map为拆分：
+Fig.1 Map Reduce为 重组：
+Fig.2 Reduce 一般来说MapReduce任务共有6个步骤：Input, Split, Map, Shuffle, Reduce, Finalize。
+MapReduce 使用了一个很好的例子来解释这一拆分和重组的方式是如何在分布式应用中工作的：单词计数。假设一个图书管理员希望统计一个巨大的文本库中每个单词出现了多少次。显而易见他可以直接从开始到结尾进行扫描，一路上记录着截止到当前扫描的位置，每个单词出现的次数。这一过程只有 $\Theta(n)$，并不高。但是面对巨大的文本量，线性复杂度也十分耗时。
+那么思考假如这个文本库中有20本书，现在总共有10名员工，其中五人每个人独立地统计4本书：这一过程就是 Split。在任务分配之后，每个员工独立地顺序扫描每一个单词，但是 并不直接统计单词出现个数：这是 Map 的过程，每一个文本被切分成了单独的单词，每一个单词出现的次数暂记为1，即使出现了两个一样的单词，也临时把它们看作不同的，这是为了Map与Reduce的 关注点分离 (Separation of concerns)。其他的五个员工每个人分别负责几个不同的首字母单词的频次统计。他们开始读取每个Map员工的结果来看这个员工有没有产出自己的目标首字母单词，这一步就是 Shuffle （这一过程实际上可以通过很多方式实现，而不是单纯的对Map员工成果的遍历）。之后他们开始递增相同单词出现的个数得到结果，也就是 Reduce。在得到最终的结果之后，写入文件做记录：Finalize。
+Fig.3 Word Count 除了这几个**工人(Worker)**之外，还有一个角色：协调者(Master/Coordinator)。他会告诉每一个工人他们应该去干什么，给Map工人分配Split，告知Reduce工人哪个Map工人那里有他需要的数据等等：
+Fig.4 MapReduce Model 在真实的情景中，上述的文本将会是文件（文本，网页等等），上述的工人和协调者都是计算机，Map的产物将会是一个链表，每个元素是一个 键值对（KV），比如 (Apple, 1)表达Apple出现了1次。整个MR应用叫做Job，每个工人分到的那部分称为Task。Map与Reduce都是计算机上的程序/函数：
+func Map(key string, value string){ //Pseudocode for each_word in value{ Emit_map(word,1) } } func Reduce (key string, value int[]){ // 1的个数就是这个单词出现的个数 Emit_reduce(len(value)) } 在Word Count中，Map()的参数key可以是文件名，value可以是文件的内容；Reduce()的参数key是某个特定的单词，value则是全1的slice。Emit_map()可以把Map完成的数据存入自己本地磁盘，Emit_reduce()可以把最终结果上传服务器。"/>
+
+	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+	<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+	<link rel="manifest" href="/site.webmanifest">
+	<link rel="mask-icon" href="/safari-pinned-tab.svg" color="">
+	<link rel="shortcut icon" href="/favicon.ico">
+
+	<title>Part 1: MapReduce&amp;谷歌文件系统 MapReduce&amp;GFS</title>
+	<link rel="stylesheet" href="https://hoooao.github.io/css/style.min.6b1219507aa24bcc2a46f4f7071edbc5dc448ba85934d68c4af0ca0a7ad89dcd.css" integrity="sha256-axIZUHqiS8wqRvT3Bx7bxdxEi6hZNNaMSvDKCnrYnc0=" crossorigin="anonymous">
+	<style>.bg-img {background-image: url('https://images.unsplash.com/photo-1531265726475-52ad60219627?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=2691&q=80');}</style>
+</head>
+
+<body id="page">
+	
+	<header id="site-header" class="animated slideInUp">
+		<script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML" type="text/javascript"></script>
+		<script type="text/x-mathjax-config">
+			MathJax.Hub.Config({
+				tex2jax: {
+				skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+				inlineMath: [['$','$']]
+				}
+			});
+		</script>
+		<div class="hdr-wrapper section-inner">
+			<div class="hdr-left">
+				<div class="site-branding">
+					<a href="https://hoooao.github.io/">Hao的个人博客</a>
+				</div>
+				<nav class="site-nav hide-in-mobile">
+					
+				<a href="https://hoooao.github.io/db/">Database</a>
+				<a href="https://hoooao.github.io/ds/">Distributed Systems</a>
+				<a href="https://hoooao.github.io/os/">Operating System</a>
+				<a href="https://hoooao.github.io/algo/">Algoes</a>
+				<a href="https://hoooao.github.io/about-hugo/">About</a>
+
+				</nav>
+			</div>
+			<div class="hdr-right hdr-icons">
+				<span class="hdr-social hide-in-mobile"><a href="https://i.imgur.com/gzAPv6g.jpeg" target="_blank" rel="noopener me" title="Wechat"><svg xmlns="http://www.w3.org/2000/svg" class="feather" width="24" height="24" viewBox="0 0 1000 1000" fill="#c8cdd3" stroke="currentColor" stroke-width="30" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M487.4,340.2c25.2,0,42-16.9,42-42c0-25.4-16.8-41.9-42-41.9c-25.2,0-50.6,16.4-50.6,41.9C436.9,323.4,462.2,340.2,487.4,340.2z M252.2,256.4c-25.2,0-50.7,16.4-50.7,41.9c0,25.1,25.5,42,50.7,42c25.1,0,41.9-16.9,41.9-42C294.1,272.8,277.3,256.4,252.2,256.4z M990,609.2c0-132.9-123.3-246.1-274.6-257.9c0.2-1.7,0.3-3.4-0.1-5.1C684.9,204.7,532.8,98,361.4,98C167.6,98,10,233.1,10,399.1c0,89.1,45.5,169.3,131.7,232.6l-30,90.3c-1.9,5.9-0.2,12.3,4.5,16.4c2.8,2.4,6.4,3.7,10,3.7c2.3,0,4.7-0.6,6.9-1.6l112.8-56.4l13.9,2.8c34.7,7.1,64.7,13.3,101.6,13.3c10.9,0,21.9-0.5,32.7-1.4c4.4-0.4,8.1-2.6,10.6-5.8c40.7,101.8,152.8,175.2,284.7,175.2c33.8,0,68-8.1,98.7-15.8l86.9,47.5c2.3,1.3,4.8,1.9,7.3,1.9c3.4,0,6.9-1.2,9.6-3.4c4.8-3.9,6.8-10.4,5-16.3l-22.2-73.8C949.2,749.6,990,679.2,990,609.2z M391.5,668.4c-10,0.9-20.1,1.3-30.1,1.3c-33.8,0-62.4-5.8-95.5-12.7l-19.2-3.9c-3.3-0.7-6.8-0.2-9.8,1.3l-84.5,42.3l22-66c2.1-6.5-0.2-13.5-5.8-17.4C83.7,554.2,40.6,482.1,40.6,399.1c0-149.1,143.9-270.5,320.7-270.5c156.3,0,294.8,95.1,323.3,221.6c-163.9,2.1-296.6,117.4-296.6,258.9c0,20.6,3.1,40.5,8.4,59.7C394.9,668.5,393.2,668.2,391.5,668.4z M847.8,790.5c-5.1,3.9-7.3,10.5-5.5,16.6l14.5,48.2l-59.4-32.5c-2.3-1.3-4.8-1.9-7.4-1.9c-1.3,0-2.5,0.2-3.7,0.5c-31.9,8.1-64.9,16.4-97,16.4c-149.2,0-270.6-102.5-270.6-228.5c0-126,121.4-228.5,270.6-228.5c146.4,0,270,104.6,270,228.5C959.4,672,919.8,736.4,847.8,790.5z M596.7,500c-16.8,0-33.6,16.9-33.6,33.7c0,16.9,16.8,33.6,33.6,33.6c25.3,0,42-16.7,42-33.6C638.6,516.9,621.9,500,596.7,500z M781.4,500c-16.6,0-33.4,16.9-33.4,33.7c0,16.9,16.8,33.6,33.4,33.6c25.2,0,42.2-16.7,42.2-33.6C823.6,516.9,806.6,500,781.4,500z"></path>
+    </svg></a><a href="https://github.com/Hoooao" target="_blank" rel="noopener me" title="Github"><svg xmlns="http://www.w3.org/2000/svg" class="feather" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg></a></span><button id="menu-btn" class="hdr-btn" title="菜单"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-menu"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button>
+			</div>
+		</div>
+	</header>
+	<div id="mobile-menu" class="animated fast">
+		<ul>
+			<li><a href="https://hoooao.github.io/db/">Database</a></li>
+			<li><a href="https://hoooao.github.io/ds/">Distributed Systems</a></li>
+			<li><a href="https://hoooao.github.io/os/">Operating System</a></li>
+			<li><a href="https://hoooao.github.io/algo/">Algoes</a></li>
+			<li><a href="https://hoooao.github.io/about-hugo/">About</a></li>
+		</ul>
+	</div>
+
+
+	<div class="bg-img"></div>
+	<main class="site-main section-inner animated fadeIn faster">
+		<article class="thin">
+			<header class="post-header">
+				<div class="post-meta"><span>Dec 24, 2022</span></div>
+				<h1>Part 1: MapReduce&amp;谷歌文件系统 MapReduce&amp;GFS</h1>
+			</header>
+			<div class="content">
+				<h2 id="目录">目录<a href="#目录" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<br>
+<hr>
+<br>
+<h2 id="导言">导言：<a href="#导言" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    这一部分介绍两篇论文：<em>MapReduce</em>，<em>Google File System</em>。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="11-mapreduce">1.1 MapReduce<a href="#11-mapreduce" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>     这篇论文的作者是Jeffery Dean和Sanjay Ghemawat。与其说他们提出了一种分布式系统的“理论”，实际上MapReduce更多的是一种可实践的思想。在6.824的第一个Lab中，就要求学生通过这种思想完成一个分布式应用。</p>
+<p>     在理解MapReduce之前，可以试着回忆一下“分治法”的思想。在归并排序中，程序会把一串数字一次又一次地拆分成原来的一半，最终拆分为单独的数字，并以这样的最小已排序单位来比较。最小的单位在排序后又组成更大的单位，以此往复。设想如果每次归并排序的递归/任务的拆解都是一个独立的线程，那么效率似乎会高很多（假设不存在并发问题）。MapReduce的最关键的思想就是类似于在拆分任务的时候实现分布式运行，达到效率提升的目的。</p>
+<p>     <strong>Map</strong>与<strong>Reduce</strong>：在很多语言里有同名接口，比如JS中的<code>Array.prototype.map(); Array.prototype.reduce()</code>。它们继承着一样的概念：Map为<strong>拆分</strong>：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://pic3.zhimg.com/v2-60294db5923f28063681a47e8b4be66e_b.jpg" alt="" style="width:80%">
+<figcaption><b>Fig.1 Map</b></figcaption>
+</div>
+</figure>
+<p>Reduce为 <strong>重组</strong>：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://pic2.zhimg.com/v2-d32f853d005bacd372128679b9fa05ad_b.jpg" alt="" style="width:80%">
+<figcaption><b>Fig.2 Reduce</b></figcaption>
+</div>
+</figure>
+<p>一般来说MapReduce任务共有6个步骤：Input, Split, Map, Shuffle, Reduce, Finalize。</p>
+<p>     <em>MapReduce</em> 使用了一个很好的例子来解释这一拆分和重组的方式是如何在分布式应用中工作的：单词计数。假设一个图书管理员希望统计一个巨大的文本库中每个单词出现了多少次。显而易见他可以直接从开始到结尾进行扫描，一路上记录着截止到当前扫描的位置，每个单词出现的次数。这一过程只有 $\Theta(n)$，并不高。但是面对巨大的文本量，线性复杂度也十分耗时。</p>
+<p>     那么思考假如这个文本库中有20本书，现在总共有10名员工，其中五人每个人独立地统计4本书：这一过程就是 <strong>Split</strong>。在任务分配之后，每个员工独立地顺序扫描每一个单词，但是 <strong>并不直接统计单词出现个数</strong>：这是 <strong>Map</strong> 的过程，每一个文本被切分成了单独的单词，每一个单词出现的次数暂记为1，即使出现了两个一样的单词，也临时把它们看作不同的，这是为了Map与Reduce的 <strong>关注点分离 (Separation of concerns)</strong>。其他的五个员工每个人分别负责几个不同的首字母单词的频次统计。他们开始读取每个Map员工的结果来看这个员工有没有产出自己的目标首字母单词，这一步就是 <strong>Shuffle</strong> （这一过程实际上可以通过很多方式实现，而不是单纯的对Map员工成果的遍历）。之后他们开始递增相同单词出现的个数得到结果，也就是 <strong>Reduce</strong>。在得到最终的结果之后，写入文件做记录：<strong>Finalize</strong>。</p>
+<figure>
+<div style="text-align:center">
+<img src="https://www.researchgate.net/publication/345974696/figure/fig1/AS:963962652868612@1606838014160/Processing-data-using-MapReduce-model-The-schema-represents-a-WordCount-example-with.png" alt="" style="width:80%">
+<figcaption><b>Fig.3 Word Count</b></figcaption>
+</div>
+</figure>
+<p>    除了这几个**工人(Worker)**之外，还有一个角色：<strong>协调者(Master/Coordinator)</strong>。他会告诉每一个工人他们应该去干什么，给Map工人分配Split，告知Reduce工人哪个Map工人那里有他需要的数据等等：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://www.researchgate.net/profile/Alexandros-Gazis/publication/357281114/figure/fig1/AS:1122971515129862@1644748681133/Fig-1-Map-Reduce-execution-overview.png" alt="" style="width:80%">
+<figcaption><b>Fig.4 MapReduce Model</b></figcaption>
+</div>
+</figure>
+<p>    在真实的情景中，上述的文本将会是文件（文本，网页等等），上述的工人和协调者都是计算机，Map的产物将会是一个链表，每个元素是一个 <strong>键值对（KV）</strong>，比如 (Apple, 1)表达Apple出现了1次。整个MR应用叫做Job，每个工人分到的那部分称为Task。Map与Reduce都是计算机上的程序/函数：</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-Go" data-lang="Go"><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">Map</span><span class="p">(</span><span class="nx">key</span> <span class="kt">string</span><span class="p">,</span> <span class="nx">value</span> <span class="kt">string</span><span class="p">){</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">//Pseudocode
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="k">for</span> <span class="nx">each_word</span> <span class="nx">in</span> <span class="nx">value</span><span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">Emit_map</span><span class="p">(</span><span class="nx">word</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kd">func</span> <span class="nf">Reduce</span> <span class="p">(</span><span class="nx">key</span> <span class="kt">string</span><span class="p">,</span> <span class="nx">value</span> <span class="kt">int</span><span class="p">[]){</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// 1的个数就是这个单词出现的个数
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nf">Emit_reduce</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="nx">value</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></div><p>在Word Count中，<code>Map()</code>的参数key可以是文件名，value可以是文件的内容；<code>Reduce()</code>的参数key是某个特定的单词，value则是全1的slice。<code>Emit_map()</code>可以把Map完成的数据存入自己本地磁盘，<code>Emit_reduce()</code>可以把最终结果上传服务器。</p>
+<p>    网络速度曾是MR系统的瓶颈，在论文的实验中，每台计算机只分到了50MB/s的以太网带宽，过慢于数据处理速度。但是得益于GFS，协调者可以知道哪台计算机上有哪些待处理的文件，然后直接把这写计算机分配为Map工人，省去了把Splits传输到Map工人的磁盘中的时间：但是Map工人与Reduce工人之间的网络传输无法避免。由于现代网络吞吐量大得多，Map并不一定直接在和Splits同一个计算机上运行。</p>
+<p>     <strong>注</strong>：Reduce等待所有Map结束再处理是一种Batch的处理方式，现代系统有对Streaming Map与Reduce的尝试（即Map没完全完成，但仍把已处理的部分传给Reduce）。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<blockquote>
+<h3 id="参考">参考:<a href="#参考" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h3>
+</blockquote>
+
+			</div>
+			<hr class="post-end">
+			<footer class="post-info">
+				<p><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-file-text"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>0 字</p>
+				<p><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-calendar"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>2022-12-24 14:47 -0500</p>
+			</footer>
+		</article>
+		<div class="post-nav thin">
+			<a class="prev-post" href="https://hoooao.github.io/ds/part0/">
+				<span class="post-nav-label">下一篇&nbsp;<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-arrow-right"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></span><br><span>Part 0: GoLang入门 Intro to GoLang</span>
+			</a>
+		</div>
+		<div id="comments" class="thin">
+</div>
+	</main>
+
+	<footer id="site-footer" class="section-inner thin animated fadeIn faster">
+		<p>&copy; 2022 <a href="https://hoooao.github.io/">Xiyu Hao</a> &#183; <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" rel="noopener">CC BY-NC 4.0</a></p>
+		<p>
+			Made with <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> &#183; Theme <a href="https://github.com/Track3/hermit" target="_blank" rel="noopener">Hermit</a> &#183; <a href="https://hoooao.github.io/posts/index.xml" target="_blank" title="rss"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-rss"><path d="M4 11a9 9 0 0 1 9 9"></path><path d="M4 4a16 16 0 0 1 16 16"></path><circle cx="5" cy="19" r="1"></circle></svg></a>
+		</p>
+	</footer>
+
+
+
+	<script src="https://hoooao.github.io/js/bundle.min.580988ed2982bcbb74a1773c7abea97b43e4c43b9324e10cda0813ec6ec4bb67.js" integrity="sha256-WAmI7SmCvLt0oXc8er6pe0PkxDuTJOEM2ggT7G7Eu2c=" crossorigin="anonymous"></script>
+	
+
+</body>
+
+</html>
