@@ -16,11 +16,11 @@ Fig.1 Map Reduce为 重组：
 Fig.2 Reduce 一般来说MapReduce任务共有6个步骤：Input, Split, Map, Shuffle, Reduce, Finalize。
 MapReduce 使用了一个很好的例子来解释这一拆分和重组的方式是如何在分布式应用中工作的：单词计数。假设一个图书管理员希望统计一个巨大的文本库中每个单词出现了多少次。显而易见他可以直接从开始到结尾进行扫描，一路上记录着截止到当前扫描的位置，每个单词出现的次数。这一过程只有 $\Theta(n)$，并不高。但是面对巨大的文本量，线性复杂度也十分耗时。
 那么思考假如这个文本库中有20本书，现在总共有10名员工，其中五人每个人独立地统计4本书：这一过程就是 Split。在任务分配之后，每个员工独立地顺序扫描每一个单词，但是 并不直接统计单词出现个数：这是 Map 的过程，每一个文本被切分成了单独的单词，每一个单词出现的次数暂记为1，即使出现了两个一样的单词，也临时把它们看作不同的，这是为了Map与Reduce的 关注点分离 (Separation of concerns)。其他的五个员工每个人分别负责几个不同的首字母单词的频次统计。他们开始读取每个Map员工的结果来看这个员工有没有产出自己的目标首字母单词，这一步就是 Shuffle （这一过程实际上可以通过很多方式实现，而不是单纯的对Map员工成果的遍历）。之后他们开始递增相同单词出现的个数得到结果，也就是 Reduce。在得到最终的结果之后，写入文件做记录：Finalize。
-Fig.3 Word Count 除了这几个**工人(Worker)**之外，还有一个角色：协调者(Master/Coordinator)。他会告诉每一个工人他们应该去干什么，给Map工人分配Split，告知Reduce工人哪个Map工人那里有他需要的数据等等：
+Fig.3 Word Count 除了这几个 工人(Worker) 之外，还有一个角色：协调者(Master/Coordinator)。他会告诉每一个工人他们应该去干什么，给Map工人分配Split，告知Reduce工人哪个Map工人那里有他需要的数据等等：
 Fig.4 MapReduce Model 在真实的情景中，上述的文本将会是文件（文本，网页等等），上述的工人和协调者都是计算机，Map的产物将会是一个链表，每个元素是一个 键值对（KV），比如 (Apple, 1)表达Apple出现了1次。整个MR应用叫做Job，每个工人分到的那部分称为Task。Map与Reduce都是计算机上的程序/函数：
 func Map(key string, value string){ //Pseudocode for each_word in value{ Emit_map(word,1) } } func Reduce (key string, value int[]){ // 1的个数就是这个单词出现的个数 Emit_reduce(len(value)) } 在Word Count中，Map()的参数key可以是文件名，value可以是文件的内容；Reduce()的参数key是某个特定的单词，value则是全1的slice。Emit_map()可以把Map完成的数据存入自己本地磁盘，Emit_reduce()可以把最终结果上传服务器。"><meta itemprop="datePublished" content="2022-12-24T14:47:11-05:00" />
 <meta itemprop="dateModified" content="2022-12-24T14:47:11-05:00" />
-<meta itemprop="wordCount" content="80">
+<meta itemprop="wordCount" content="84">
 <meta itemprop="keywords" content="" /><meta property="og:title" content="Part 1: MapReduce&amp;谷歌文件系统 MapReduce&amp;GFS" />
 <meta property="og:description" content="目录 导言： 这一部分介绍两篇论文：MapReduce，Google File System。
 1.1 MapReduce 这篇论文的作者是Jeffery Dean和Sanjay Ghemawat。与其说他们提出了一种分布式系统的“理论”，实际上MapReduce更多的是一种可实践的思想。在6.824的第一个Lab中，就要求学生通过这种思想完成一个分布式应用。
@@ -30,7 +30,7 @@ Fig.1 Map Reduce为 重组：
 Fig.2 Reduce 一般来说MapReduce任务共有6个步骤：Input, Split, Map, Shuffle, Reduce, Finalize。
 MapReduce 使用了一个很好的例子来解释这一拆分和重组的方式是如何在分布式应用中工作的：单词计数。假设一个图书管理员希望统计一个巨大的文本库中每个单词出现了多少次。显而易见他可以直接从开始到结尾进行扫描，一路上记录着截止到当前扫描的位置，每个单词出现的次数。这一过程只有 $\Theta(n)$，并不高。但是面对巨大的文本量，线性复杂度也十分耗时。
 那么思考假如这个文本库中有20本书，现在总共有10名员工，其中五人每个人独立地统计4本书：这一过程就是 Split。在任务分配之后，每个员工独立地顺序扫描每一个单词，但是 并不直接统计单词出现个数：这是 Map 的过程，每一个文本被切分成了单独的单词，每一个单词出现的次数暂记为1，即使出现了两个一样的单词，也临时把它们看作不同的，这是为了Map与Reduce的 关注点分离 (Separation of concerns)。其他的五个员工每个人分别负责几个不同的首字母单词的频次统计。他们开始读取每个Map员工的结果来看这个员工有没有产出自己的目标首字母单词，这一步就是 Shuffle （这一过程实际上可以通过很多方式实现，而不是单纯的对Map员工成果的遍历）。之后他们开始递增相同单词出现的个数得到结果，也就是 Reduce。在得到最终的结果之后，写入文件做记录：Finalize。
-Fig.3 Word Count 除了这几个**工人(Worker)**之外，还有一个角色：协调者(Master/Coordinator)。他会告诉每一个工人他们应该去干什么，给Map工人分配Split，告知Reduce工人哪个Map工人那里有他需要的数据等等：
+Fig.3 Word Count 除了这几个 工人(Worker) 之外，还有一个角色：协调者(Master/Coordinator)。他会告诉每一个工人他们应该去干什么，给Map工人分配Split，告知Reduce工人哪个Map工人那里有他需要的数据等等：
 Fig.4 MapReduce Model 在真实的情景中，上述的文本将会是文件（文本，网页等等），上述的工人和协调者都是计算机，Map的产物将会是一个链表，每个元素是一个 键值对（KV），比如 (Apple, 1)表达Apple出现了1次。整个MR应用叫做Job，每个工人分到的那部分称为Task。Map与Reduce都是计算机上的程序/函数：
 func Map(key string, value string){ //Pseudocode for each_word in value{ Emit_map(word,1) } } func Reduce (key string, value int[]){ // 1的个数就是这个单词出现的个数 Emit_reduce(len(value)) } 在Word Count中，Map()的参数key可以是文件名，value可以是文件的内容；Reduce()的参数key是某个特定的单词，value则是全1的slice。Emit_map()可以把Map完成的数据存入自己本地磁盘，Emit_reduce()可以把最终结果上传服务器。" />
 <meta property="og:type" content="article" />
@@ -48,7 +48,7 @@ Fig.1 Map Reduce为 重组：
 Fig.2 Reduce 一般来说MapReduce任务共有6个步骤：Input, Split, Map, Shuffle, Reduce, Finalize。
 MapReduce 使用了一个很好的例子来解释这一拆分和重组的方式是如何在分布式应用中工作的：单词计数。假设一个图书管理员希望统计一个巨大的文本库中每个单词出现了多少次。显而易见他可以直接从开始到结尾进行扫描，一路上记录着截止到当前扫描的位置，每个单词出现的次数。这一过程只有 $\Theta(n)$，并不高。但是面对巨大的文本量，线性复杂度也十分耗时。
 那么思考假如这个文本库中有20本书，现在总共有10名员工，其中五人每个人独立地统计4本书：这一过程就是 Split。在任务分配之后，每个员工独立地顺序扫描每一个单词，但是 并不直接统计单词出现个数：这是 Map 的过程，每一个文本被切分成了单独的单词，每一个单词出现的次数暂记为1，即使出现了两个一样的单词，也临时把它们看作不同的，这是为了Map与Reduce的 关注点分离 (Separation of concerns)。其他的五个员工每个人分别负责几个不同的首字母单词的频次统计。他们开始读取每个Map员工的结果来看这个员工有没有产出自己的目标首字母单词，这一步就是 Shuffle （这一过程实际上可以通过很多方式实现，而不是单纯的对Map员工成果的遍历）。之后他们开始递增相同单词出现的个数得到结果，也就是 Reduce。在得到最终的结果之后，写入文件做记录：Finalize。
-Fig.3 Word Count 除了这几个**工人(Worker)**之外，还有一个角色：协调者(Master/Coordinator)。他会告诉每一个工人他们应该去干什么，给Map工人分配Split，告知Reduce工人哪个Map工人那里有他需要的数据等等：
+Fig.3 Word Count 除了这几个 工人(Worker) 之外，还有一个角色：协调者(Master/Coordinator)。他会告诉每一个工人他们应该去干什么，给Map工人分配Split，告知Reduce工人哪个Map工人那里有他需要的数据等等：
 Fig.4 MapReduce Model 在真实的情景中，上述的文本将会是文件（文本，网页等等），上述的工人和协调者都是计算机，Map的产物将会是一个链表，每个元素是一个 键值对（KV），比如 (Apple, 1)表达Apple出现了1次。整个MR应用叫做Job，每个工人分到的那部分称为Task。Map与Reduce都是计算机上的程序/函数：
 func Map(key string, value string){ //Pseudocode for each_word in value{ Emit_map(word,1) } } func Reduce (key string, value int[]){ // 1的个数就是这个单词出现的个数 Emit_reduce(len(value)) } 在Word Count中，Map()的参数key可以是文件名，value可以是文件的内容；Reduce()的参数key是某个特定的单词，value则是全1的slice。Emit_map()可以把Map完成的数据存入自己本地磁盘，Emit_reduce()可以把最终结果上传服务器。"/>
 
@@ -156,7 +156,7 @@ func Map(key string, value string){ //Pseudocode for each_word in value{ Emit_ma
 <figcaption><b>Fig.3 Word Count</b></figcaption>
 </div>
 </figure>
-<p>    除了这几个**工人(Worker)**之外，还有一个角色：<strong>协调者(Master/Coordinator)</strong>。他会告诉每一个工人他们应该去干什么，给Map工人分配Split，告知Reduce工人哪个Map工人那里有他需要的数据等等：</p>
+<p>    除了这几个 <strong>工人(Worker)</strong> 之外，还有一个角色：<strong>协调者(Master/Coordinator)</strong>。他会告诉每一个工人他们应该去干什么，给Map工人分配Split，告知Reduce工人哪个Map工人那里有他需要的数据等等：</p>
 <figure>
 <div style="text-align:center">
 <img src="https://www.researchgate.net/profile/Alexandros-Gazis/publication/357281114/figure/fig1/AS:1122971515129862@1644748681133/Fig-1-Map-Reduce-execution-overview.png" alt="" style="width:80%">
@@ -187,6 +187,9 @@ func Map(key string, value string){ //Pseudocode for each_word in value{ Emit_ma
 <br>
 <blockquote>
 <h3 id="参考">参考:<a href="#参考" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h3>
+</blockquote>
+<blockquote>
+<p>[1]深入浅出MapReduce: <a href="https://zhuanlan.zhihu.com/p/32172999">https://zhuanlan.zhihu.com/p/32172999</a></p>
 </blockquote>
 
 			</div>
