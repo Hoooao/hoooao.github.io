@@ -9,12 +9,12 @@
     <copyright>This work is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License.</copyright>
     <lastBuildDate>Sat, 24 Dec 2022 14:47:11 -0500</lastBuildDate><atom:link href="https://hoooao.github.io/ds/index.xml" rel="self" type="application/rss+xml" />
     <item>
-      <title>Part 1: MapReduce&amp;谷歌文件系统 MapReduce&amp;GFS</title>
+      <title>Part 1: MapReduce&amp;谷歌文件系统&amp;虚拟机容错恢复 MapReduce&amp;GFS&amp;VM FT</title>
       <link>https://hoooao.github.io/ds/part1/</link>
       <pubDate>Sat, 24 Dec 2022 14:47:11 -0500</pubDate>
       
       <guid>https://hoooao.github.io/ds/part1/</guid>
-      <description>目录 导言： 这一部分介绍两篇论文：MapReduce，Google File System。
+      <description>目录 目录 导言： 1.1 MapReduce 1.2 谷歌文件系统 Google File System 1.3 虚拟机容错设计 The Design of a Practical System for Fault-Tolerant Virtual Machines 导言： 这一部分介绍三篇论文：MapReduce，Google File System，以及 VM FT
 1.1 MapReduce 这篇论文的作者是Jeffery Dean和Sanjay Ghemawat。与其说他们提出了一种分布式系统的“理论”，实际上MapReduce更多的是一种可实践的思想。在6.824的第一个Lab中，就要求学生通过这种思想完成一个分布式应用。
 在理解MapReduce之前，可以试着回忆一下“分治法”的思想。在归并排序中，程序会把一串数字一次又一次地拆分成原来的一半，最终拆分为单独的数字，并以这样的最小已排序单位来比较。最小的单位在排序后又组成更大的单位，以此往复。设想如果每次归并排序的递归/任务的拆解都是一个独立的线程，那么效率似乎会高很多（假设不存在并发问题）。MapReduce的最关键的思想就是类似于在拆分任务的时候实现分布式运行，达到效率提升的目的。
 Map与Reduce：在很多语言里有同名接口，比如JS中的Array.prototype.map(); Array.prototype.reduce()。它们继承着一样的概念：Map为拆分：
@@ -23,8 +23,7 @@ Fig.2 Reduce 一般来说MapReduce任务共有6个步骤：Input, Split, Map, Sh
 MapReduce 使用了一个很好的例子来解释这一拆分和重组的方式是如何在分布式应用中工作的：单词计数。假设一个图书管理员希望统计一个巨大的文本库中每个单词出现了多少次。显而易见他可以直接从开始到结尾进行扫描，一路上记录着截止到当前扫描的位置，每个单词出现的次数。这一过程只有 $\Theta(n)$，并不高。但是面对巨大的文本量，线性复杂度也十分耗时。
 那么思考假如这个文本库中有20本书，现在总共有10名员工，其中五人每个人独立地统计4本书：这一过程就是 Split。在任务分配之后，每个员工独立地顺序扫描每一个单词，但是 并不直接统计单词出现个数：这是 Map 的过程，每一个文本被切分成了单独的单词，每一个单词出现的次数暂记为1，即使出现了两个一样的单词，也临时把它们看作不同的，这是为了Map与Reduce的 关注点分离 (Separation of concerns)。其他的五个员工每个人分别负责几个不同的首字母单词的频次统计。他们开始读取每个Map员工的结果来看这个员工有没有产出自己的目标首字母单词，这一步就是 Shuffle （这一过程实际上可以通过很多方式实现，而不是单纯的对Map员工成果的遍历）。之后他们开始递增相同单词出现的个数得到结果，也就是 Reduce。在得到最终的结果之后，写入文件做记录：Finalize。
 Fig.3 Word Count 除了这几个 工人(Worker) 之外，还有一个角色：协调者(Master/Coordinator)。他会告诉每一个工人他们应该去干什么，给Map工人分配Split，告知Reduce工人哪个Map工人那里有他需要的数据等等：
-Fig.4 MapReduce Model 在真实的情景中，上述的文本将会是文件（文本，网页等等），上述的工人和协调者都是计算机，Map的产物将会是一个链表，每个元素是一个 键值对（KV），比如 (Apple, 1)表达Apple出现了1次。整个MR应用叫做Job，每个工人分到的那部分称为Task。Map与Reduce都是计算机上的程序/函数：
-func Map(key string, value string){ //Pseudocode for each_word in value{ Emit_map(word,1) } } func Reduce (key string, value int[]){ // 1的个数就是这个单词出现的个数 Emit_reduce(len(value)) } 在Word Count中，Map()的参数key可以是文件名，value可以是文件的内容；Reduce()的参数key是某个特定的单词，value则是全1的slice。Emit_map()可以把Map完成的数据存入自己本地磁盘，Emit_reduce()可以把最终结果上传服务器。</description>
+Fig.4 MapReduce Model 在真实的情景中，上述的文本将会是文件（文本，网页等等），上述的工人和协调者都是计算机，Map的产物将会是一个链表，每个元素是一个 键值对（KV），比如 (Apple, 1)表达Apple出现了1次。整个MR应用叫做Job，每个工人分到的那部分称为Task。Map与Reduce都是计算机上的程序/函数：</description>
     </item>
     
     <item>

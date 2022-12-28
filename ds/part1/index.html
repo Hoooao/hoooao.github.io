@@ -7,8 +7,8 @@
 	<meta http-equiv="X-UA-Compatible" content="ie=edge">
 	<meta name="theme-color" content="#494f5c">
 	<meta name="msapplication-TileColor" content="#494f5c">
-<meta itemprop="name" content="Part 1: MapReduce&amp;谷歌文件系统 MapReduce&amp;GFS">
-<meta itemprop="description" content="目录 导言： 这一部分介绍两篇论文：MapReduce，Google File System。
+<meta itemprop="name" content="Part 1: MapReduce&amp;谷歌文件系统&amp;虚拟机容错恢复 MapReduce&amp;GFS&amp;VM FT">
+<meta itemprop="description" content="目录 目录 导言： 1.1 MapReduce 1.2 谷歌文件系统 Google File System 1.3 虚拟机容错设计 The Design of a Practical System for Fault-Tolerant Virtual Machines 导言： 这一部分介绍三篇论文：MapReduce，Google File System，以及 VM FT
 1.1 MapReduce 这篇论文的作者是Jeffery Dean和Sanjay Ghemawat。与其说他们提出了一种分布式系统的“理论”，实际上MapReduce更多的是一种可实践的思想。在6.824的第一个Lab中，就要求学生通过这种思想完成一个分布式应用。
 在理解MapReduce之前，可以试着回忆一下“分治法”的思想。在归并排序中，程序会把一串数字一次又一次地拆分成原来的一半，最终拆分为单独的数字，并以这样的最小已排序单位来比较。最小的单位在排序后又组成更大的单位，以此往复。设想如果每次归并排序的递归/任务的拆解都是一个独立的线程，那么效率似乎会高很多（假设不存在并发问题）。MapReduce的最关键的思想就是类似于在拆分任务的时候实现分布式运行，达到效率提升的目的。
 Map与Reduce：在很多语言里有同名接口，比如JS中的Array.prototype.map(); Array.prototype.reduce()。它们继承着一样的概念：Map为拆分：
@@ -17,12 +17,11 @@ Fig.2 Reduce 一般来说MapReduce任务共有6个步骤：Input, Split, Map, Sh
 MapReduce 使用了一个很好的例子来解释这一拆分和重组的方式是如何在分布式应用中工作的：单词计数。假设一个图书管理员希望统计一个巨大的文本库中每个单词出现了多少次。显而易见他可以直接从开始到结尾进行扫描，一路上记录着截止到当前扫描的位置，每个单词出现的次数。这一过程只有 $\Theta(n)$，并不高。但是面对巨大的文本量，线性复杂度也十分耗时。
 那么思考假如这个文本库中有20本书，现在总共有10名员工，其中五人每个人独立地统计4本书：这一过程就是 Split。在任务分配之后，每个员工独立地顺序扫描每一个单词，但是 并不直接统计单词出现个数：这是 Map 的过程，每一个文本被切分成了单独的单词，每一个单词出现的次数暂记为1，即使出现了两个一样的单词，也临时把它们看作不同的，这是为了Map与Reduce的 关注点分离 (Separation of concerns)。其他的五个员工每个人分别负责几个不同的首字母单词的频次统计。他们开始读取每个Map员工的结果来看这个员工有没有产出自己的目标首字母单词，这一步就是 Shuffle （这一过程实际上可以通过很多方式实现，而不是单纯的对Map员工成果的遍历）。之后他们开始递增相同单词出现的个数得到结果，也就是 Reduce。在得到最终的结果之后，写入文件做记录：Finalize。
 Fig.3 Word Count 除了这几个 工人(Worker) 之外，还有一个角色：协调者(Master/Coordinator)。他会告诉每一个工人他们应该去干什么，给Map工人分配Split，告知Reduce工人哪个Map工人那里有他需要的数据等等：
-Fig.4 MapReduce Model 在真实的情景中，上述的文本将会是文件（文本，网页等等），上述的工人和协调者都是计算机，Map的产物将会是一个链表，每个元素是一个 键值对（KV），比如 (Apple, 1)表达Apple出现了1次。整个MR应用叫做Job，每个工人分到的那部分称为Task。Map与Reduce都是计算机上的程序/函数：
-func Map(key string, value string){ //Pseudocode for each_word in value{ Emit_map(word,1) } } func Reduce (key string, value int[]){ // 1的个数就是这个单词出现的个数 Emit_reduce(len(value)) } 在Word Count中，Map()的参数key可以是文件名，value可以是文件的内容；Reduce()的参数key是某个特定的单词，value则是全1的slice。Emit_map()可以把Map完成的数据存入自己本地磁盘，Emit_reduce()可以把最终结果上传服务器。"><meta itemprop="datePublished" content="2022-12-24T14:47:11-05:00" />
+Fig.4 MapReduce Model 在真实的情景中，上述的文本将会是文件（文本，网页等等），上述的工人和协调者都是计算机，Map的产物将会是一个链表，每个元素是一个 键值对（KV），比如 (Apple, 1)表达Apple出现了1次。整个MR应用叫做Job，每个工人分到的那部分称为Task。Map与Reduce都是计算机上的程序/函数："><meta itemprop="datePublished" content="2022-12-24T14:47:11-05:00" />
 <meta itemprop="dateModified" content="2022-12-24T14:47:11-05:00" />
-<meta itemprop="wordCount" content="168">
-<meta itemprop="keywords" content="" /><meta property="og:title" content="Part 1: MapReduce&amp;谷歌文件系统 MapReduce&amp;GFS" />
-<meta property="og:description" content="目录 导言： 这一部分介绍两篇论文：MapReduce，Google File System。
+<meta itemprop="wordCount" content="354">
+<meta itemprop="keywords" content="" /><meta property="og:title" content="Part 1: MapReduce&amp;谷歌文件系统&amp;虚拟机容错恢复 MapReduce&amp;GFS&amp;VM FT" />
+<meta property="og:description" content="目录 目录 导言： 1.1 MapReduce 1.2 谷歌文件系统 Google File System 1.3 虚拟机容错设计 The Design of a Practical System for Fault-Tolerant Virtual Machines 导言： 这一部分介绍三篇论文：MapReduce，Google File System，以及 VM FT
 1.1 MapReduce 这篇论文的作者是Jeffery Dean和Sanjay Ghemawat。与其说他们提出了一种分布式系统的“理论”，实际上MapReduce更多的是一种可实践的思想。在6.824的第一个Lab中，就要求学生通过这种思想完成一个分布式应用。
 在理解MapReduce之前，可以试着回忆一下“分治法”的思想。在归并排序中，程序会把一串数字一次又一次地拆分成原来的一半，最终拆分为单独的数字，并以这样的最小已排序单位来比较。最小的单位在排序后又组成更大的单位，以此往复。设想如果每次归并排序的递归/任务的拆解都是一个独立的线程，那么效率似乎会高很多（假设不存在并发问题）。MapReduce的最关键的思想就是类似于在拆分任务的时候实现分布式运行，达到效率提升的目的。
 Map与Reduce：在很多语言里有同名接口，比如JS中的Array.prototype.map(); Array.prototype.reduce()。它们继承着一样的概念：Map为拆分：
@@ -31,16 +30,15 @@ Fig.2 Reduce 一般来说MapReduce任务共有6个步骤：Input, Split, Map, Sh
 MapReduce 使用了一个很好的例子来解释这一拆分和重组的方式是如何在分布式应用中工作的：单词计数。假设一个图书管理员希望统计一个巨大的文本库中每个单词出现了多少次。显而易见他可以直接从开始到结尾进行扫描，一路上记录着截止到当前扫描的位置，每个单词出现的次数。这一过程只有 $\Theta(n)$，并不高。但是面对巨大的文本量，线性复杂度也十分耗时。
 那么思考假如这个文本库中有20本书，现在总共有10名员工，其中五人每个人独立地统计4本书：这一过程就是 Split。在任务分配之后，每个员工独立地顺序扫描每一个单词，但是 并不直接统计单词出现个数：这是 Map 的过程，每一个文本被切分成了单独的单词，每一个单词出现的次数暂记为1，即使出现了两个一样的单词，也临时把它们看作不同的，这是为了Map与Reduce的 关注点分离 (Separation of concerns)。其他的五个员工每个人分别负责几个不同的首字母单词的频次统计。他们开始读取每个Map员工的结果来看这个员工有没有产出自己的目标首字母单词，这一步就是 Shuffle （这一过程实际上可以通过很多方式实现，而不是单纯的对Map员工成果的遍历）。之后他们开始递增相同单词出现的个数得到结果，也就是 Reduce。在得到最终的结果之后，写入文件做记录：Finalize。
 Fig.3 Word Count 除了这几个 工人(Worker) 之外，还有一个角色：协调者(Master/Coordinator)。他会告诉每一个工人他们应该去干什么，给Map工人分配Split，告知Reduce工人哪个Map工人那里有他需要的数据等等：
-Fig.4 MapReduce Model 在真实的情景中，上述的文本将会是文件（文本，网页等等），上述的工人和协调者都是计算机，Map的产物将会是一个链表，每个元素是一个 键值对（KV），比如 (Apple, 1)表达Apple出现了1次。整个MR应用叫做Job，每个工人分到的那部分称为Task。Map与Reduce都是计算机上的程序/函数：
-func Map(key string, value string){ //Pseudocode for each_word in value{ Emit_map(word,1) } } func Reduce (key string, value int[]){ // 1的个数就是这个单词出现的个数 Emit_reduce(len(value)) } 在Word Count中，Map()的参数key可以是文件名，value可以是文件的内容；Reduce()的参数key是某个特定的单词，value则是全1的slice。Emit_map()可以把Map完成的数据存入自己本地磁盘，Emit_reduce()可以把最终结果上传服务器。" />
+Fig.4 MapReduce Model 在真实的情景中，上述的文本将会是文件（文本，网页等等），上述的工人和协调者都是计算机，Map的产物将会是一个链表，每个元素是一个 键值对（KV），比如 (Apple, 1)表达Apple出现了1次。整个MR应用叫做Job，每个工人分到的那部分称为Task。Map与Reduce都是计算机上的程序/函数：" />
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://hoooao.github.io/ds/part1/" /><meta property="article:section" content="ds" />
 <meta property="article:published_time" content="2022-12-24T14:47:11-05:00" />
 <meta property="article:modified_time" content="2022-12-24T14:47:11-05:00" />
 
 <meta name="twitter:card" content="summary"/>
-<meta name="twitter:title" content="Part 1: MapReduce&amp;谷歌文件系统 MapReduce&amp;GFS"/>
-<meta name="twitter:description" content="目录 导言： 这一部分介绍两篇论文：MapReduce，Google File System。
+<meta name="twitter:title" content="Part 1: MapReduce&amp;谷歌文件系统&amp;虚拟机容错恢复 MapReduce&amp;GFS&amp;VM FT"/>
+<meta name="twitter:description" content="目录 目录 导言： 1.1 MapReduce 1.2 谷歌文件系统 Google File System 1.3 虚拟机容错设计 The Design of a Practical System for Fault-Tolerant Virtual Machines 导言： 这一部分介绍三篇论文：MapReduce，Google File System，以及 VM FT
 1.1 MapReduce 这篇论文的作者是Jeffery Dean和Sanjay Ghemawat。与其说他们提出了一种分布式系统的“理论”，实际上MapReduce更多的是一种可实践的思想。在6.824的第一个Lab中，就要求学生通过这种思想完成一个分布式应用。
 在理解MapReduce之前，可以试着回忆一下“分治法”的思想。在归并排序中，程序会把一串数字一次又一次地拆分成原来的一半，最终拆分为单独的数字，并以这样的最小已排序单位来比较。最小的单位在排序后又组成更大的单位，以此往复。设想如果每次归并排序的递归/任务的拆解都是一个独立的线程，那么效率似乎会高很多（假设不存在并发问题）。MapReduce的最关键的思想就是类似于在拆分任务的时候实现分布式运行，达到效率提升的目的。
 Map与Reduce：在很多语言里有同名接口，比如JS中的Array.prototype.map(); Array.prototype.reduce()。它们继承着一样的概念：Map为拆分：
@@ -49,8 +47,7 @@ Fig.2 Reduce 一般来说MapReduce任务共有6个步骤：Input, Split, Map, Sh
 MapReduce 使用了一个很好的例子来解释这一拆分和重组的方式是如何在分布式应用中工作的：单词计数。假设一个图书管理员希望统计一个巨大的文本库中每个单词出现了多少次。显而易见他可以直接从开始到结尾进行扫描，一路上记录着截止到当前扫描的位置，每个单词出现的次数。这一过程只有 $\Theta(n)$，并不高。但是面对巨大的文本量，线性复杂度也十分耗时。
 那么思考假如这个文本库中有20本书，现在总共有10名员工，其中五人每个人独立地统计4本书：这一过程就是 Split。在任务分配之后，每个员工独立地顺序扫描每一个单词，但是 并不直接统计单词出现个数：这是 Map 的过程，每一个文本被切分成了单独的单词，每一个单词出现的次数暂记为1，即使出现了两个一样的单词，也临时把它们看作不同的，这是为了Map与Reduce的 关注点分离 (Separation of concerns)。其他的五个员工每个人分别负责几个不同的首字母单词的频次统计。他们开始读取每个Map员工的结果来看这个员工有没有产出自己的目标首字母单词，这一步就是 Shuffle （这一过程实际上可以通过很多方式实现，而不是单纯的对Map员工成果的遍历）。之后他们开始递增相同单词出现的个数得到结果，也就是 Reduce。在得到最终的结果之后，写入文件做记录：Finalize。
 Fig.3 Word Count 除了这几个 工人(Worker) 之外，还有一个角色：协调者(Master/Coordinator)。他会告诉每一个工人他们应该去干什么，给Map工人分配Split，告知Reduce工人哪个Map工人那里有他需要的数据等等：
-Fig.4 MapReduce Model 在真实的情景中，上述的文本将会是文件（文本，网页等等），上述的工人和协调者都是计算机，Map的产物将会是一个链表，每个元素是一个 键值对（KV），比如 (Apple, 1)表达Apple出现了1次。整个MR应用叫做Job，每个工人分到的那部分称为Task。Map与Reduce都是计算机上的程序/函数：
-func Map(key string, value string){ //Pseudocode for each_word in value{ Emit_map(word,1) } } func Reduce (key string, value int[]){ // 1的个数就是这个单词出现的个数 Emit_reduce(len(value)) } 在Word Count中，Map()的参数key可以是文件名，value可以是文件的内容；Reduce()的参数key是某个特定的单词，value则是全1的slice。Emit_map()可以把Map完成的数据存入自己本地磁盘，Emit_reduce()可以把最终结果上传服务器。"/>
+Fig.4 MapReduce Model 在真实的情景中，上述的文本将会是文件（文本，网页等等），上述的工人和协调者都是计算机，Map的产物将会是一个链表，每个元素是一个 键值对（KV），比如 (Apple, 1)表达Apple出现了1次。整个MR应用叫做Job，每个工人分到的那部分称为Task。Map与Reduce都是计算机上的程序/函数："/>
 
 	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -59,7 +56,7 @@ func Map(key string, value string){ //Pseudocode for each_word in value{ Emit_ma
 	<link rel="mask-icon" href="/safari-pinned-tab.svg" color="">
 	<link rel="shortcut icon" href="/favicon.ico">
 
-	<title>Part 1: MapReduce&amp;谷歌文件系统 MapReduce&amp;GFS</title>
+	<title>Part 1: MapReduce&amp;谷歌文件系统&amp;虚拟机容错恢复 MapReduce&amp;GFS&amp;VM FT</title>
 	<link rel="stylesheet" href="https://hoooao.github.io/css/style.min.6b1219507aa24bcc2a46f4f7071edbc5dc448ba85934d68c4af0ca0a7ad89dcd.css" integrity="sha256-axIZUHqiS8wqRvT3Bx7bxdxEi6hZNNaMSvDKCnrYnc0=" crossorigin="anonymous">
 	<style>.bg-img {background-image: url('https://images.unsplash.com/photo-1531265726475-52ad60219627?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=2691&q=80');}</style>
 </head>
@@ -114,15 +111,22 @@ func Map(key string, value string){ //Pseudocode for each_word in value{ Emit_ma
 		<article class="thin">
 			<header class="post-header">
 				<div class="post-meta"><span>Dec 24, 2022</span></div>
-				<h1>Part 1: MapReduce&amp;谷歌文件系统 MapReduce&amp;GFS</h1>
+				<h1>Part 1: MapReduce&amp;谷歌文件系统&amp;虚拟机容错恢复 MapReduce&amp;GFS&amp;VM FT</h1>
 			</header>
 			<div class="content">
 				<h2 id="目录">目录<a href="#目录" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<ul>
+<li><a href="#%E7%9B%AE%E5%BD%95">目录</a></li>
+<li><a href="#%E5%AF%BC%E8%A8%80">导言：</a></li>
+<li><a href="#11-mapreduce">1.1 MapReduce</a></li>
+<li><a href="#12-%E8%B0%B7%E6%AD%8C%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9F-google-file-system">1.2 谷歌文件系统 Google File System</a></li>
+<li><a href="#13-%E8%99%9A%E6%8B%9F%E6%9C%BA%E5%AE%B9%E9%94%99%E8%AE%BE%E8%AE%A1--the-design-of-a-practical-system-for-fault-tolerant-virtual-machines">1.3 虚拟机容错设计  The Design of a Practical System for Fault-Tolerant Virtual Machines</a></li>
+</ul>
 <br>
 <hr>
 <br>
 <h2 id="导言">导言：<a href="#导言" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
-<p>    这一部分介绍两篇论文：<em>MapReduce</em>，<em>Google File System</em>。</p>
+<p>    这一部分介绍三篇论文：<em>MapReduce</em>，<em>Google File System</em>，以及 <em>VM FT</em></p>
 <br>
 <br>
 <br>
@@ -276,6 +280,101 @@ https://www.researchgate.net/profile/Abderrahim-Maizate/publication/318312601/fi
 </li>
 </ul>
 <p><strong>注</strong>：在一部分chunkserver写入失败之后，可能出现“Defined interspersed with inconsistent”，也就是说，虽然数据之间没有覆盖写入，但是有的chunkserver缺少一些chunk。假设有三个client分别想对同一个空chunk（有3个拷贝）写入A，B，C。假设A成功写入，此时3个拷贝完全一致。之后前两个拷贝成功写入B，但是第三个拷贝失败，那么会inconsistent。之后C被全部成功写入，由于Primary决定offset，之前的第三个拷贝会在A与C之间有和B一样大小的空缺。发送B的client会知道写入失败并重发，这次成功了：但是并不是补齐了第三个拷贝的那个空缺，而是在三者更高offset上重新写入了1个B。也就是说，前两个拷贝现在有两个B，第三个拷贝有了1个，但还是有AC之间的空缺。结局就是三者都有了ABC，但是位置不同，数量也不一样：<strong>这并不影响它们有一样的Version！</strong>。不过实际上，系统的设计仍然取决于设计者，所以也可以实现完全的同步。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="13-虚拟机容错设计--the-design-of-a-practical-system-for-fault-tolerant-virtual-machines">1.3 虚拟机容错设计  The Design of a Practical System for Fault-Tolerant Virtual Machines<a href="#13-虚拟机容错设计--the-design-of-a-practical-system-for-fault-tolerant-virtual-machines" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    在容错恢复中很关键的一个概念或者说途径就是对 <strong>Replica</strong> 的使用。在之前的GFS中，replica计算机上是对数据的拷贝，而这里的replica则是对于 <strong>状态(State)</strong> 的拷贝：可以理解为希望replica和源之间有一模一样的OS快照和数据。对于状态Replica的使用可以达成对于 <strong>Failt-stop</strong> 类型的错误的恢复，这种类型的错误在出现之后，出错的计算机会完全停止执行，而不是继续错误地执行，比如突然断电或者主机完全损坏就是这样的情景。这种Replica无法解决软件的Bugs，也无法解决硬件问题和关联问题，比如源和Replica都是同一批次有瑕疵的电脑，或者在同一个自然灾难中损毁。显然，为了保存对状态的拷贝，我们需要至少两台电脑，一台为源（Primary），一台是Replica，也就是Backup，后者需要<strong>同步</strong>前者的一切运行来保证状态连贯。是否使用replica更多是一个经济考量。</p>
+<p>    为了达成同步，通常有两种模型：</p>
+<ul>
+<li>
+<ol>
+<li>State Transfer：通常会把Primary的一块内存完整地拷贝到Backup上，这样必然可以导致它们有完全一样的状态：内存包含一切进程的变量，进程的指令等等；</li>
+</ol>
+</li>
+<li>
+<ol start="2">
+<li>Replicated State Machine：Primary只会给Backup所有 <strong>non-deterministic</strong> 的Operation instruction，不会把一切内存内容发给Backup。因为需要传输的内容少了很多，它相比State transfer更加轻量，但设计也需要更加复杂。</li>
+</ol>
+</li>
+</ul>
+<p>这篇论文使用的是Replicated State Machine。除了设计更加复杂外，这种模型另一个巨大的缺陷就是不支持多核（对多核的容错恢复一般使用State Transfer）。</p>
+<p>     <strong>Non-deterministic operation</strong> 通常有几类：</p>
+<blockquote>
+<ol>
+<li>
+<p>网络输入：它不是“deterministic”是因为这个主机并不可能预知每一个packet到达的时间，只有在网络中断发生的瞬间才能知道这一事件的发生；并且它也不可能知道packet内的数据是什么；这种操作占据一切非决定数据的很大一部分；</p>
+</li>
+<li>
+<p>特殊的指令：比如生成随机数，或者输出当前日期；这种行为无法直接在两台主机上不通过任何沟通而有相同的结果；</p>
+</li>
+<li>
+<p>多核：多核存在更复杂的分片和并发，这篇论文没有尝试解决，切一直假设Primary和Backup都是单核。</p>
+</li>
+<li>
+<p>各种中断；</p>
+</li>
+</ol>
+</blockquote>
+<p>    在这篇论文中，使用了虚拟机而不是物理机，是因为对于虚拟机的数据捕获以及同步工作更容易进行。每一个虚拟机仍然运行在不同的物理机之上。论文尝试去解决以下几个问题：</p>
+<ul>
+<li>
+<ol>
+<li>什么状态需要进行拷贝传输</li>
+</ol>
+</li>
+<li>
+<ol start="2">
+<li>如何同步Primary和Backup</li>
+</ol>
+</li>
+<li>
+<ol start="3">
+<li>如何让Primary的宕机对用户来说是透明的（不会有任何差错）</li>
+</ol>
+</li>
+<li>
+<ol start="4">
+<li>当Primary或Backup宕机之后，如何建立新的Backup</li>
+</ol>
+</li>
+</ul>
+<figure>
+<div style="text-align:center">
+<img src="https://timilearning.com/uploads/basic-ft.png" alt="" style="width:80%">
+<figcaption><b>Fig.7 Basic FT Configuration</b></figcaption>
+</div>
+</figure>
+<p><strong>注</strong>：Primary和Backup共享一个远程的Disk。</p>
+<p>    <strong>什么状态需要进行同步</strong>：实际上在大部分Replica的FT模型中，对内存级别的复制是很少见的，比如GFS只是对数据的拷贝。这种Low-Level的复制可以承载任何应用程序，有存在的意义。之所以不需要发送Deterministic的原因是这种类型的操作，比如对一个变量进行加一，一定会产生相同的结果，因此重要的只是数据本身（比如上文的packet），而不是非决定的操作。但是非决定性的操作是无法根据之前的状态得到的，必须通过网络连接，传输对应的指令和数据以达到同步的目的。</p>
+<figure>
+<div style="text-align:center">
+<img src="https://timilearning.com/uploads/ft-protocol-small.png" alt="" style="width:80%">
+<figcaption><b>Fig.8 FT Protocol</b></figcaption>
+</div>
+</figure>
+<p>     <strong>如何同步</strong>：假设一个Packet传入了Primary，此时Primary会<strong>阻断自己的输出</strong>，通过 Copy Channel（比如一个以太网连接）把这个packet和对应的instruction传给Backup，这个时候Backup虚拟机，由于收到了网络输入，会输出，但是这个输出会被阻拦：只有Primary能输出。Backup的物理机会返回给Primary一份Ack，在Primary接收到Ack之后才会继续自己的对应的输出。这种primary对输出的延迟是为了保证Backup也能够（虚拟地）输出之后，它们都会有同步的“已输出的状态”。不然，假设Primary直接输出不等Ack，在未来的某一时间Primary下线，Backup变成Primary，可能认为自己从来没有输出过。对Block的需求和规则叫做：</p>
+<ul>
+<li><strong>Output Requirement</strong>: If the backup VM ever takes over after a failure of the primary, the backup VM will continue executing in a way that is entirely consistent with all outputs that the primary VM has sent to the external world.</li>
+<li></li>
+<li><strong>Output Rule</strong>: The primary VM may not send an output to the external world, until the backup VM has received and acknowledged the log entry associated with the operation producing the output.</li>
+</ul>
+<p><strong>注</strong>：Backup只会连接着Primary，在网络上是看不到backup的物理机的。</p>
+<p>    实际上primary传给backup的是 <strong>日志(Log)</strong>。日志主要由三部分组成：1. 类型；2. 指令号；3. 数据。类型就是上文中的几个类型。指令号确立了指令执行的顺序，是通过特制的CPU特性(Intel，已普及)确定号码。Primary的物理机（VMM/Hypervisor）会把这个Log entry发送给Backup。Backup的CPU可以看到指令号码，并告诉自己“当core运行到这个指令号码的时候，发一个中断”。这样，当一个Packet导致Primary接收到网络中断的时候，这个中断（非决定操作）相关的指令会被记录，数据也会被记录。在Backup运行到同一个指令号码的时候，也可以被中断，模仿Primary的行为（<strong>Replay</strong>），同时也可以从log entry中得到packet的数据。类似地，比如Primary生成了一个UNIX日期，这个行为相关的指令/指令号和生成的结果会被记录并发送给backup，当backup运行到同一号码的时候，CPU（物理机）会给Backup（虚拟机）中断，“塞入”传来的数据（不然Backup会生成不同的数据：non-deterministic）。</p>
+<figure>
+<div style="text-align:center">
+<img src="https://timilearning.com/uploads/logging-channel-small.png" alt="" style="width:80%">
+<figcaption><b>Fig.9 FT Logging Buffers and Channels</b></figcaption>
+</div>
+</figure>
+<p>    如上图所示，Primary需要等待Ack，假如操作涉及大量数据，两台电脑距离很远，会造成很大的延迟和性能损耗。<strong>注</strong>：Ack只是对“收到信息”的Ack，而不是同步完成的Ack：Primary不需要等待Backup完成同步。</p>
+<p>    思考一个情景：应为某些原因Primary的CPU频率比Backup低，执行速度更慢：在执行一系列的deterministic任务的过程中，后者超过了前者。这种情况实际上不可能发生。Backup维护着一个Buffer，保存着待执行的Non-deterministic任务。规则是：如果Buffer不为空，则正常执行，由于buffer中的操作必然是Primary已经执行过的了，不用担心被超过；而buffer为空的时候，Backup停止运行。这就严格限制了<strong>Backup永远至少一步落后于Primary</strong>。</p>
+<p>     <strong>当Primary下线</strong>：Primary下线之后，Backup变成primary，由于在此之前它不会在网络上可见，现在它需要通知网络上线，取代之前的Primary。但Backup不会立马 <em>go live</em>，而是会先运行完Buffer中之前Primary发来的状态同步。而在这过程中，可能会有一些特殊情况。比如Primary本应该给某个网络中的Client回复，但是突然下线了。此时假设Primary还没发送回复，Backup没有收到Log，那么client的网络协议会重发；若假设Primary已回复，Backup运行到回复的地方的时候也已经成了Primary，那么再次回复：同样没什么关系，网络协议会忽略。所以这种 Cutover Anomaly一般没什么影响。<strong>当Backup下线</strong>：Primary不会通过Logging Channel发送任何东西了，<em>go live</em>。之后一个新的Backup会出现。</p>
+<p>     在决定其中一方是否下线中，有两个衡量方式。1. 服务器之间通过UDP发送HeartBeat检测，来看对方是否有回复，从而猜测对方是否在线。2. 如前文所说，中断会导致log被发送，log发送后会得到ack：Primary可以通过它发出去的Log是否有Ack来判断Backup是否在线；Backup可以通过它是否收到了周期性的时钟中断（同样是一种Non-deterministic operation）判断Primary是否在线。可是这并不能保证判断一定正确。假设Backup认为Primary下线了，它自己会变成Primary，此时系统中会有两个Primary：<strong>Split-Brain</strong> 问题又出现了。杜绝这种情况出现的方式是，使用Fig7中的Shared Disk作为第三方决定者，保证系统中只能有一个Primary身份，每一个请求Primary身份的知己都会发送一个 <em>Test-and-Set Request</em>：这类似一个Lock，只能有一个实体获得。看起来Shared Disk可能存在单点故障，但是Shared Disk可能也使用了某种FT。</p>
 <blockquote>
 <h3 id="参考">参考:<a href="#参考" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h3>
 </blockquote>
