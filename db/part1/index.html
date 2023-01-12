@@ -138,7 +138,7 @@
 <br>
 <br>
 <h2 id="11-dbms应用-dbms-applications">1.1 DBMS应用 DBMS Applications<a href="#11-dbms应用-dbms-applications" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
-<p>     被DBMS管理的数据有三个特点：高价值，数据量大，并发使用。其本质上是一个复杂的数据管理系统。早期，这个系统是现实世界的后勤部门，它们处理纸面数据。而现代的DBMS是一个软件系统，有强大的交互性和操作便捷。其主要应用体现在两个方面：1.<strong>线上交易处理(OLTP：Online Transaction Processing)</strong>：即对数据库最熟知的使用，体现为用户大量访问数据，但每次访问只涉及数据库中一小部分数据； 2.<strong>数据分析（OLAP：Online Analytical Processing）</strong>，通常适用于商业决策。</p>
+<p>     被DBMS管理的数据有三个特点：高价值，数据量大，并发使用。其本质上是一个复杂的数据管理系统。早期，这个系统是现实世界的后勤部门，它们处理纸面数据。而现代的DBMS是一个软件系统，有强大的交互性和操作便捷。其主要应用体现在两个方面：1.<strong>线上事务处理(OLTP：Online Transaction Processing)</strong>：即对数据库最熟知的使用，体现为用户大量访问数据，但每次访问只涉及数据库中一小部分数据； 2.<strong>数据分析（OLAP：Online Analytical Processing）</strong>，通常适用于商业决策。</p>
 <br>
 <br>
 <br>
@@ -191,7 +191,7 @@
 <br>
 <h2 id="14-数据抽象-data-abstraction">1.4 数据抽象 Data Abstraction<a href="#14-数据抽象-data-abstraction" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
 <p>     数据抽象分为三个层级，不同的人员接触不同的层级。</p>
-<p>     <strong>物理层面（Physical level）</strong>。这是最底层的抽象，它描述数据是如何真实地被储存的。比如它会描述 <em>instructor</em> 这部分数据是如何以Byte连续在磁盘中存储的：每个Tuple是如何组织的，这些Tuple又是如何在一个Relation中排列的等等。这关系到底层的<strong>算法/数据结构/查找方式</strong>和一定程度的硬件（物理层面实际上并不太关心物理）。另外，数据库使用一种特殊的数据结构 <strong>索引（Index）</strong> 去组织以及查询特定的数据，这也是物理层面的关注点。<strong>数据库管理员（DB Administrator）</strong> 会面对这一层面。</p>
+<p>     <strong>物理层面（Physical level）</strong>。这是最底层的抽象，它描述数据是如何真实地被储存的。比如它会描述 <em>instructor</em> 这部分数据是如何以Byte连续在磁盘中存储的：每个Tuple是如何组织的，这些Tuple又是如何在一个Relation中排列的等等。这关系到底层的<strong>算法/数据结构/查找方式</strong>和一定程度的硬件（物理层面实际上并不太关心物理）。另外，数据库使用一些数据结构实现 <strong>索引（Index）</strong>，去高效地组织以及查询特定的数据，这也是物理层面的关注点。<strong>数据库管理员（DB Administrator）</strong> 会面对这一层面。</p>
 <p>     <strong>逻辑层面（Logical level）</strong>。逻辑层面关心储存什么数据，和数据之间什么关系。换句话说，这个层级用来为数据库中的数据的种类和属性在一定程度上做出定义和修改。比如下面的代码就是逻辑层面的体现：</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-SQL" data-lang="SQL"><span class="line"><span class="cl"><span class="k">type</span><span class="w"> </span><span class="n">instructor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">record</span><span class="w">
 </span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="n">ID</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="nb">char</span><span class="w"> </span><span class="p">(</span><span class="mi">5</span><span class="p">);</span><span class="w"> 
@@ -201,7 +201,7 @@
 </span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="k">end</span><span class="p">;</span><span class="w">
 </span></span></span></code></pre></div><p>这段代码定义了一个种类<code>instructor</code>，它有四个属性，以键值对的方式声明。例如<code>ID : char (5);</code>表达：这个属性是<code>ID</code>，是一个<code>char</code>类型的数据，长度为<code>20</code>。程序员写SQL就是在面对逻辑层面。</p>
 <p>     <strong>视界层面（View level）</strong>。即用户面对的层面。一个数据库可能提供多个视界，一个用户可能面对一个或多个视界。除了作为一层抽象省去不必要的细节，这个层面也增加了安全性。比如不同的view有不同的权限：一个老师只能看见学生的成绩，看不到学生的住址。</p>
-<p>     这三个抽象层及对应三种 <strong>架构（Schema）</strong> ：physical schema，logical schema，subschemas。一个架构是对数据设计的描述。与之对应的概念叫做 <strong>实例（Instances）</strong>：它是真实存在于数据库中数据的统称。用编程语言类比，前者是对一个变量（DB）的声明，而后者则是所赋的值。通常来说，物理架构的改变不会影响逻辑架构，这种行为叫做<strong>物理数据独立性（Physical data independency）</strong>。</p>
+<p>     这三个抽象层及对应三种 <strong>架构（Schema）</strong> ：physical schema，logical schema，subschemas，通常意义中“为一个关系创建数据库Schema”，实际上指的是Logical Schema。一个架构是对数据设计的描述。与之对应的概念叫做 <strong>实例（Instances）</strong>：它是真实存在于数据库中数据的统称。用编程语言类比，前者是对一个变量（DB）的声明，而后者则是所赋的值。通常来说，物理架构的改变不会影响逻辑架构，这种行为叫做<strong>物理数据独立性（Physical data independency）</strong>。</p>
 <br>
 <br>
 <br>
@@ -210,7 +210,7 @@
 <br>
 <br>
 <h2 id="15-数据库语言-db-languages">1.5 数据库语言 DB Languages<a href="#15-数据库语言-db-languages" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
-<p>     一个数据库系统会提供三种语言：<strong>数据定义语言（DDL：Data-definition Language）</strong> ， <strong>数据操作语言（DML：Data-manipulation Language）</strong> 和 <strong>数据控制语言 (DCL：Data Control Language）</strong>。通常来说，一个数据库系统所使用的三者实际上会是同一种语言，比如SQL。</p>
+<p>     一个数据库系统会提供三种“语言”：<strong>数据定义语言（DDL：Data-definition Language）</strong> ， <strong>数据操作语言（DML：Data-manipulation Language）</strong> 和 <strong>数据控制语言 (DCL：Data Control Language）</strong>。通常来说，一个数据库系统所使用的三者实际上会是同一种语言，比如SQL。</p>
 <p>     DDL会对数据种类做出定义，同时也会实现一些 <strong>数据完整性约束（Data Integrity Constraints）</strong>。上面<em>instructor</em>的例子就是使用SQL为DDL。完整性约束通常有这几种：</p>
 <blockquote>
 <ol>
@@ -243,7 +243,7 @@
 <br>
 <br>
 <h2 id="17-数据库引擎-db-engine">1.7 数据库引擎 DB Engine<a href="#17-数据库引擎-db-engine" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
-<p>     一个DBMS通常有三个部分组成：1. <strong>储存管理器（Storage Manager）</strong> 2. <strong>查询处理器（Query Processor）</strong> 3. <strong>交易管理器（Transaction Management）</strong></p>
+<p>     一个DBMS通常有三个部分组成：1. <strong>储存管理器（Storage Manager）</strong> 2. <strong>查询处理器（Query Processor）</strong> 3. <strong>事务管理器（Transaction Managemer）</strong></p>
 <p>    储存管理器提供了数据库的数据与应用程序之间的接口，支持向DB发送的query。它会把DML语句翻译成底层的文件系统的指令。通过它实现CRUD。</p>
 <p>     查询处理器包含DDL intepreter，DML编译器等。是底层相关的。</p>
 <p>     交易管理器保证原子化，连贯性，<strong>持久性（Durability）</strong>，是数据安全重要的部分。“交易”不能单纯理解为商业交易，而应当理解为数据的“交易”。为了保证数据安全，交易管理由 <strong>并发管理器（Concurrency-control manager），恢复管理器（Recovery manager）</strong> 组成。后者在交易失败的情况下恢复数据，保证持久性。</p>
@@ -332,7 +332,7 @@
 <p>    <strong>键</strong>是一个或多个属性，分成多种。</p>
 <p>     <strong>超级键（Superkey）</strong> ：超级键是由一个或多个attr组成的集合，使用这些属性可以找到某架构中唯一的tuple。比如在 <strong>Instructor Relation</strong> 中，<code>dept_name</code> 无法构成一个超级键。但是 <code>ID</code> 可以：每个ID都是独一无二的，因此可以识别出唯一的Tuple（有的DBMS会自动分配这种唯一的编号给所有Tuple）。虽然ID本身可以当作超级键的唯一元素使之有效，任何包含ID的其他集合也可以成为超级键（这是因为ID可以识别唯一tuple）。比如<code>{ID，dept_name}</code>：后者不起什么作用，但不妨碍这个集合仍然是一个超级键。</p>
 <p>     <strong>候选键（Candidate keys）：</strong> 用最少的元素分别出一个Tuple的超级键。候选键可以有多个：假设每个部门中肯定没有同名的教师，那么<code>{ID}</code>与<code>{name,dept_name}</code>都是候选键，虽然元素数量不同，但都没有多余的元素，保证了“元素最少”。</p>
-<p>     通常数据库设计者会选出一个候选键，那么这个被选中的候选键就被叫做<strong>关系键（Primary key）</strong>。在schema中表现为带下划线的attr：</p>
+<p>     通常数据库设计者会选出一个候选键，那么这个被选中的候选键就被叫做<strong>主键（Primary key）</strong>。在schema中表现为带下划线的attr：</p>
 <p>        classroom (<span style="border-bottom:1px  solid white;">building, room number</span>, capacity)；</p>
 <p>这些选中的属性的值必须很少被更改或者永远不会变，且非NULL。超级键能得到唯一Tuple也被叫做 <strong>超级键限制（Superkey constraint）</strong> 。</p>
 <p>     另一种和attr有关的限制是 <strong>外键限制（Foreign-key constraint）</strong>。这一限制表达的是：设A为r<sub>1</sub>的某几个attr的集合，A中元素在每个tuple中的值必须和r<sub>2</sub>中的primary key B中同样的attr在一些tuple中的值一样。A被称为一个来自r<sub>1</sub>的外键，引用r<sub>2</sub>. r<sub>1</sub>被称为引用关系，r<sub>2</sub>被称为被引用关系。比如，教师关系中的<code>dept_name</code>就是一个外键，引用了Depatment中的值且<code>dept_name</code>是Department的关系键。实际上它是一种<strong>引用完整性限制（Referential integrity constrain）</strong>。相比后者，前者要求引用的attr同时也必须是被引用方的primary key。它们都可以防止垃圾信息的输入。</p>
@@ -427,7 +427,7 @@ Relational calculus：declarative，不讨论。</p>
 	</main>
 
 	<footer id="site-footer" class="section-inner thin animated fadeIn faster">
-		<p>&copy; 2022 <a href="https://hoooao.github.io/">Xiyu Hao</a> &#183; <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" rel="noopener">CC BY-NC 4.0</a></p>
+		<p>&copy; 2023 <a href="https://hoooao.github.io/">Xiyu Hao</a> &#183; <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" rel="noopener">CC BY-NC 4.0</a></p>
 		<p>
 			Made with <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> &#183; Theme <a href="https://github.com/Track3/hermit" target="_blank" rel="noopener">Hermit</a> &#183; <a href="https://hoooao.github.io/posts/index.xml" target="_blank" title="rss"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-rss"><path d="M4 11a9 9 0 0 1 9 9"></path><path d="M4 4a16 16 0 0 1 16 16"></path><circle cx="5" cy="19" r="1"></circle></svg></a>
 		</p>

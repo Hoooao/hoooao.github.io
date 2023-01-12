@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="zh-hans">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta http-equiv="X-UA-Compatible" content="ie=edge">
+	<meta name="theme-color" content="#494f5c">
+	<meta name="msapplication-TileColor" content="#494f5c">
+<meta itemprop="name" content="Part 2: Raft 共识/一致性算法 Raft Consensus Algorithm">
+<meta itemprop="description" content="目录 导言： Raft是一种一致性/共识算法，基于Paxos改进而来，相对更容易理解，但性能略逊于Paxos。这部分内容介绍Raft的基本原理。
+2.1 困难 Challenges 在之前的部分中，证明通过“更多的机器”来获取更好的性能是可以实践的。但是也暴露出了很多问题，比如如何维护一个计算机集群的一致性：无论客户访问了哪台机器，都应当得到完全一致的信息。这种状态一致性有两种层次：
+立即一致性 最终一致 并且我们需要解决网络的不可靠（两个将军问题）。这里的 一致性/共识 主要有以下几点：
+时序性Timing：当多个事件发生的时候如何确立一个“共识”的顺序。比如多个用户并发发送多个对数据库的修改，如何确保在操作完成之后所有设备保持一致； 并发行Concurrency：运行在同一网络下的机器中的进程如何共享资源（如一个数据库），但是互不干扰（Race condition）； 健壮性Robustness：如何应对网络/硬件的不稳定性； 一致性Consistency：如何保证无论访问哪个读物节点，都能获得相同的结果。 为了避免歧义，使用“共识”代表Consensus。
+在之前的VM FT论文中有一个模型叫做复制状态机。这里的概念类似。当外部发送请求之后，Primary的共识模组会把外部请求转发到其余所有节点之上，所有节点会把这一操作放入自己的日志之中（为了时序性），在Primary收到来自所有节点的Ack之后，会回复客户操作成功，异步执行写入。
+Fig.1 复制状态机 这是一个共识算法的理想模型，但是现实环境仍然可能无法解决上述的几个挑战：
+网络不确定性：网络可能出现分区，冗余，丢失，乱序；假设Primary与另外某个节点的网络中断，这就导致前者永远无法收到后者的Ack：在这种“分区(Partition)”之下，该模型无法工作，即不够健壮；假设只是网络延迟，那么Primary的超时重发会导致对面的节点执行两个目标操作 可用性：上述模型只要有一个节点崩溃就不能用，我们需要定义一个模型能够接受更多的崩溃； 时序性：不能使用物理时钟判断操作前后顺序：每个CPU的时钟不一样，所以需要一个逻辑时钟 快速响应：多个节点中可能有反应速度远慢于其他节点的节点，模型不应该等待这样的节点去继续执行。 2.1 Raft 模型 Raft Model Raft算法为了解决以上的问题，提出了一些简单的概念：
+唯一的 领导者(Leader)：也就是上述的Primary，由它来发送日志给 跟随者(Follower)，并且决定日志的顺序； Read请求可以像任意节点请求，但是Write只能向Leader请求（在实际视线中，可以访问follower节点，把写入请求转发给leader）； 领导者在接受到写入之后先写入自己的日志，再转发同步给所有跟随者，只需要半数&#43;1个节点Ack（包含领导者自己），就证明 “大多数(Majority)达成了“共识””，领导者便可以提交日志（执行写入）； 当一个领导者崩溃之后，其他跟随者通过心跳感知并选举出新的领导者，带领集群正常运转； 有新的节点出现或者退出，需要将它的配置信息同步给整个集群。 在Raft中，实际上有三种角色，除了上述的领导者，跟随者，还有候选者(Candidate)，三者组成Raft的状态机模型：
+Fig.2 Raft FSM 在最开始，所有节点都是跟随者，它们会给自己随机生成一个选举超时计时器倒计时(150~300ms)，当计时器为0的时候，它们会变成候选者。由于每个跟随者的计时器都是随机生成的，两个节点同时变成候选者的概率不大。在一个节点变成候选者之后，会像其他节点发送投票请求。
+投票过程中，候选人会给自己投一票，其他节点会给它投票。假设共有半数&#43;1个赞成，它会变成领导者。如果投票请求没有回来，又超过了选举超时定时器(Election Timeout)，那么会再次发送投票请求。如果某个瞬间它感受到了领导者的心跳，它会变成跟随者：这意味集群有了新的领导者。虽然集群同时存在两个候选者的概率小，但也是可能的：假设有两个节点变成竞选者，集群有复数个跟随者，竞选者分别获得了集群中剩下的一半的节点的赞成。当这种情况发生之后，两个竞选者又会等待选举定时器超时(仍然是随机时长)，直到出现领导者。
+任期：每个节点会维护一个数字，代表“当前任期”，表示当前时间点，它的认为自己身处于集群的第几代领导者的领导之下。一旦一个跟随者变成候选者，它会自增它维护的任期，并在投票请求中包含这个数字。当别的跟随者看到这个请求之后，发现这个任期高于自己维护的任期，就会赞成。每一个跟随者在一个任期之内，只会投1个票，所以如果有碰巧有多个竞选者，也可以降低平票风险。
+在任期内，被选举出的领导者会不停地向每一个跟随者发送心跳，心跳的间隔(Heart Beat Timeout)远小于选举超时（即使一次丢包也没关系），这就阻止了系统内过多的Term迭代（选举会花很多时间）。
+网络分区为两块之后，原来的领导者可能被隔离开，它所在的分区不足半数，另一个分区会由于接受不到这个领导者的心跳在超过竞选计时器后选举出新的领导者。当分区被恢复，旧的领导者会听到新的领导者的心跳，从而看到“已经出现了比自己更高的任期”，便放弃领导者的身份，变成跟随者。
+心跳 通过领导者发送给跟随者，除了上述的告诉跟随者领导者在线不让它们变成竞选者意外，心跳实际上还封装者领导者发送给跟随者的数据，比如Log。
+2.2 Raft 实现 Implementation 这部分介绍Raft的实现，包括其最重要的数据结构，RPC接口，以及各个角色的职责细节等。
+2.2.1 数据结构 Data Structures Raft论文中指出了算法实现中重要的一些数据结构：
+Fig.4 Raft Data Structures 每种角色都维护的持久性状态："><meta itemprop="datePublished" content="2022-12-29T09:03:42-05:00" />
+<meta itemprop="dateModified" content="2022-12-29T09:03:42-05:00" />
+<meta itemprop="wordCount" content="148">
+<meta itemprop="keywords" content="" /><meta property="og:title" content="Part 2: Raft 共识/一致性算法 Raft Consensus Algorithm" />
+<meta property="og:description" content="目录 导言： Raft是一种一致性/共识算法，基于Paxos改进而来，相对更容易理解，但性能略逊于Paxos。这部分内容介绍Raft的基本原理。
+2.1 困难 Challenges 在之前的部分中，证明通过“更多的机器”来获取更好的性能是可以实践的。但是也暴露出了很多问题，比如如何维护一个计算机集群的一致性：无论客户访问了哪台机器，都应当得到完全一致的信息。这种状态一致性有两种层次：
+立即一致性 最终一致 并且我们需要解决网络的不可靠（两个将军问题）。这里的 一致性/共识 主要有以下几点：
+时序性Timing：当多个事件发生的时候如何确立一个“共识”的顺序。比如多个用户并发发送多个对数据库的修改，如何确保在操作完成之后所有设备保持一致； 并发行Concurrency：运行在同一网络下的机器中的进程如何共享资源（如一个数据库），但是互不干扰（Race condition）； 健壮性Robustness：如何应对网络/硬件的不稳定性； 一致性Consistency：如何保证无论访问哪个读物节点，都能获得相同的结果。 为了避免歧义，使用“共识”代表Consensus。
+在之前的VM FT论文中有一个模型叫做复制状态机。这里的概念类似。当外部发送请求之后，Primary的共识模组会把外部请求转发到其余所有节点之上，所有节点会把这一操作放入自己的日志之中（为了时序性），在Primary收到来自所有节点的Ack之后，会回复客户操作成功，异步执行写入。
+Fig.1 复制状态机 这是一个共识算法的理想模型，但是现实环境仍然可能无法解决上述的几个挑战：
+网络不确定性：网络可能出现分区，冗余，丢失，乱序；假设Primary与另外某个节点的网络中断，这就导致前者永远无法收到后者的Ack：在这种“分区(Partition)”之下，该模型无法工作，即不够健壮；假设只是网络延迟，那么Primary的超时重发会导致对面的节点执行两个目标操作 可用性：上述模型只要有一个节点崩溃就不能用，我们需要定义一个模型能够接受更多的崩溃； 时序性：不能使用物理时钟判断操作前后顺序：每个CPU的时钟不一样，所以需要一个逻辑时钟 快速响应：多个节点中可能有反应速度远慢于其他节点的节点，模型不应该等待这样的节点去继续执行。 2.1 Raft 模型 Raft Model Raft算法为了解决以上的问题，提出了一些简单的概念：
+唯一的 领导者(Leader)：也就是上述的Primary，由它来发送日志给 跟随者(Follower)，并且决定日志的顺序； Read请求可以像任意节点请求，但是Write只能向Leader请求（在实际视线中，可以访问follower节点，把写入请求转发给leader）； 领导者在接受到写入之后先写入自己的日志，再转发同步给所有跟随者，只需要半数&#43;1个节点Ack（包含领导者自己），就证明 “大多数(Majority)达成了“共识””，领导者便可以提交日志（执行写入）； 当一个领导者崩溃之后，其他跟随者通过心跳感知并选举出新的领导者，带领集群正常运转； 有新的节点出现或者退出，需要将它的配置信息同步给整个集群。 在Raft中，实际上有三种角色，除了上述的领导者，跟随者，还有候选者(Candidate)，三者组成Raft的状态机模型：
+Fig.2 Raft FSM 在最开始，所有节点都是跟随者，它们会给自己随机生成一个选举超时计时器倒计时(150~300ms)，当计时器为0的时候，它们会变成候选者。由于每个跟随者的计时器都是随机生成的，两个节点同时变成候选者的概率不大。在一个节点变成候选者之后，会像其他节点发送投票请求。
+投票过程中，候选人会给自己投一票，其他节点会给它投票。假设共有半数&#43;1个赞成，它会变成领导者。如果投票请求没有回来，又超过了选举超时定时器(Election Timeout)，那么会再次发送投票请求。如果某个瞬间它感受到了领导者的心跳，它会变成跟随者：这意味集群有了新的领导者。虽然集群同时存在两个候选者的概率小，但也是可能的：假设有两个节点变成竞选者，集群有复数个跟随者，竞选者分别获得了集群中剩下的一半的节点的赞成。当这种情况发生之后，两个竞选者又会等待选举定时器超时(仍然是随机时长)，直到出现领导者。
+任期：每个节点会维护一个数字，代表“当前任期”，表示当前时间点，它的认为自己身处于集群的第几代领导者的领导之下。一旦一个跟随者变成候选者，它会自增它维护的任期，并在投票请求中包含这个数字。当别的跟随者看到这个请求之后，发现这个任期高于自己维护的任期，就会赞成。每一个跟随者在一个任期之内，只会投1个票，所以如果有碰巧有多个竞选者，也可以降低平票风险。
+在任期内，被选举出的领导者会不停地向每一个跟随者发送心跳，心跳的间隔(Heart Beat Timeout)远小于选举超时（即使一次丢包也没关系），这就阻止了系统内过多的Term迭代（选举会花很多时间）。
+网络分区为两块之后，原来的领导者可能被隔离开，它所在的分区不足半数，另一个分区会由于接受不到这个领导者的心跳在超过竞选计时器后选举出新的领导者。当分区被恢复，旧的领导者会听到新的领导者的心跳，从而看到“已经出现了比自己更高的任期”，便放弃领导者的身份，变成跟随者。
+心跳 通过领导者发送给跟随者，除了上述的告诉跟随者领导者在线不让它们变成竞选者意外，心跳实际上还封装者领导者发送给跟随者的数据，比如Log。
+2.2 Raft 实现 Implementation 这部分介绍Raft的实现，包括其最重要的数据结构，RPC接口，以及各个角色的职责细节等。
+2.2.1 数据结构 Data Structures Raft论文中指出了算法实现中重要的一些数据结构：
+Fig.4 Raft Data Structures 每种角色都维护的持久性状态：" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://hoooao.github.io/ds/part2/" /><meta property="article:section" content="ds" />
+<meta property="article:published_time" content="2022-12-29T09:03:42-05:00" />
+<meta property="article:modified_time" content="2022-12-29T09:03:42-05:00" />
+
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="Part 2: Raft 共识/一致性算法 Raft Consensus Algorithm"/>
+<meta name="twitter:description" content="目录 导言： Raft是一种一致性/共识算法，基于Paxos改进而来，相对更容易理解，但性能略逊于Paxos。这部分内容介绍Raft的基本原理。
+2.1 困难 Challenges 在之前的部分中，证明通过“更多的机器”来获取更好的性能是可以实践的。但是也暴露出了很多问题，比如如何维护一个计算机集群的一致性：无论客户访问了哪台机器，都应当得到完全一致的信息。这种状态一致性有两种层次：
+立即一致性 最终一致 并且我们需要解决网络的不可靠（两个将军问题）。这里的 一致性/共识 主要有以下几点：
+时序性Timing：当多个事件发生的时候如何确立一个“共识”的顺序。比如多个用户并发发送多个对数据库的修改，如何确保在操作完成之后所有设备保持一致； 并发行Concurrency：运行在同一网络下的机器中的进程如何共享资源（如一个数据库），但是互不干扰（Race condition）； 健壮性Robustness：如何应对网络/硬件的不稳定性； 一致性Consistency：如何保证无论访问哪个读物节点，都能获得相同的结果。 为了避免歧义，使用“共识”代表Consensus。
+在之前的VM FT论文中有一个模型叫做复制状态机。这里的概念类似。当外部发送请求之后，Primary的共识模组会把外部请求转发到其余所有节点之上，所有节点会把这一操作放入自己的日志之中（为了时序性），在Primary收到来自所有节点的Ack之后，会回复客户操作成功，异步执行写入。
+Fig.1 复制状态机 这是一个共识算法的理想模型，但是现实环境仍然可能无法解决上述的几个挑战：
+网络不确定性：网络可能出现分区，冗余，丢失，乱序；假设Primary与另外某个节点的网络中断，这就导致前者永远无法收到后者的Ack：在这种“分区(Partition)”之下，该模型无法工作，即不够健壮；假设只是网络延迟，那么Primary的超时重发会导致对面的节点执行两个目标操作 可用性：上述模型只要有一个节点崩溃就不能用，我们需要定义一个模型能够接受更多的崩溃； 时序性：不能使用物理时钟判断操作前后顺序：每个CPU的时钟不一样，所以需要一个逻辑时钟 快速响应：多个节点中可能有反应速度远慢于其他节点的节点，模型不应该等待这样的节点去继续执行。 2.1 Raft 模型 Raft Model Raft算法为了解决以上的问题，提出了一些简单的概念：
+唯一的 领导者(Leader)：也就是上述的Primary，由它来发送日志给 跟随者(Follower)，并且决定日志的顺序； Read请求可以像任意节点请求，但是Write只能向Leader请求（在实际视线中，可以访问follower节点，把写入请求转发给leader）； 领导者在接受到写入之后先写入自己的日志，再转发同步给所有跟随者，只需要半数&#43;1个节点Ack（包含领导者自己），就证明 “大多数(Majority)达成了“共识””，领导者便可以提交日志（执行写入）； 当一个领导者崩溃之后，其他跟随者通过心跳感知并选举出新的领导者，带领集群正常运转； 有新的节点出现或者退出，需要将它的配置信息同步给整个集群。 在Raft中，实际上有三种角色，除了上述的领导者，跟随者，还有候选者(Candidate)，三者组成Raft的状态机模型：
+Fig.2 Raft FSM 在最开始，所有节点都是跟随者，它们会给自己随机生成一个选举超时计时器倒计时(150~300ms)，当计时器为0的时候，它们会变成候选者。由于每个跟随者的计时器都是随机生成的，两个节点同时变成候选者的概率不大。在一个节点变成候选者之后，会像其他节点发送投票请求。
+投票过程中，候选人会给自己投一票，其他节点会给它投票。假设共有半数&#43;1个赞成，它会变成领导者。如果投票请求没有回来，又超过了选举超时定时器(Election Timeout)，那么会再次发送投票请求。如果某个瞬间它感受到了领导者的心跳，它会变成跟随者：这意味集群有了新的领导者。虽然集群同时存在两个候选者的概率小，但也是可能的：假设有两个节点变成竞选者，集群有复数个跟随者，竞选者分别获得了集群中剩下的一半的节点的赞成。当这种情况发生之后，两个竞选者又会等待选举定时器超时(仍然是随机时长)，直到出现领导者。
+任期：每个节点会维护一个数字，代表“当前任期”，表示当前时间点，它的认为自己身处于集群的第几代领导者的领导之下。一旦一个跟随者变成候选者，它会自增它维护的任期，并在投票请求中包含这个数字。当别的跟随者看到这个请求之后，发现这个任期高于自己维护的任期，就会赞成。每一个跟随者在一个任期之内，只会投1个票，所以如果有碰巧有多个竞选者，也可以降低平票风险。
+在任期内，被选举出的领导者会不停地向每一个跟随者发送心跳，心跳的间隔(Heart Beat Timeout)远小于选举超时（即使一次丢包也没关系），这就阻止了系统内过多的Term迭代（选举会花很多时间）。
+网络分区为两块之后，原来的领导者可能被隔离开，它所在的分区不足半数，另一个分区会由于接受不到这个领导者的心跳在超过竞选计时器后选举出新的领导者。当分区被恢复，旧的领导者会听到新的领导者的心跳，从而看到“已经出现了比自己更高的任期”，便放弃领导者的身份，变成跟随者。
+心跳 通过领导者发送给跟随者，除了上述的告诉跟随者领导者在线不让它们变成竞选者意外，心跳实际上还封装者领导者发送给跟随者的数据，比如Log。
+2.2 Raft 实现 Implementation 这部分介绍Raft的实现，包括其最重要的数据结构，RPC接口，以及各个角色的职责细节等。
+2.2.1 数据结构 Data Structures Raft论文中指出了算法实现中重要的一些数据结构：
+Fig.4 Raft Data Structures 每种角色都维护的持久性状态："/>
+
+	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+	<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+	<link rel="manifest" href="/site.webmanifest">
+	<link rel="mask-icon" href="/safari-pinned-tab.svg" color="">
+	<link rel="shortcut icon" href="/favicon.ico">
+
+	<title>Part 2: Raft 共识/一致性算法 Raft Consensus Algorithm</title>
+	<link rel="stylesheet" href="https://hoooao.github.io/css/style.min.6b1219507aa24bcc2a46f4f7071edbc5dc448ba85934d68c4af0ca0a7ad89dcd.css" integrity="sha256-axIZUHqiS8wqRvT3Bx7bxdxEi6hZNNaMSvDKCnrYnc0=" crossorigin="anonymous">
+	<style>.bg-img {background-image: url('https://images.unsplash.com/photo-1531265726475-52ad60219627?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=2691&q=80');}</style>
+</head>
+
+<body id="page">
+	
+	<header id="site-header" class="animated slideInUp">
+		<script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML" type="text/javascript"></script>
+		<script type="text/x-mathjax-config">
+			MathJax.Hub.Config({
+				tex2jax: {
+				skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+				inlineMath: [['$','$']]
+				}
+			});
+		</script>
+		<div class="hdr-wrapper section-inner">
+			<div class="hdr-left">
+				<div class="site-branding">
+					<a href="https://hoooao.github.io/">Hao的个人博客</a>
+				</div>
+				<nav class="site-nav hide-in-mobile">
+					
+				<a href="https://hoooao.github.io/db/">Database</a>
+				<a href="https://hoooao.github.io/ds/">Distributed Systems</a>
+				<a href="https://hoooao.github.io/os/">Operating System</a>
+				<a href="https://hoooao.github.io/algo/">Algoes</a>
+				<a href="https://hoooao.github.io/about-hugo/">About</a>
+
+				</nav>
+			</div>
+			<div class="hdr-right hdr-icons">
+				<span class="hdr-social hide-in-mobile"><a href="https://i.imgur.com/gzAPv6g.jpeg" target="_blank" rel="noopener me" title="Wechat"><svg xmlns="http://www.w3.org/2000/svg" class="feather" width="24" height="24" viewBox="0 0 1000 1000" fill="#c8cdd3" stroke="currentColor" stroke-width="30" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M487.4,340.2c25.2,0,42-16.9,42-42c0-25.4-16.8-41.9-42-41.9c-25.2,0-50.6,16.4-50.6,41.9C436.9,323.4,462.2,340.2,487.4,340.2z M252.2,256.4c-25.2,0-50.7,16.4-50.7,41.9c0,25.1,25.5,42,50.7,42c25.1,0,41.9-16.9,41.9-42C294.1,272.8,277.3,256.4,252.2,256.4z M990,609.2c0-132.9-123.3-246.1-274.6-257.9c0.2-1.7,0.3-3.4-0.1-5.1C684.9,204.7,532.8,98,361.4,98C167.6,98,10,233.1,10,399.1c0,89.1,45.5,169.3,131.7,232.6l-30,90.3c-1.9,5.9-0.2,12.3,4.5,16.4c2.8,2.4,6.4,3.7,10,3.7c2.3,0,4.7-0.6,6.9-1.6l112.8-56.4l13.9,2.8c34.7,7.1,64.7,13.3,101.6,13.3c10.9,0,21.9-0.5,32.7-1.4c4.4-0.4,8.1-2.6,10.6-5.8c40.7,101.8,152.8,175.2,284.7,175.2c33.8,0,68-8.1,98.7-15.8l86.9,47.5c2.3,1.3,4.8,1.9,7.3,1.9c3.4,0,6.9-1.2,9.6-3.4c4.8-3.9,6.8-10.4,5-16.3l-22.2-73.8C949.2,749.6,990,679.2,990,609.2z M391.5,668.4c-10,0.9-20.1,1.3-30.1,1.3c-33.8,0-62.4-5.8-95.5-12.7l-19.2-3.9c-3.3-0.7-6.8-0.2-9.8,1.3l-84.5,42.3l22-66c2.1-6.5-0.2-13.5-5.8-17.4C83.7,554.2,40.6,482.1,40.6,399.1c0-149.1,143.9-270.5,320.7-270.5c156.3,0,294.8,95.1,323.3,221.6c-163.9,2.1-296.6,117.4-296.6,258.9c0,20.6,3.1,40.5,8.4,59.7C394.9,668.5,393.2,668.2,391.5,668.4z M847.8,790.5c-5.1,3.9-7.3,10.5-5.5,16.6l14.5,48.2l-59.4-32.5c-2.3-1.3-4.8-1.9-7.4-1.9c-1.3,0-2.5,0.2-3.7,0.5c-31.9,8.1-64.9,16.4-97,16.4c-149.2,0-270.6-102.5-270.6-228.5c0-126,121.4-228.5,270.6-228.5c146.4,0,270,104.6,270,228.5C959.4,672,919.8,736.4,847.8,790.5z M596.7,500c-16.8,0-33.6,16.9-33.6,33.7c0,16.9,16.8,33.6,33.6,33.6c25.3,0,42-16.7,42-33.6C638.6,516.9,621.9,500,596.7,500z M781.4,500c-16.6,0-33.4,16.9-33.4,33.7c0,16.9,16.8,33.6,33.4,33.6c25.2,0,42.2-16.7,42.2-33.6C823.6,516.9,806.6,500,781.4,500z"></path>
+    </svg></a><a href="https://github.com/Hoooao" target="_blank" rel="noopener me" title="Github"><svg xmlns="http://www.w3.org/2000/svg" class="feather" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg></a></span><button id="menu-btn" class="hdr-btn" title="菜单"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-menu"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button>
+			</div>
+		</div>
+	</header>
+	<div id="mobile-menu" class="animated fast">
+		<ul>
+			<li><a href="https://hoooao.github.io/db/">Database</a></li>
+			<li><a href="https://hoooao.github.io/ds/">Distributed Systems</a></li>
+			<li><a href="https://hoooao.github.io/os/">Operating System</a></li>
+			<li><a href="https://hoooao.github.io/algo/">Algoes</a></li>
+			<li><a href="https://hoooao.github.io/about-hugo/">About</a></li>
+		</ul>
+	</div>
+
+
+	<div class="bg-img"></div>
+	<main class="site-main section-inner animated fadeIn faster">
+		<article class="thin">
+			<header class="post-header">
+				<div class="post-meta"><span>Dec 29, 2022</span></div>
+				<h1>Part 2: Raft 共识/一致性算法 Raft Consensus Algorithm</h1>
+			</header>
+			<div class="content">
+				<h2 id="目录">目录<a href="#目录" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<br>
+<hr>
+<br>
+<h2 id="导言">导言：<a href="#导言" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    Raft是一种一致性/共识算法，基于Paxos改进而来，相对更容易理解，但性能略逊于Paxos。这部分内容介绍Raft的基本原理。</p>
+<br>
+<br>
+<br>
+<hr>
+<br>
+<br>
+<br>
+<h2 id="21-困难-challenges">2.1 困难 Challenges<a href="#21-困难-challenges" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    在之前的部分中，证明通过“更多的机器”来获取更好的性能是可以实践的。但是也暴露出了很多问题，比如如何维护一个计算机集群的一致性：无论客户访问了哪台机器，都应当得到完全一致的信息。这种状态一致性有两种层次：</p>
+<ul>
+<li>立即一致性</li>
+<li>最终一致</li>
+</ul>
+<p>并且我们需要解决网络的不可靠（两个将军问题）。这里的 <strong>一致性/共识</strong> 主要有以下几点：</p>
+<ul>
+<li>
+<ol>
+<li><strong>时序性</strong>Timing：当多个事件发生的时候如何确立一个“共识”的顺序。比如多个用户并发发送多个对数据库的修改，如何确保在操作完成之后所有设备保持一致；</li>
+</ol>
+</li>
+<li></li>
+<li>
+<ol start="2">
+<li><strong>并发行</strong>Concurrency：运行在同一网络下的机器中的进程如何共享资源（如一个数据库），但是互不干扰（Race condition）；</li>
+</ol>
+</li>
+<li></li>
+<li>
+<ol start="3">
+<li><strong>健壮性</strong>Robustness：如何应对网络/硬件的不稳定性；</li>
+</ol>
+</li>
+<li></li>
+<li>
+<ol start="4">
+<li><strong>一致性</strong>Consistency：如何保证无论访问哪个读物节点，都能获得相同的结果。</li>
+</ol>
+</li>
+<li></li>
+</ul>
+<p>为了避免歧义，使用“共识”代表Consensus。</p>
+<p>    在之前的VM FT论文中有一个模型叫做复制状态机。这里的概念类似。当外部发送请求之后，Primary的共识模组会把外部请求转发到其余所有节点之上，所有节点会把这一操作放入自己的日志之中（为了时序性），在Primary收到来自所有节点的Ack之后，会回复客户操作成功，异步执行写入。</p>
+<figure>
+<div style="text-align:center">
+<img src="https://knowledge-sharing.gitbooks.io/raft/content/assets/Figure-1-Replicated-state-machine-architecture.png" alt="" style="width:80%">
+<figcaption><b>Fig.1 复制状态机</b></figcaption>
+</div>
+</figure>
+<p>这是一个共识算法的理想模型，但是现实环境仍然可能无法解决上述的几个挑战：</p>
+<ul>
+<li>网络不确定性：网络可能出现分区，冗余，丢失，乱序；假设Primary与另外某个节点的网络中断，这就导致前者永远无法收到后者的Ack：在这种“分区(Partition)”之下，该模型无法工作，即不够健壮；假设只是网络延迟，那么Primary的超时重发会导致对面的节点执行两个目标操作</li>
+<li></li>
+<li>可用性：上述模型只要有一个节点崩溃就不能用，我们需要定义一个模型能够接受更多的崩溃；</li>
+<li></li>
+<li>时序性：不能使用物理时钟判断操作前后顺序：每个CPU的时钟不一样，所以需要一个逻辑时钟</li>
+<li></li>
+<li>快速响应：多个节点中可能有反应速度远慢于其他节点的节点，模型不应该等待这样的节点去继续执行。</li>
+</ul>
+<h2 id="21-raft-模型-raft-model">2.1 Raft 模型 Raft Model<a href="#21-raft-模型-raft-model" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    Raft算法为了解决以上的问题，提出了一些简单的概念：</p>
+<ul>
+<li>唯一的 <strong>领导者(Leader)</strong>：也就是上述的Primary，由它来发送日志给 <strong>跟随者(Follower)</strong>，并且决定日志的顺序；</li>
+<li></li>
+<li>Read请求可以像任意节点请求，但是Write只能向Leader请求（在实际视线中，可以访问follower节点，把写入请求转发给leader）；</li>
+<li></li>
+<li>领导者在接受到写入之后先写入自己的日志，再转发同步给所有跟随者，<strong>只需要半数+1个节点Ack</strong>（包含领导者自己），就证明 “<strong>大多数(Majority)达成了“共识”</strong>”，领导者便可以提交日志（执行写入）；</li>
+<li></li>
+<li>当一个领导者崩溃之后，其他跟随者通过心<strong>跳感知</strong>并<strong>选举</strong>出新的领导者，带领集群正常运转；</li>
+<li></li>
+<li>有新的节点出现或者退出，需要将它的配置信息同步给整个集群。</li>
+<li></li>
+</ul>
+<p>    在Raft中，实际上有三种角色，除了上述的领导者，跟随者，还有<strong>候选者(Candidate)</strong>，三者组成Raft的状态机模型：</p>
+<figure>
+<div style="text-align:center">
+<img src="http://blog.kezhuw.name/2018/03/20/A-step-by-step-approach-to-raft-consensus-algorithm/server-states.png" alt="" style="width:80%">
+<figcaption><b>Fig.2 Raft FSM</b></figcaption>
+</div>
+</figure>
+<p>    <strong>在最开始</strong>，所有节点都是跟随者，它们会给自己<em>随机</em>生成一个选举超时计时器倒计时(150~300ms)，当计时器为0的时候，它们会变成候选者。由于每个跟随者的计时器都是随机生成的，两个节点同时变成候选者的概率不大。在一个节点变成候选者之后，会像其他节点发送投票请求。</p>
+<p>    <strong>投票过程中</strong>，候选人会给自己投一票，其他节点会给它投票。假设共有<strong>半数+1个赞成</strong>，它会变成领导者。如果投票请求没有回来，又超过了选举超时定时器(Election Timeout)，那么会再次发送投票请求。如果某个瞬间它感受到了领导者的<strong>心跳</strong>，它会变成跟随者：这意味集群有了新的领导者。虽然集群同时存在两个候选者的概率小，但也是可能的：假设有两个节点变成竞选者，集群有<em>复数个跟随者</em>，竞选者分别获得了集群中剩下的一半的节点的赞成。当这种情况发生之后，两个竞选者又会等待选举定时器超时(仍然是随机时长)，直到出现领导者。</p>
+<p>     <strong>任期</strong>：每个节点会维护一个数字，代表“当前任期”，表示当前时间点，它的认为自己身处于集群的第几代领导者的领导之下。一旦一个跟随者<em>变成候选者</em>，它会自增它维护的任期，并在投票请求中包含这个数字。当别的跟随者看到这个请求之后，发现这个<em>任期高于自己维护的任期，就会赞成</em>。每一个跟随者在一个任期之内，只会投1个票，所以如果有碰巧有多个竞选者，也可以降低平票风险。</p>
+<p>     <strong>在任期内</strong>，被选举出的领导者会不停地向每一个跟随者发送心跳，心跳的间隔(Heart Beat Timeout)远小于选举超时（即使一次丢包也没关系），这就阻止了系统内过多的Term迭代（选举会花很多时间）。</p>
+<p>     <strong>网络分区</strong>为两块之后，原来的领导者可能被隔离开，它所在的分区不足半数，另一个分区会由于接受不到这个领导者的心跳在超过竞选计时器后选举出新的领导者。当分区被恢复，旧的领导者会听到新的领导者的心跳，从而看到“已经出现了比自己更高的任期”，便放弃领导者的身份，变成跟随者。</p>
+<p>     <strong>心跳</strong> 通过领导者发送给跟随者，除了上述的告诉跟随者领导者在线不让它们变成竞选者意外，心跳实际上还封装者领导者发送给跟随者的数据，比如Log。</p>
+<h2 id="22-raft-实现-implementation">2.2 Raft 实现 Implementation<a href="#22-raft-实现-implementation" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
+<p>    这部分介绍Raft的实现，包括其最重要的数据结构，RPC接口，以及各个角色的职责细节等。</p>
+<br>
+<br>
+<h3 id="221-数据结构-data-structures">2.2.1 数据结构 Data Structures<a href="#221-数据结构-data-structures" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h3>
+<p>    Raft论文中指出了算法实现中重要的一些数据结构：</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/Errwbl8.png" alt="" style="width:80%">
+<figcaption><b>Fig.4 Raft Data Structures</b></figcaption>
+</div>
+</figure>
+<p>    <strong>每种角色都维护的持久性状态</strong>：</p>
+<ul>
+<li>currentTerm：即这台服务器最后一次参与的任期；从0开始，单调递增；</li>
+<li></li>
+<li>votedFor：每一个节点在一个任期内只能给一个候选者投票，这个变量记录它投给了谁；如果没有投票就是none；</li>
+<li></li>
+<li>log[]：保存日志，每个log entry保存着操作种类以及这个log是在哪个任期内从领导者那里接受到的；</li>
+</ul>
+<p>    <strong>每种角色都维护的非持久性状态</strong>：</p>
+<ul>
+<li>commitIndex：指向最后提交的日志的index；</li>
+<li></li>
+<li>lastApplied：指向最后应用于状态机的log的index；</li>
+</ul>
+<p>两者都是<code>log[]</code>的指针，lastApplied一般等于commitIndex，但是在有新的日志进入并提交之后，commitIndex会+1，前者暂时落后。</p>
+<p>    <strong>Leader维护的非持久性状态</strong>：</p>
+<ul>
+<li>nexIndex[]：这个数组的长度等于系统中服务器的数量；每个cell对应一台节点，其中的数值为“下一个将会被发送到这台服务器的日志的index”；初始化为领导者当前的最大日志index+1；</li>
+<li></li>
+<li>matchIndex[]: 这个数组的长度也等于系统中服务器的数量；每个cell对应一台节点，其中的数值为“已经被对应节点复制的最高的log的index”。</li>
+</ul>
+<br>
+<br>
+<h3 id="222-rpc-api">2.2.2 RPC API<a href="#222-rpc-api" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h3>
+<p>     Raft中有两个重要的RPC接口：<code>AppendEntries</code>, <code>RequestVote</code>，分别被领导者和竞选者调用。</p>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/uWUYvRQ.png" alt="" style="width:80%">
+<figcaption><b>Fig.4 Raft AppendEntries RPC</b></figcaption>
+</div>
+</figure>
+<p>    <code>AppendEntries</code>既可以向跟随者们提供新的日志，也可以作为心跳检测使用，它的<strong>参数</strong>：</p>
+<ul>
+<li>term：领导者传入自己当前的任期，用来通知其他节点当前任期，或者让别人告诉自己任期已过（存在新的领导者）；</li>
+<li></li>
+<li>leaderId：领导者节点ID，用来让跟随者向领导者转发客户的请求；</li>
+<li></li>
+<li>prevLogIndex：发送的Log entries之前的最近的一个Log的index；</li>
+<li></li>
+<li>prevLogTerm：发送的Log entries之前的最近的一个Log发送时的term；</li>
+<li></li>
+<li>entries：即log entries，领导者一次可以发送多个log，用数组传递；</li>
+<li></li>
+<li>leaderCommit：领导者的commitIndex，供跟随者参考</li>
+<li></li>
+</ul>
+<p><strong>结果</strong>：</p>
+<ul>
+<li>term：节点当前term，供领导者使用</li>
+<li></li>
+<li>success：为true若跟随者有和传入的prevLogIndex，prevLogTerm一样的log</li>
+<li></li>
+</ul>
+<p><strong>接收方行为</strong>：</p>
+<ul>
+<li>success = false：1. <code>term &lt; currentTerm</code>即来源的领导者不是最新的了；2. 发来的prevLogIndex和prevLogTerm没有在自己的日志中找到匹配的log；</li>
+<li></li>
+<li>若找到了匹配的prevLogIndex但是prevLogTerm不匹配，删除所有这个log entry和它之后的log entries；</li>
+<li></li>
+<li>从匹配prevLogIndex和prevLogTerm的log后面开始添加传入的logs；</li>
+<li></li>
+<li>若<code>leaderCommit &gt; commitIndex</code>，把commitIndex设置为<code>min(leaderCommit, index of last new entry)</code>.</li>
+</ul>
+<figure>
+<div style="text-align:center">
+<img src="https://i.imgur.com/uWUYvRQ.png" alt="" style="width:80%">
+<figcaption><b>Fig.5 Raft RequestVote RPC</b></figcaption>
+</div>
+</figure>
+<p>    <code>RequestVote RPC</code>用来发起投票。<strong>参数</strong>：</p>
+<ul>
+<li>term：竞选者的term；</li>
+<li></li>
+<li>candidateId：标识自己是谁；</li>
+<li></li>
+<li>lastLogIndex：自己当前所有有的最大日志Index；</li>
+<li></li>
+<li>lastLogTerm：自己当前所有有的最大日志的Term。</li>
+</ul>
+<p><strong>结果</strong>：</p>
+<ul>
+<li>term：对方节点的term，让竞选者知道自己是不是落后；</li>
+<li></li>
+<li>voteGranted：对方是否有给自己投票。</li>
+<li></li>
+</ul>
+<p><strong>接收方行为</strong>：</p>
+<ul>
+<li><code>voteGranted = false</code>：<code>term &lt; currentTerm</code>;</li>
+<li></li>
+<li><code>voteGranted = true</code>：若自己的votedFor是Null或者是传来的candidateId，并且lastLogTerm和lastLogIndex至少和自己的一样大</li>
+</ul>
+<br>
+<br>
+<h3 id="223-服务器行为">2.2.3 服务器行为<a href="#223-服务器行为" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h3>
+<p>    </p>
+
+			</div>
+			<hr class="post-end">
+			<footer class="post-info">
+				<p><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-file-text"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>0 字</p>
+				<p><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-calendar"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>2022-12-29 09:03 -0500</p>
+			</footer>
+		</article>
+		<div class="post-nav thin">
+			<a class="prev-post" href="https://hoooao.github.io/ds/part1/">
+				<span class="post-nav-label">下一篇&nbsp;<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-arrow-right"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></span><br><span>Part 1: MapReduce&amp;谷歌文件系统&amp;虚拟机容错恢复 MapReduce&amp;GFS&amp;VM FT</span>
+			</a>
+		</div>
+		<div id="comments" class="thin">
+</div>
+	</main>
+
+	<footer id="site-footer" class="section-inner thin animated fadeIn faster">
+		<p>&copy; 2023 <a href="https://hoooao.github.io/">Xiyu Hao</a> &#183; <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" rel="noopener">CC BY-NC 4.0</a></p>
+		<p>
+			Made with <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> &#183; Theme <a href="https://github.com/Track3/hermit" target="_blank" rel="noopener">Hermit</a> &#183; <a href="https://hoooao.github.io/posts/index.xml" target="_blank" title="rss"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-rss"><path d="M4 11a9 9 0 0 1 9 9"></path><path d="M4 4a16 16 0 0 1 16 16"></path><circle cx="5" cy="19" r="1"></circle></svg></a>
+		</p>
+	</footer>
+
+
+
+	<script src="https://hoooao.github.io/js/bundle.min.580988ed2982bcbb74a1773c7abea97b43e4c43b9324e10cda0813ec6ec4bb67.js" integrity="sha256-WAmI7SmCvLt0oXc8er6pe0PkxDuTJOEM2ggT7G7Eu2c=" crossorigin="anonymous"></script>
+	
+
+</body>
+
+</html>

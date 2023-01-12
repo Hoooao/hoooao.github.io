@@ -244,7 +244,7 @@ Serial ATA (SATA)/Serial Attached SCSI (SAS)：它们通常使用在服务器中
 </li>
 </ol>
 </blockquote>
-<p>但是对于删除，实际上由于删除操作远比添加操作少，我们可以直接把那个位置标记为不使用即可。对此的实现方式是 <strong>文件头（File header）</strong>。文件头中保存着关于此文件很多信息，比如checksum，DB版本，压缩信息，可视性（权限）等。在当前语境下，我们只关心record的删除，可以假设文件头中之储存着第一个被删除的record，而后者中储存着第二个被删除的record，以此往复：它们形成了一个自由表。每当有添加操作时，文件头指向的位置可以被重新利用，然后让文件头指向原先的第二个被删除的record。</p>
+<p>但是对于删除，实际上由于删除操作远比添加操作少，我们可以直接把那个位置标记为不使用即可。对此的实现方式是 <strong>文件头（File header）</strong>。文件头中保存着关于此文件很多信息，比如checksum，DB版本，压缩信息，可视性（权限）等。在当前语境下，我们只关心record的删除，可以假设文件头中只储存着第一个被删除的record，而后者中储存着第二个被删除的record，以此往复：它们形成了一个自由表。每当有添加操作时，文件头指向的位置可以被重新利用，然后让文件头指向原先的第二个被删除的record。</p>
 <figure>
 <div style="text-align:center">
 <img src="https://i.imgur.com/CGGISww.png" alt="" style="width:80%">
@@ -446,7 +446,7 @@ Serial ATA (SATA)/Serial Attached SCSI (SAS)：它们通常使用在服务器中
 	</main>
 
 	<footer id="site-footer" class="section-inner thin animated fadeIn faster">
-		<p>&copy; 2022 <a href="https://hoooao.github.io/">Xiyu Hao</a> &#183; <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" rel="noopener">CC BY-NC 4.0</a></p>
+		<p>&copy; 2023 <a href="https://hoooao.github.io/">Xiyu Hao</a> &#183; <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" rel="noopener">CC BY-NC 4.0</a></p>
 		<p>
 			Made with <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> &#183; Theme <a href="https://github.com/Track3/hermit" target="_blank" rel="noopener">Hermit</a> &#183; <a href="https://hoooao.github.io/posts/index.xml" target="_blank" title="rss"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-rss"><path d="M4 11a9 9 0 0 1 9 9"></path><path d="M4 4a16 16 0 0 1 16 16"></path><circle cx="5" cy="19" r="1"></circle></svg></a>
 		</p>

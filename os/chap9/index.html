@@ -7,7 +7,7 @@
 	<meta http-equiv="X-UA-Compatible" content="ie=edge">
 	<meta name="theme-color" content="#494f5c">
 	<meta name="msapplication-TileColor" content="#494f5c">
-<meta itemprop="name" content="Chap 9: Ext3 &amp; 用户空间虚拟内存应用 &amp; 微内核">
+<meta itemprop="name" content="Chap 9: Ext3 &amp; 用户空间虚拟内存应用 &amp; 微内核 Ext3 &amp; VMemo for Apps &amp; Microkernels">
 <meta itemprop="description" content="目录 文件系统性能以及恢复 FS Performance &amp; Recovery 导言： 9.1 Linux Ext3 文件系统 9.2 Ext3 日志系统优势 9.3 Ext3 日志过程 用户程序对于虚拟内存的应用 Virtual Memory for Applications 导言： 9.4 原语 Primitives 9.5 用户空间Trap 9.6 垃圾回收器 Garbage Collector 微内核 Microkernels 导言： 9.7 内核对比 Kernel comparison 9.8 seL4 从本章开始，所有内容脱离了xv6教科书，转向了对现代操作系统（Unix/Linux等）的其他方面的介绍。本章对应于MIT 6.S081的Lec 16 至Lec 18。
 文件系统性能以及恢复 FS Performance &amp; Recovery 导言： 回忆在xv6中，文件系统维护在磁盘上维护着一个日志系统，他的结构十分简单：header block&#43;logged blocks。header中记录着当前日志中记录着的block的数量和每个block的number。重要的是，在某个系统调用使用end_op之前，使用的都是内存中的cached block，而只有在所有被修改的block都同步到了磁盘上的日志中的时候，日志的header才会更新指示着对应的block number。而更新header的这一瞬间就是commit-point：在此之前发生的崩溃都会导致这些还没有写入磁盘原来位置的数据丢失（即使已经保存在了日志中），而在此之后这些数据都可以被恢复。
 任何使用日志系统的文件系统都需要遵守两个原则：
@@ -18,7 +18,7 @@ xv6中的日志系统被称为“synchronous”：在一个系统调用执行完
 Sequence：是当前transaction的次序；"><meta itemprop="datePublished" content="2022-08-06T15:49:13-04:00" />
 <meta itemprop="dateModified" content="2022-08-06T15:49:13-04:00" />
 <meta itemprop="wordCount" content="478">
-<meta itemprop="keywords" content="" /><meta property="og:title" content="Chap 9: Ext3 &amp; 用户空间虚拟内存应用 &amp; 微内核" />
+<meta itemprop="keywords" content="" /><meta property="og:title" content="Chap 9: Ext3 &amp; 用户空间虚拟内存应用 &amp; 微内核 Ext3 &amp; VMemo for Apps &amp; Microkernels" />
 <meta property="og:description" content="目录 文件系统性能以及恢复 FS Performance &amp; Recovery 导言： 9.1 Linux Ext3 文件系统 9.2 Ext3 日志系统优势 9.3 Ext3 日志过程 用户程序对于虚拟内存的应用 Virtual Memory for Applications 导言： 9.4 原语 Primitives 9.5 用户空间Trap 9.6 垃圾回收器 Garbage Collector 微内核 Microkernels 导言： 9.7 内核对比 Kernel comparison 9.8 seL4 从本章开始，所有内容脱离了xv6教科书，转向了对现代操作系统（Unix/Linux等）的其他方面的介绍。本章对应于MIT 6.S081的Lec 16 至Lec 18。
 文件系统性能以及恢复 FS Performance &amp; Recovery 导言： 回忆在xv6中，文件系统维护在磁盘上维护着一个日志系统，他的结构十分简单：header block&#43;logged blocks。header中记录着当前日志中记录着的block的数量和每个block的number。重要的是，在某个系统调用使用end_op之前，使用的都是内存中的cached block，而只有在所有被修改的block都同步到了磁盘上的日志中的时候，日志的header才会更新指示着对应的block number。而更新header的这一瞬间就是commit-point：在此之前发生的崩溃都会导致这些还没有写入磁盘原来位置的数据丢失（即使已经保存在了日志中），而在此之后这些数据都可以被恢复。
 任何使用日志系统的文件系统都需要遵守两个原则：
@@ -33,7 +33,7 @@ Sequence：是当前transaction的次序；" />
 <meta property="article:modified_time" content="2022-08-06T15:49:13-04:00" />
 
 <meta name="twitter:card" content="summary"/>
-<meta name="twitter:title" content="Chap 9: Ext3 &amp; 用户空间虚拟内存应用 &amp; 微内核"/>
+<meta name="twitter:title" content="Chap 9: Ext3 &amp; 用户空间虚拟内存应用 &amp; 微内核 Ext3 &amp; VMemo for Apps &amp; Microkernels"/>
 <meta name="twitter:description" content="目录 文件系统性能以及恢复 FS Performance &amp; Recovery 导言： 9.1 Linux Ext3 文件系统 9.2 Ext3 日志系统优势 9.3 Ext3 日志过程 用户程序对于虚拟内存的应用 Virtual Memory for Applications 导言： 9.4 原语 Primitives 9.5 用户空间Trap 9.6 垃圾回收器 Garbage Collector 微内核 Microkernels 导言： 9.7 内核对比 Kernel comparison 9.8 seL4 从本章开始，所有内容脱离了xv6教科书，转向了对现代操作系统（Unix/Linux等）的其他方面的介绍。本章对应于MIT 6.S081的Lec 16 至Lec 18。
 文件系统性能以及恢复 FS Performance &amp; Recovery 导言： 回忆在xv6中，文件系统维护在磁盘上维护着一个日志系统，他的结构十分简单：header block&#43;logged blocks。header中记录着当前日志中记录着的block的数量和每个block的number。重要的是，在某个系统调用使用end_op之前，使用的都是内存中的cached block，而只有在所有被修改的block都同步到了磁盘上的日志中的时候，日志的header才会更新指示着对应的block number。而更新header的这一瞬间就是commit-point：在此之前发生的崩溃都会导致这些还没有写入磁盘原来位置的数据丢失（即使已经保存在了日志中），而在此之后这些数据都可以被恢复。
 任何使用日志系统的文件系统都需要遵守两个原则：
@@ -50,7 +50,7 @@ Sequence：是当前transaction的次序；"/>
 	<link rel="mask-icon" href="/safari-pinned-tab.svg" color="">
 	<link rel="shortcut icon" href="/favicon.ico">
 
-	<title>Chap 9: Ext3 &amp; 用户空间虚拟内存应用 &amp; 微内核</title>
+	<title>Chap 9: Ext3 &amp; 用户空间虚拟内存应用 &amp; 微内核 Ext3 &amp; VMemo for Apps &amp; Microkernels</title>
 	<link rel="stylesheet" href="https://hoooao.github.io/css/style.min.6b1219507aa24bcc2a46f4f7071edbc5dc448ba85934d68c4af0ca0a7ad89dcd.css" integrity="sha256-axIZUHqiS8wqRvT3Bx7bxdxEi6hZNNaMSvDKCnrYnc0=" crossorigin="anonymous">
 	<style>.bg-img {background-image: url('https://images.unsplash.com/photo-1531265726475-52ad60219627?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=2691&q=80');}</style>
 </head>
@@ -105,7 +105,7 @@ Sequence：是当前transaction的次序；"/>
 		<article class="thin">
 			<header class="post-header">
 				<div class="post-meta"><span>Aug 6, 2022</span></div>
-				<h1>Chap 9: Ext3 &amp; 用户空间虚拟内存应用 &amp; 微内核</h1>
+				<h1>Chap 9: Ext3 &amp; 用户空间虚拟内存应用 &amp; 微内核 Ext3 &amp; VMemo for Apps &amp; Microkernels</h1>
 			</header>
 			<div class="content">
 				<h2 id="目录">目录<a href="#目录" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
@@ -590,7 +590,7 @@ Sequence：是当前transaction的次序；"/>
 	</main>
 
 	<footer id="site-footer" class="section-inner thin animated fadeIn faster">
-		<p>&copy; 2022 <a href="https://hoooao.github.io/">Xiyu Hao</a> &#183; <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" rel="noopener">CC BY-NC 4.0</a></p>
+		<p>&copy; 2023 <a href="https://hoooao.github.io/">Xiyu Hao</a> &#183; <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" rel="noopener">CC BY-NC 4.0</a></p>
 		<p>
 			Made with <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> &#183; Theme <a href="https://github.com/Track3/hermit" target="_blank" rel="noopener">Hermit</a> &#183; <a href="https://hoooao.github.io/posts/index.xml" target="_blank" title="rss"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-rss"><path d="M4 11a9 9 0 0 1 9 9"></path><path d="M4 4a16 16 0 0 1 16 16"></path><circle cx="5" cy="19" r="1"></circle></svg></a>
 		</p>
