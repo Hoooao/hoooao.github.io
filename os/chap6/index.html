@@ -16,7 +16,7 @@
 6.1 竞争冒险 Race condition 举个例子：假设有函数push，用来给一个链表添加节点到头节点的位置上。
 struct element { int data; struct element *next; }; struct element *list = 0; void push(int data) { struct element *l; l = malloc(sizeof *l); //13 l-&gt;data = data; //14 l-&gt;next = list; //15 list = l; //16 } 假如现在有两个CPU共享一个链表并且几乎同时调用了这个方法。当它们都运行到第15行的时候，某个CPU会率先执行赋值操作，把新建的节点指向之前的头节点list。而在它执行第16行之前，另一个CPU也执行了第15行，让自己的新建的节点也一样指向了之前的头节点。这里就出现了不合法的行为：有两个新建的元素都指向了之前的头节点。当地一个CPU运行了16行之后，后一个CPU将会覆盖前者的修改，导致 更新丢失（Update lost）。"><meta itemprop="datePublished" content="2022-07-20T17:48:44-04:00" />
 <meta itemprop="dateModified" content="2022-07-20T17:48:44-04:00" />
-<meta itemprop="wordCount" content="752">
+<meta itemprop="wordCount" content="762">
 <meta itemprop="keywords" content="" /><meta property="og:title" content="Chap 6: 锁 Locking" />
 <meta property="og:description" content="目录 导言 6.1竞争冒险 Race condition 6.2 Code：锁 Code: Lock 6.3 锁的使用 Code: Using Locks 6.4 死锁和锁的顺序 Deadlock and lock ordering 6.5 锁和中断处理器 Locks and interrupt handlers 6.6 指令和内存顺序 Instruction and memory ordering 6.7 睡眠锁 Sleep-locks 6.7 UART中的锁 Case study 6.8 练习 Exercises 导言： 操作系统通常会 交错（Interleave） 运行不同的活动，这种交错主要由于3种行为
 多核CPU共用ram。由于一台计算机中可以有多个CPU/核心，但是只有一个内存空间，这就导致多个CPU可能在同一时刻访问一个地址并修改。
@@ -228,7 +228,7 @@ struct element { int data; struct element *next; }; struct element *list = 0; vo
 </span></span><span class="line"><span class="cl"><span class="n">r2</span> <span class="o">&lt;-</span> <span class="n">tmp</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl"><span class="n">unlock</span> <span class="n">addr</span><span class="p">;</span>
 </span></span></code></pre></div><p>所以把两个寄存器都传同一个，就可以交换这个寄存器和物理地址里的值。同时有独立的硬件保护（硬件层面上锁而非软件层面）被操作的地址，让别的CPU无法同时访问。CPU具体的实现方法依赖于内存系统的实现，所说的“硬件”可能是内存管理器，也可能是缓存相关的硬件等等。</p>
-<p>    xv6中使用了**__sync_lock_test_and_set()**这一C的标准库中的函数，它封装了上述的指令。当这个函数被调用的时候，会调用这一指令把<code>locked</code>设置为1（无论之前的值是什么），并返回<code>locked</code>之前的值，假如返回值是0，则说明这个锁之前没有被其他进程正在使用，即可继续运行；如果返回值是1，则会持续循环，直到返回值为0.</p>
+<p>    xv6中使用了 <strong>__sync_lock_test_and_set()</strong> 这一C的标准库中的函数，它封装了上述的指令。当这个函数被调用的时候，会调用这一指令把<code>locked</code>设置为1（无论之前的值是什么），并返回<code>locked</code>之前的值，假如返回值是0，则说明这个锁之前没有被其他进程正在使用，即可继续运行；如果返回值是1，则会持续循环，直到返回值为0.</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="c1">//acquire的正确实现：
 </span></span></span><span class="line"><span class="cl"><span class="c1">// Loops (spins) until the lock is acquired.
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kt">void</span>
@@ -265,7 +265,7 @@ struct element { int data; struct element *next; }; struct element *list = 0; vo
 </span></span><span class="line"><span class="cl">  <span class="nf">__sync_lock_release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">lk</span><span class="o">-&gt;</span><span class="n">locked</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">  <span class="nf">pop_off</span><span class="p">();</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span></code></pre></div><p>它首先会清空l<code>k-&gt;cpu</code>，同样地它会调用一个函数<code>__sync_lock_release</code>来原子化地把<code>locked</code>换成0.后面这个函数同样封装了<code>amoswap</code>。不同于<code>acquire</code>, <code>release</code>不需要把n步合并成一步。但是这里仍然使用了这个<code>amoswap</code>是因为在某些情况下，<code>store</code>可能会分步进行，这取决于更多底层的实现。</p>
+</span></span></code></pre></div><p>它首先会清空<code>lk-&gt;cpu</code>，同样地它会调用一个函数<code>__sync_lock_release</code>来原子化地把<code>locked</code>换成0.后面这个函数同样封装了<code>amoswap</code>。不同于<code>acquire</code>, <code>release</code>不需要把n步合并成一步。但是这里仍然使用了这个<code>amoswap</code>是因为在某些情况下，<code>store</code>可能会分步进行，这取决于更多底层的实现。</p>
 <br>
 <br>
 <br>
@@ -328,18 +328,21 @@ struct element { int data; struct element *next; }; struct element *list = 0; vo
 <br>
 <br>
 <h2 id="65-锁和中断处理器-locks-and-interrupt-handlers">6.5 锁和中断处理器 Locks and interrupt handlers<a href="#65-锁和中断处理器-locks-and-interrupt-handlers" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
-<p>    有时候锁会被用于保护会被线程和设备中断处理代码使用的一些数据。比如<strong>clockintr()<strong>会去更新</strong>tick</strong>，而<strong>sys_sleep</strong>可能在同一时刻去读取<strong>ticks</strong>。假设<strong>sleep</strong>先去读取了这个<strong>ticks</strong>，并且在读取前获取了一个锁阻止其他进程访问这个数据。在它释放这个锁之前，一个时钟中断发生了，<strong>clockintr</strong>想要去更新<strong>ticks</strong>，那么后者会把<strong>sleep</strong>打断并开始运行。可由于<strong>ticks</strong>上了锁，该中断也需要等待锁被释放次才能更新<strong>ticks</strong>。这时死锁就出现了：中断等着<strong>sleep</strong>释放自己的锁，<strong>sleep</strong>等待中断运行结束并返回。（死锁并不是只有两个锁才能出现）。换句话说，中断可能去获取它所中断的代码已经获取的锁。</p>
+<p>    有时候锁会被用于保护会被线程和设备中断处理代码使用的一些数据。比如<strong>clockintr()<strong>会去更新</strong>tick</strong>，而<strong>sys_sleep</strong>可能在同一时刻去读取<strong>ticks</strong>。假设<strong>sleep</strong>先去读取了这个<strong>ticks</strong>，并且在读取前获取了一个锁阻止其他进程访问这个数据。在它释放这个锁之前，一个时钟中断发生了，<strong>clockintr</strong>想要去更新<strong>ticks</strong>，那么后者会把<strong>sleep</strong>打断并开始运行。可由于<strong>ticks</strong>上了锁，该中断也需要等待锁被释放次才能更新<strong>ticks</strong>。这时死锁就出现了：中断等着<strong>sleep</strong>释放自己的锁，<strong>sleep</strong>等待中断运行结束并返回（死锁并不是只有两个锁才能出现）。换句话说，中断可能去获取它所中断的代码已经获取的锁。</p>
 <p>    为了避免这种情况的发生，xv6在一个进程获取了锁之后会禁止中断在该CPU上发生。换句话说，当一个CPU在处理关键部分的内容时，此时发生的中断应当交给其他CPU去处理，这样虽然会中断其他CPU，但是并不会导致当前CPU死锁（如果发生了上面的情况，此时中断可以在另一个CPU上自旋）。</p>
 <p>    实现方式：在<strong>acquire</strong>和<strong>release</strong>中修改同一个计数器，这个计数器是当前CPU（核心）的一个属性（保存在这个CPU核心的结构体内），当这个计数器不为0的时候，证明当前CPU正在处理关键内容且此时中断禁止。比如在<code>acquire</code>中，在修改locked的值之前，第一个调用的函数就是<code>push_off</code>。</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span>
 </span></span><span class="line"><span class="cl"><span class="nf">push_off</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
-</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">old</span> <span class="o">=</span> <span class="nf">intr_get</span><span class="p">();</span>
-</span></span><span class="line"><span class="cl">  <span class="c1">//禁止中断
+</span></span><span class="line"><span class="cl">  <span class="c1">// 检查当前CPU是否允许中断
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="kt">int</span> <span class="n">old</span> <span class="o">=</span> <span class="nf">intr_get</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">// 禁止中断
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="nf">intr_off</span><span class="p">();</span>
-</span></span><span class="line"><span class="cl">  <span class="c1">//查看计数器
+</span></span><span class="line"><span class="cl">  <span class="c1">// 查看计数器
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="c1">// 若为0，则保持之前对中断的态度（但实际上仍然禁止中断）
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">if</span><span class="p">(</span><span class="nf">mycpu</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">noff</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
-</span></span><span class="line"><span class="cl">    <span class="nf">mycpu</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">intena</span> <span class="o">=</span> <span class="n">old</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="c1">// 设置“对中断的态度”
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="nf">mycpu</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">intena</span> <span class="o">=</span> <span class="n">old</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">  <span class="nf">mycpu</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">noff</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></div><p>这个函数会首先禁止中断发生，增加<code>mycpu-&gt;noff</code>的值。禁止中断通过调用函数<code>intr_off</code>实现，底层是一个RISC-V的指令。<code>noff</code>就是上述的“计数器”。在修改<code>locked</code>之前修改<code>noff</code>很重要：假如顺序相反，那么可能在修改了<code>locked</code>还没有修改<code>noff</code>（禁止中断）之前有中断发生。正确的顺序防止窗口期存在。</p>
