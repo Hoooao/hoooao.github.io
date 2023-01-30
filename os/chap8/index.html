@@ -8,7 +8,8 @@
 	<meta name="theme-color" content="#494f5c">
 	<meta name="msapplication-TileColor" content="#494f5c">
 <meta itemprop="name" content="Chap 8: 文件系统 File system">
-<meta itemprop="description" content="目录 导言 8.1 概述 Overview 8.2 缓存缓冲层 Buffer cache layer 8.3 代码：缓存缓冲 Buffer cache 8.4 日志层 Logging Layer 8.5 日志设计 Log Design 8.6 代码：日志 Code：logging 8.7 代码：Block分配器 Code：Block Allocator 8.8 Inode层 Inode layer 8.9 代码：Inode Code：Inode 8.10 代码：Inode 内容 Code：Inode content 8.11 代码：目录层 Code：Directory layer 8.12 代码：路径名称 Code：Path names 8.13 文件描述符层 File descriptor layer 8.14 代码：系统调用 Code：System calls 8.15 练习 Exercises 导言： 一个文件系统的目的是储存和组织数据，把这些数据供给与多个进程和用户，同时也要保证重启后数据的保留。 创建一个文件系统有几个难点：
+<meta itemprop="description" content="目录 导言 8.1 概述 Overview 8.2 缓存缓冲层 Buffer cache layer 8.3 代码：缓存缓冲 Buffer cache 8.4 日志层 Logging Layer 8.5 日志设计 Log Design 8.6 代码：日志 Code：logging 8.7 代码：Block分配器 Code：Block Allocator 8.8 Inode层 Inode layer 8.9 代码：Inode Code：Inode 8.10 代码：Inode 内容 Code：Inode content 8.11 代码：目录层 Code：Directory layer 8.12 代码：路径名称 Code：Path names 8.13 文件描述符层 File descriptor layer 8.14 代码：系统调用 Code：System calls 8.15 练习 Exercises 导言： 一个文件系统的目的是储存和组织数据，把这些数据供给与多个进程和用户，同时也要保证重启后数据的保留。
+创建一个文件系统有几个难点：
 文件系统需要有一个在磁盘上的树类结构去储存文件目录和文件本身。并且也要知道哪些磁盘块（block/sector）是被占用的，哪些是可以使用的。
 文件系统必须有崩溃修复机制。也就是说在崩溃发生，比如断电，重启后，文件系统必须正常工作。不然可能造成类似并行错误的发生。
 不同的进程可能会同时去访问一个文件，所以需要保证并发时文件系统也能正常运行。
@@ -16,9 +17,10 @@
 本章解释xv6是如何解决这些困难的。
 8.1 概述 Overview xv6的文件系统有7层:"><meta itemprop="datePublished" content="2022-07-30T21:51:42-04:00" />
 <meta itemprop="dateModified" content="2022-07-30T21:51:42-04:00" />
-<meta itemprop="wordCount" content="2472">
+<meta itemprop="wordCount" content="2477">
 <meta itemprop="keywords" content="" /><meta property="og:title" content="Chap 8: 文件系统 File system" />
-<meta property="og:description" content="目录 导言 8.1 概述 Overview 8.2 缓存缓冲层 Buffer cache layer 8.3 代码：缓存缓冲 Buffer cache 8.4 日志层 Logging Layer 8.5 日志设计 Log Design 8.6 代码：日志 Code：logging 8.7 代码：Block分配器 Code：Block Allocator 8.8 Inode层 Inode layer 8.9 代码：Inode Code：Inode 8.10 代码：Inode 内容 Code：Inode content 8.11 代码：目录层 Code：Directory layer 8.12 代码：路径名称 Code：Path names 8.13 文件描述符层 File descriptor layer 8.14 代码：系统调用 Code：System calls 8.15 练习 Exercises 导言： 一个文件系统的目的是储存和组织数据，把这些数据供给与多个进程和用户，同时也要保证重启后数据的保留。 创建一个文件系统有几个难点：
+<meta property="og:description" content="目录 导言 8.1 概述 Overview 8.2 缓存缓冲层 Buffer cache layer 8.3 代码：缓存缓冲 Buffer cache 8.4 日志层 Logging Layer 8.5 日志设计 Log Design 8.6 代码：日志 Code：logging 8.7 代码：Block分配器 Code：Block Allocator 8.8 Inode层 Inode layer 8.9 代码：Inode Code：Inode 8.10 代码：Inode 内容 Code：Inode content 8.11 代码：目录层 Code：Directory layer 8.12 代码：路径名称 Code：Path names 8.13 文件描述符层 File descriptor layer 8.14 代码：系统调用 Code：System calls 8.15 练习 Exercises 导言： 一个文件系统的目的是储存和组织数据，把这些数据供给与多个进程和用户，同时也要保证重启后数据的保留。
+创建一个文件系统有几个难点：
 文件系统需要有一个在磁盘上的树类结构去储存文件目录和文件本身。并且也要知道哪些磁盘块（block/sector）是被占用的，哪些是可以使用的。
 文件系统必须有崩溃修复机制。也就是说在崩溃发生，比如断电，重启后，文件系统必须正常工作。不然可能造成类似并行错误的发生。
 不同的进程可能会同时去访问一个文件，所以需要保证并发时文件系统也能正常运行。
@@ -32,7 +34,8 @@
 
 <meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="Chap 8: 文件系统 File system"/>
-<meta name="twitter:description" content="目录 导言 8.1 概述 Overview 8.2 缓存缓冲层 Buffer cache layer 8.3 代码：缓存缓冲 Buffer cache 8.4 日志层 Logging Layer 8.5 日志设计 Log Design 8.6 代码：日志 Code：logging 8.7 代码：Block分配器 Code：Block Allocator 8.8 Inode层 Inode layer 8.9 代码：Inode Code：Inode 8.10 代码：Inode 内容 Code：Inode content 8.11 代码：目录层 Code：Directory layer 8.12 代码：路径名称 Code：Path names 8.13 文件描述符层 File descriptor layer 8.14 代码：系统调用 Code：System calls 8.15 练习 Exercises 导言： 一个文件系统的目的是储存和组织数据，把这些数据供给与多个进程和用户，同时也要保证重启后数据的保留。 创建一个文件系统有几个难点：
+<meta name="twitter:description" content="目录 导言 8.1 概述 Overview 8.2 缓存缓冲层 Buffer cache layer 8.3 代码：缓存缓冲 Buffer cache 8.4 日志层 Logging Layer 8.5 日志设计 Log Design 8.6 代码：日志 Code：logging 8.7 代码：Block分配器 Code：Block Allocator 8.8 Inode层 Inode layer 8.9 代码：Inode Code：Inode 8.10 代码：Inode 内容 Code：Inode content 8.11 代码：目录层 Code：Directory layer 8.12 代码：路径名称 Code：Path names 8.13 文件描述符层 File descriptor layer 8.14 代码：系统调用 Code：System calls 8.15 练习 Exercises 导言： 一个文件系统的目的是储存和组织数据，把这些数据供给与多个进程和用户，同时也要保证重启后数据的保留。
+创建一个文件系统有几个难点：
 文件系统需要有一个在磁盘上的树类结构去储存文件目录和文件本身。并且也要知道哪些磁盘块（block/sector）是被占用的，哪些是可以使用的。
 文件系统必须有崩溃修复机制。也就是说在崩溃发生，比如断电，重启后，文件系统必须正常工作。不然可能造成类似并行错误的发生。
 不同的进程可能会同时去访问一个文件，所以需要保证并发时文件系统也能正常运行。
@@ -128,8 +131,8 @@
 <hr>
 <br>
 <h2 id="导言">导言：<a href="#导言" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
-<p>    一个文件系统的目的是储存和组织数据，把这些数据供给与多个进程和用户，同时也要保证重启后数据的保留。
-    创建一个文件系统有几个难点：</p>
+<p>    一个文件系统的目的是储存和组织数据，把这些数据供给与多个进程和用户，同时也要保证重启后数据的保留。</p>
+<p>    创建一个文件系统有几个难点：</p>
 <blockquote>
 <ol>
 <li>
@@ -189,7 +192,7 @@
 </ol>
 </blockquote>
 <p>    数据的最小单位时bit，但是对于磁盘的每次读写的最小单位是 <code>512Bytes</code>，也称之为 “一<strong>块（Block/sector）</strong>”。这里的block和操作系统中的block的大小可能并不总是相等，但是后者通常是前者的整数倍。它们在磁盘上连续排列：sector0, sector1&hellip;。xv6保存着一部分block的复制，这些“复制品”被保存在独立的<code>buf</code>结构体中。这些复制品有的时候可能和磁盘上的本体的数据是不一样，也就是“不同步”。比如可能因为磁盘工作于本体block，而OS还没有读取；更常见的情况是OS对复制品进行了修改，但是还没更新本体来同步。</p>
-<p>    文件系统必须良好的组织不同的东西，比如如何储存inode和inode/文件的内容本身。xv6中，磁盘被分成了多个部分</p>
+<p>    文件系统必须良好地组织不同的东西，比如如何储存inode和inode/文件的内容本身。xv6中，磁盘被分成了多个部分</p>
 <figure>
 <div style="text-align:center">
 <img src="https://i.imgur.com/2PiH0tb.png" alt="" style="width:100%; background: rgba(255, 255, 255, .5)">
@@ -215,7 +218,7 @@
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="c1">// head.next is most recent, head.prev is least.
 </span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="k">struct</span> <span class="n">buf</span> <span class="n">head</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span> <span class="n">bcache</span><span class="p">;</span>
-</span></span></code></pre></div><p>每个buf结构体都代表着一个从磁盘中读取的block。最重要的函数是<code>bread</code>和<code>bwrite</code>。前者会从磁盘中读取一个block放入结构体，然后返回这个结构体（上持有睡眠锁）。后者把buf结构体写回磁盘。同时还有函数<code>brelse</code>，每当一个进程使用完了一个buf之后，都需要调用它来释放这个buf的睡眠锁。在缓冲缓存层，每个buf都有一个属于自己的睡眠锁，这使得每次只能有一个进程使用这个buf。由于<code>bcache</code>的长度是有限的，每当使用完全部的槽位之后而又有新的block需要被复制进来，那么就需要重新利用某些槽位。原则是，舍弃<strong>最近最少使用（LRU：Least recently used）</strong> 的buf的草味，因为通常假设LRU位置上的是最不可能再次被使用的block。<strong>注</strong>：由于崩溃恢复机制的规定，没有系统调用会直接使用<code>bwrite</code>写入磁盘，而是进过多层封装，最终由log相关的代码调用。</p>
+</span></span></code></pre></div><p>每个buf结构体都代表着一个从磁盘中读取的block。最重要的函数是<code>bread</code>和<code>bwrite</code>。前者会从磁盘中读取一个block放入结构体，然后返回这个结构体（上持有睡眠锁）。后者把buf结构体写回磁盘。同时还有函数<code>brelse</code>，每当一个进程使用完了一个buf之后，都需要调用它来释放这个buf的睡眠锁。在缓冲缓存层，每个buf都有一个属于自己的睡眠锁，这使得每次只能有一个进程使用这个buf。由于<code>bcache</code>的长度是有限的，每当使用完全部的槽位之后而又有新的block需要被复制进来，那么就需要重新利用某些槽位。原则是，舍弃<strong>最近最少使用（LRU：Least recently used）</strong> 的buf的槽位，因为通常假设LRU位置上的是最不可能再次被使用的block。<strong>注</strong>：由于崩溃恢复机制的规定，没有系统调用会直接使用<code>bwrite</code>写入磁盘，而是经过多层封装，最终由log相关的代码调用。</p>
 <h2 id="83-代码缓存缓冲-buffer-cache">8.3 代码：缓存缓冲 Buffer cache<a href="#83-代码缓存缓冲-buffer-cache" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path><line x1="8" y1="12" x2="16" y2="12"></line></svg></a></h2>
 <p>    每个buf可以被看作bcache中维护的那个数组的节点：</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="k">struct</span> <span class="n">buf</span> <span class="p">{</span>
@@ -255,8 +258,8 @@
 </span></span><span class="line"><span class="cl">    <span class="k">if</span><span class="p">(</span><span class="n">b</span><span class="o">-&gt;</span><span class="n">refcnt</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
 </span></span><span class="line"><span class="cl">      <span class="n">b</span><span class="o">-&gt;</span><span class="n">dev</span> <span class="o">=</span> <span class="n">dev</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">      <span class="n">b</span><span class="o">-&gt;</span><span class="n">blockno</span> <span class="o">=</span> <span class="n">blockno</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">      <span class="n">b</span><span class="o">-&gt;</span><span class="n">valid</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
-</span></span><span class="line"><span class="cl">      <span class="n">b</span><span class="o">-&gt;</span><span class="n">refcnt</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">      <span class="n">b</span><span class="o">-&gt;</span><span class="n">valid</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="c1">// 因为还没有读进来
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>      <span class="n">b</span><span class="o">-&gt;</span><span class="n">refcnt</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
 </span></span><span class="line"><span class="cl">      <span class="nf">release</span><span class="p">(</span><span class="o">&amp;</span><span class="n">bcache</span><span class="p">.</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">      <span class="nf">acquiresleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">b</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl">      <span class="k">return</span> <span class="n">b</span><span class="p">;</span>
@@ -264,7 +267,7 @@
 </span></span><span class="line"><span class="cl">  <span class="p">}</span>
 </span></span><span class="line"><span class="cl">  <span class="nf">panic</span><span class="p">(</span><span class="s">&#34;bget: no buffers&#34;</span><span class="p">);</span>
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
-</span></span></code></pre></div><p><code>bget</code>会先去<code>bcache</code>中找传入的blockno是否存在，如果存在则直接返回，注意这个循环是从头部开始正序遍历，因为假设bread可能是来访问一个已经被载入缓存的block的。但是假如目标复制品不存在，就需要放弃一个保存的复制品了。注意这里的循环是从尾部（由于是一个环形链表，尾部在头部之前）开始遍历到头部来找<code>refcnt</code>，也就是对于有多少个指针指向这个buf的计数，为0的buf，如果有就把这个buf替换成新的buf的信息（<code>device，sector number</code>等），如果没有，就崩溃。在返回这个buf之前，<code>bget</code>会为它开启<code>sleeplock</code>，这样就保证了只有使用<code>bread</code>的进程可以使用这个buf。
+</span></span></code></pre></div><p><code>bget</code>会先去<code>bcache</code>中找传入的blockno是否存在，如果存在则直接返回，注意这个循环是从头部开始正序遍历，因为假设bread可能是来访问一个已经被载入缓存的block的。但是假如目标复制品不存在，就需要放弃一个保存的复制品了。注意这里的循环是从尾部（由于是一个环形链表，尾部在头部之前）开始遍历到头部来找<code>refcnt</code>，也就是对于有多少个指针指向这个buf的计数，为0的buf，如果有就把这个buf替换成新的buf的信息（<code>device，sector number</code>等），如果没有，就崩溃(xv6简单粗暴的做法)。在返回这个buf之前，<code>bget</code>会为它开启<code>sleeplock</code>，这样就保证了只有使用<code>bread</code>的进程可以使用这个buf（也可以说<code>bread</code>得到了一个上了锁的buf）。
 在<code>bread</code>得到一个buf之后，假如<code>valid</code>没有被设置，也就是说得到的是一个全新的buf，<code>bread</code>会通过调用函数 <code>virtio_disk_rw</code>从磁盘中把目标block的内容读取进来。</p>
 <p>    每一个block只能在<code>bcache</code>中有一份复制，不然未来同步的时候可能起冲突。<code>bget</code>保证了这一不变量：在遍历<code>bcache</code>寻找目标buf前，bget会获取<code>bcache</code>的自旋锁。这样别的进程就无法同时操作这个数组了。假如两个进程想要获取同一个block，当前一个进程得到锁并且把目标block加载入buf中后，另一个进程间会在循环中看到其目标block已经在buf中了。这保证了对于目标buf是否存在以及对不存在的block的载入的原子化。在代码中，bget先释放了bcache才给目标buf上锁，这是安全的因为此时<code>refcnt</code>已经不是0，别的进程无法把这个buf分配给另一个block了。注意，这个过程中<code>bcache.lock</code>保证了<code>bcache</code>的不变量（只有一份复制），而<code>b.sleeplock</code>保证了buf的内容的安全（只有一个进程可以使用它）。</p>
 <p>    使用了<code>bread</code>的进程将会得到一个buf的使用权，假如这个进程对其内容做出了修改，那么必须要调用<code>bwrite</code></p>
@@ -273,8 +276,8 @@
 </span></span><span class="line"><span class="cl"><span class="p">{</span>
 </span></span><span class="line"><span class="cl">  <span class="k">if</span><span class="p">(</span><span class="o">!</span><span class="nf">holdingsleep</span><span class="p">(</span><span class="o">&amp;</span><span class="n">b</span><span class="o">-&gt;</span><span class="n">lock</span><span class="p">))</span>
 </span></span><span class="line"><span class="cl">    <span class="nf">panic</span><span class="p">(</span><span class="s">&#34;bwrite&#34;</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl">  <span class="nf">virtio_disk_rw</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span>
-</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">virtio_disk_rw</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span> <span class="c1">// 0:R 1:W
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span>
 </span></span></code></pre></div><p>把做出的修改写回到磁盘中去。同样地，它也使用了<code>virtio_disk_rw</code>。注意，调用<code>bwrite</code>之前，b的<code>sleeplock</code>一定是在被获取的状态，不然的话将会无法成功写入：因为程序无法保证这一写入是否被并发破坏。虽然在<code>bwrite</code>中没有释放这个锁，有专门的<code>bresle</code>函数用来释放这个锁。</p>
 <div class="highlight"><pre tabindex="0" class="chroma"><code class="language-C" data-lang="C"><span class="line"><span class="cl"><span class="kt">void</span>
 </span></span><span class="line"><span class="cl"><span class="nf">brelse</span><span class="p">(</span><span class="k">struct</span> <span class="n">buf</span> <span class="o">*</span><span class="n">b</span><span class="p">)</span>

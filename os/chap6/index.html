@@ -398,7 +398,7 @@ struct element { int data; struct element *next; }; struct element *list = 0; vo
 </li>
 </ol>
 </blockquote>
-<p>sleep-locks的出现解决了睡眠的缺点。其获取和释放函数分别是<code>acquiresleep, releasesleep</code>。前者会调用<code>sleep</code>，<code>sleep</code>会让线程进入等待并且自动<code>yield</code>该CPU，给其他线程运行机会。由于Sleep-locks允许中断，它不能用在处理中断的代码中（这些代码禁止中断），也不能运行在被自旋锁保护的代码中。Sleep-lock适合保护长代码，自旋锁适合短代码。</p>
+<p>sleep-locks的出现解决了睡眠的缺点。其获取和释放函数分别是<code>acquiresleep, releasesleep</code>。前者会调用<code>sleep</code>，<code>sleep</code>会让线程进入等待并且自动<code>yield</code>该CPU，给其他线程运行机会。由于Sleep-locks允许中断，它不能用在处理中断的代码中（这些代码禁止中断），也不能运行在被自旋锁保护的代码中。Sleep-lock适合保护获取锁的预期时间久的代码，自旋锁适合预期很快就能获取锁的代码。</p>
 <br>
 <br>
 <br>
