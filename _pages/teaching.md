@@ -1,12 +1,14 @@
 ---
 layout: page
 permalink: /teaching/
-title: teaching
-description: Materials for courses you taught. Replace this text with your description.
+title: Teaching
+description:
 nav: true
-nav_order: 6
+nav_order: 3
 ---
 
-For now, this page is assumed to be a static description of your courses. You can convert it to a collection similar to `_projects/` so that you can have a dedicated page for each course.
+### New York University
 
-Organize your courses by years, topics, or universities, however you like!
+- CSCI-UA 310: Basic Algorithms - Recitation Leader - Fall 2025 
+- CSCI-UA 202: Operating Systems - Teaching Assistant - Fall 2025 
+- CSCI-UA 201: Computer Systems Organization - Tutor - Fall 2025 
