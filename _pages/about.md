@@ -26,10 +26,10 @@ latest_posts:
   limit: 3 # leave blank to include all the blog posts
 ---
 
-Hi! 
+Hi!
 
-My name is Xiyu Hao. I am currently a Master's student majoring Computer Science at New York University. I am advised by [Prof.Anirudh Sivaraman](https://anirudhsk.github.io/). 
+My name is Xiyu Hao. I am currently a Master's student majoring Computer Science at New York University. I am advised by [Prof.Anirudh Sivaraman](https://anirudhsk.github.io/).
 
-I am interested in Distributed Systems (engineering and theory), PL, and Formal Methods in general. Currently, I am working on [P4](https://p4.org/) enhancement, and [BFT](https://en.wikipedia.org/wiki/Byzantine_fault) optimization. 
+I am interested in Distributed Systems (engineering and theory), PL, and Formal Methods in general. Currently, I am working on [P4](https://p4.org/) enhancement, and [BFT](https://en.wikipedia.org/wiki/Byzantine_fault) optimization.
 
 I obtained my Bachalor's degree from NYU as well.

@@ -1,7 +1,7 @@
 ---
 layout: default
 ---
-{% assign cv_pdf_url = nil %}
+{% assign cv_pdf_url = null %}
 {% if page.cv_pdf %}
   {% if page.cv_pdf contains '://' %}
     {% assign cv_pdf_url = page.cv_pdf %}
@@ -40,9 +40,7 @@ layout: default
           height="900"
         >
           <p>
-            <a href="{{ cv_pdf_url }}" target="_blank" rel="noopener noreferrer">
-              View the CV PDF
-            </a>
+            <a href="{{ cv_pdf_url }}" target="_blank" rel="noopener noreferrer"> View the CV PDF </a>
           </p>
         </object>
       {% else %}
