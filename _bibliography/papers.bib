@@ -1,3 +1,19 @@
+@misc{qian2026revisitingspeculativeleaderlessprotocols,
+      abbr={Preprint},
+      title={Revisiting Speculative Leaderless Protocols for Low-Latency BFT Replication},
+      author={Daniel Qian and Xiyu Hao and Jinkun Geng and Yuncheng Yao and Aurojit Panda and Jinyang Li and Anirudh Sivaraman},
+      eprint={2601.03390},
+      archivePrefix={arXiv},
+      primaryClass={cs.DC},
+      note={Under review},
+      selected={true},
+      year = {2026},
+      preview={aspen_preview.png},
+      abstract = {As Byzantine Fault Tolerant (BFT) protocols begin to be used in permissioned blockchains for user-facing applications such as payments, it is crucial that they provide low latency. In pursuit of low latency, some recently proposed BFT consensus protocols employ a leaderless optimistic fast path, in which clients broadcast their requests directly to replicas without first serializing requests at a leader, resulting in an end-to-end commit latency of 2 message delays (2Δ) during fault-free, synchronous periods. However, such a fast path only works if there is no contention: concurrent contending requests can cause replicas to diverge if they receive conflicting requests in different orders, triggering costly recovery procedures. In this work, we present Aspen, a leaderless BFT protocol that achieves a near-optimal latency of 2Δ+ε, where ε indicates a short waiting delay. Aspen removes the no-contention condition by utilizing a best-effort sequencing layer based on loosely synchronized clocks and network delay estimates. Aspen requires n=3f+2p+1 replicas to cope with up to f Byzantine nodes. The 2p extra nodes allow Aspen's fast path to proceed even if up to p replicas diverge due to unpredictable network delays. When its optimistic conditions do not hold, Aspen falls back to PBFT-style protocol, guaranteeing safety and liveness under partial synchrony. In experiments with wide-area distributed replicas, Aspen commits requests in less than 75 ms, a 1.2 to 3.3× improvement compared to previous protocols, while supporting 19,000 requests per second.},
+      url={https://arxiv.org/abs/2601.03390}, 
+      pdf={https://arxiv.org/pdf/2601.03390}
+}
+
 @inproceedings{10.1145/3718958.3750530,
 abbr={SIGCOMM '25},
 author = {Haseeb, Muhammad and Geng, Jinkun and Duclos-Cavalcanti, Daniel and Hao, Xiyu and Butler, Ulysses and Mittal, Radhika and Narayana, Srinivas and Sivaraman, Anirudh},
